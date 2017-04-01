@@ -1,0 +1,59 @@
+﻿<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Bot Chat</title>
+        <link href="https://unpkg.com/botframework-webchat/botchat.css" rel="stylesheet" />
+        <style>
+            .example {
+                float: left;
+                margin-right: 20px;
+                width: 300px;
+            }
+
+            #BotChatGoesHere {
+                border: 1px solid #333;
+                float: left;
+                height: 600px;
+                width: 460px;
+                position: relative;
+            }
+
+            #BotChatGoesHere.wc-wide {
+                width: 768px;
+            }
+
+            #BotChatGoesHere.wc-narrow {
+                width: 320px;
+            }
+
+        </style>
+    </head>
+    <body>
+
+        <section class="example">
+            <p>
+                This is an example of WebChat talking to a bot running locally the browser.
+            </p>
+        </section>
+
+        <div id="BotChatGoesHere"></div>
+        <script src="https://unpkg.com/botframework-webchat/botchat.js"></script>
+        <script>
+            var params = BotChat.queryParams(location.search);
+            window['botchatDebug'] = params['debug'] && params['debug'] === "true";
+
+            BotChat.App({
+                directLine: {
+                    secret: params['s'],
+                    token: params['t'],
+                    domain: params['domain'],
+                    webSocket: params['webSocket'] && params['webSocket'] === "true" // defaults to true
+                },
+                user: { id: 'localuser' },
+                bot: { id: 'localbot' },
+                resize: 'detect'
+            }, document.getElementById("BotChatGoesHere"));
+        </script>
+    </body>
+</html>
