@@ -41,16 +41,12 @@
         <script src="https://unpkg.com/botframework-webchat/botchat.js"></script>
         <script src="bot.js"></script>
         <script>
+            console.log("browserBot", window["browserBot"]);
             var params = BotChat.queryParams(location.search);
             window['botchatDebug'] = params['debug'] && params['debug'] === "true";
 
             BotChat.App({
-                directLine: {
-                    secret: params['s'],
-                    token: params['t'],
-                    domain: params['domain'],
-                    webSocket: params['webSocket'] && params['webSocket'] === "true" // defaults to true
-                },
+                botConnection: window["browserBot"],
                 user: { id: 'localuser' },
                 bot: { id: 'localbot' },
                 resize: 'detect'

@@ -4,14 +4,23 @@
   "description": "bot running in a browser",
   "main": "app.js",
   "scripts": {
-    "watch": "tsc -w",
+    "build": "webpack",
+    "watch": "webpack --progress --watch",
     "start": "http-server -p 8000",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
+    "awesome-typescript-loader": "^3.1.2",
+    "botframework-directlinejs": "^0.9.6",
+    "concurrently": "^3.4.0",
     "http-server": "^0.9.0",
-    "typescript": "^2.2.2"
+    "source-map-loader": "^0.2.1",
+    "typescript": "^2.2.2",
+    "webpack": "^2.3.2"
+  },
+  "dependencies": {
+    "rxjs": "^5.0.3"
   }
 }
