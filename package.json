@@ -4,12 +4,14 @@
   "description": "bot running in a browser",
   "main": "app.js",
   "scripts": {
+    "watch": "tsc -w",
     "start": "http-server -p 8000",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
-    "http-server": "^0.9.0"
+    "http-server": "^0.9.0",
+    "typescript": "^2.2.2"
   }
 }
