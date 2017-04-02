@@ -6623,29 +6623,62 @@ exports.Symbol = Symbol;
 
 "use strict";
 
+var __assign = (this && this.__assign) || Object.assign || function(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+    }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var rxjs_1 = __webpack_require__(86);
 var botframework_directlinejs_1 = __webpack_require__(85);
 var BrowserBot = (function () {
     function BrowserBot() {
-        this.activity$ = rxjs_1.Observable.timer(1000, 3000).map(function (i) { return ({
-            type: 'message',
-            id: i.toString(),
-            timestamp: (new Date()).toISOString(),
-            from: { id: 'browserBot' },
-            text: "hello, world #" + i
-        }); });
-        this.connectionStatus$ = new rxjs_1.BehaviorSubject(botframework_directlinejs_1.ConnectionStatus.Online);
+        var _this = this;
+        this.activityFromChat$ = new rxjs_1.Subject();
+        this.idFromChat = 0;
+        this.activityToChat$ = new rxjs_1.Subject();
+        this.idToChat = 0;
+        this.botConnection = {
+            postActivity: function (activity) { return _this.postActivityFromChat(activity); },
+            activity$: this.activityToChat$,
+            connectionStatus$: new rxjs_1.BehaviorSubject(botframework_directlinejs_1.ConnectionStatus.Online),
+            end: function () { }
+        };
+        this.chatConnector = {
+            postActivity: function (activity) { return _this.postActivityToChat(activity); },
+            activity$: this.activityFromChat$,
+        };
     }
-    BrowserBot.prototype.postActivity = function (activity) {
-        return rxjs_1.Observable.of("success");
+    BrowserBot.prototype.postActivityFromChat = function (activity) {
+        var newActivity = __assign({}, activity, { channelId: "WebChat", conversation: { id: "WebChat" }, timestamp: (new Date()).toISOString(), id: (this.idFromChat++).toString() });
+        this.activityFromChat$.next(newActivity);
+        return rxjs_1.Observable.of(newActivity.id);
     };
-    BrowserBot.prototype.end = function () {
+    BrowserBot.prototype.postActivityToChat = function (activity) {
+        var newActivity = __assign({}, activity, { timestamp: (new Date()).toISOString(), id: (this.idToChat++).toString() });
+        this.activityToChat$.next(newActivity);
+        return rxjs_1.Observable.of(newActivity);
     };
     return BrowserBot;
 }());
-console.log("setting browserBot");
-window["browserBot"] = new BrowserBot();
+var browserBot = new BrowserBot();
+window["browserBot"] = browserBot.botConnection;
+browserBot.chatConnector.activity$
+    .filter(function (activity) { return activity.type === 'message'; })
+    .flatMap(function (activity) { return browserBot.chatConnector.postActivity({
+    type: 'message',
+    from: { id: 'browserBot' },
+    text: "Echo: " + activity.text
+}); }).subscribe();
+rxjs_1.Observable.timer(1000, 5000)
+    .flatMap(function (i) { return browserBot.chatConnector.postActivity({
+    type: 'message',
+    from: { id: 'browserBot' },
+    text: "hello, world #" + i
+}); }).subscribe();
 
 
 /***/ }),
