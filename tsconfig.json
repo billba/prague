@@ -11,6 +11,6 @@
         "sourceMap": true
     },
     "files": [
-        "src/bot.ts"
+        "src/test.ts"
     ]
 }

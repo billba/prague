@@ -1,7 +1,7 @@
 var webpack = require('webpack');
 
 module.exports = {
-    entry: "./src/bot.ts",
+    entry: "./src/test.ts",
     output: {
         filename: "./public/bot.js",
     },

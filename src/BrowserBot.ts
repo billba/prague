@@ -1,12 +1,8 @@
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
-import { IBotConnection, Activity, ConnectionStatus, Message } from 'botframework-directlinejs';
+import { IBotConnection, Activity, ConnectionStatus } from 'botframework-directlinejs';
+import { ChatConnector } from './ChatConnector';
 
-interface ChatConnector {
-    postActivity(activity: Activity): Observable<Activity>; // returns the activity sent to chat channel, potentialy augmented with id etc.
-    activity$: Observable<Activity>; // activities received from chat channel 
-}
-
-class BrowserBot {
+export class BrowserBot {
     constructor() {
     }
 
@@ -50,23 +46,3 @@ class BrowserBot {
         activity$: this.activityFromChat$ as Observable<Activity>,
     }
 }
-
-const browserBot = new BrowserBot()
-
-window["browserBot"] = browserBot.botConnection;
-
-browserBot.chatConnector.activity$
-.filter(activity => activity.type === 'message')
-.flatMap(activity => browserBot.chatConnector.postActivity({
-    type: 'message',
-    from: { id: 'browserBot'},
-    text: `Echo: ${(activity as Message).text}`
-})).subscribe();
-
-Observable.timer(1000,5000)
-.flatMap(i => browserBot.chatConnector.postActivity({
-    type: 'message',
-    from: { id: 'browserBot'},
-    text: `hello, world #${i}`
-})).subscribe();
-
