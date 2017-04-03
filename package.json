@@ -21,6 +21,8 @@
     "webpack": "^2.3.2"
   },
   "dependencies": {
+    "convert-units": "^2.1.0",
+    "longest-common-substring": "0.0.1",
     "rxjs": "^5.0.3"
   }
 }

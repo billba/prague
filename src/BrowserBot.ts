@@ -25,6 +25,7 @@ export class BrowserBot {
     }
 
     private postActivityToChat(activity: Activity) {
+        console.log("posting", activity);
         const newActivity: Activity = {
             ... activity,
             timestamp: (new Date()).toISOString(),
@@ -43,6 +44,11 @@ export class BrowserBot {
 
     public chatConnector: ChatConnector = {
         postActivity: (activity: Activity) => this.postActivityToChat(activity),
+        send: (text: string) => this.postActivityToChat({
+            type: 'message',
+            from: { id: 'BrowserBot' },
+            text
+        }).subscribe(),
         activity$: this.activityFromChat$ as Observable<Activity>,
     }
 }

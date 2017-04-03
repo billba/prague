@@ -11,6 +11,6 @@
         "sourceMap": true
     },
     "files": [
-        "src/test.ts"
+        "src/recipe.ts"
     ]
 }
