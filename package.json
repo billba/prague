@@ -1,8 +1,8 @@
 {
-  "name": "isobot",
+  "name": "rxbot",
   "version": "0.0.1",
-  "description": "bot running in a browser",
-  "main": "app.js",
+  "description": "bot running in a browser using Redux and RxJS",
+  "main": "public/bot.js",
   "scripts": {
     "build": "webpack",
     "watch": "webpack --progress --watch",
