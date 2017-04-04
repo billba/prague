@@ -2,7 +2,6 @@ import lcs = require('longest-common-substring');
 import { convertIngredient } from "./weightsAndMeasures";
 import { recipesRaw } from './recipes';
 const recipes = recipesRaw as Partial<Recipe>[];
-console.log("recipes", recipes);
 
 //convertIngredient("1oz cheese", "metric");
 //convertIngredient("1lb cheese", "metric");
@@ -50,20 +49,42 @@ window["browserBot"] = browserBot.botConnection;
 
 const chat = browserBot.chatConnector;
 
-chat.activity$.subscribe(console.log);
-
 setTimeout(() => chat.send("Let's get cooking!"), 1000);
 
 const intents = {
     instructions: {
         start: /(Let's start|Start|Let's Go|Go|I'm ready|Ready|OK|Okay)\.*/i,
         next: /(Next|What's next|next up|OK|okay|Go|Continue)/i,
-        previous: /(go back|back up)/i,
-        repeat: /(what's that again|huh|say that again|repeat that|please repeat that)/i,
-        restart: /(start over|start again|)/i
+        previous: /(go back|back up|previous)/i,
+        repeat: /(what's that again|huh|say that again|please repeat that|repeat that|)/i,
+        restart: /(start over|start again|restart)/i
     },
     chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
-    queryQuantity: /how (?:many|much) (.+)/i,
+    queryQuantity: /how (?:many|much) (.+)/i
+}
+
+interface IntentAction {
+    (groups: RegExpExecArray): void; // return false to continue on to next test
+}
+
+interface IntentPair {
+    intent: RegExp,
+    action: IntentAction;  
+}
+
+const Test = (intent: RegExp, action: IntentAction, name?: string) => ({ intent, action });
+
+const testMessage = (message: Message, intentPairs: IntentPair[], defaultAction?: () => void) => {
+    const match = intentPairs.some(intentPair => {
+        const groups = intentPair.intent.exec(message.text);
+        if (groups && groups[0] === message.text) {
+            intentPair.action(groups);
+            return true;
+        }
+    });
+    if (!match && defaultAction)
+        defaultAction();
+    return match;
 }
 
 interface State {
@@ -73,90 +94,96 @@ interface State {
 
 const state: Partial<State> = {};
 
-chat.activity$
-.filter(activity => activity.type === 'message')
-.subscribe((message: Message) => {
-    let groups: RegExpExecArray;
-    // choose a recipe
-    if (groups = intents.chooseRecipe.exec(message.text)) {
-        const name = groups[1];
-        const recipe = recipeFromName(name);
-        if (recipe) {
-            state.recipe = recipe;
-            delete state.lastInstructionSent; // clear this out in case we're starting over
-            chat.send(`Great, let's make ${name} which ${recipe.recipeYield}!`);
-            recipe.recipeIngredient.forEach(ingredient => {
-                chat.send(ingredient);
-            })
-            chat.send("Let me know when you're ready to go.");
-        } else {
-            chat.send(`Sorry, I don't know how to make ${name}. Maybe you can teach me.`);
-        }
-    // Answer a query about ingredient quantity
-    } else if (groups = intents.queryQuantity.exec(message.text)) {
-        if (!state.recipe) {
-            chat.send("I can't answer that without knowing what we're making.")
-        } else {
-            const ingredientQuery = groups[1].split('');
-
-            const ingredient = state.recipe.recipeIngredient
-                .map<[string, number]>(i => [i, lcs(i.split(''), ingredientQuery).length])
-                .reduce((prev, curr) => prev[1] > curr[1] ? prev : curr)
-                [0];
-
-            chat.send(ingredient);
-        }
-    // read the next instruction
-    } else if (state.lastInstructionSent !== undefined && intents.instructions.next.test(message.text)) {
-        const nextInstruction = state.lastInstructionSent + 1;
-
-        if (nextInstruction < state.recipe.recipeInstructions.length) {
-            chat.send(state.recipe.recipeInstructions[nextInstruction]);
-            state.lastInstructionSent = nextInstruction;
-            if (state.recipe.recipeInstructions.length === nextInstruction + 1)
-                chat.send("That's it!");
-        } else {
-            chat.send("That's it!");
-        }
-    // repeat the current instruction
-    } else if (state.lastInstructionSent !== undefined && intents.instructions.repeat.test(message.text)) {
-        chat.send(state.recipe.recipeInstructions[state.lastInstructionSent]);
-    // read the previous instruction
-    } else if (state.lastInstructionSent !== undefined && intents.instructions.previous.test(message.text)) {
-        const prevInstruction = state.lastInstructionSent - 1;
-
-        if (prevInstruction >= 0) {
-            chat.send(state.recipe.recipeInstructions[prevInstruction]);
-            state.lastInstructionSent = prevInstruction;
-        } else {
-            chat.send("We're at the beginning.");
-        }
-    // start over
-    } else if (state.lastInstructionSent !== undefined && intents.instructions.restart.test(message.text)) {
-        state.lastInstructionSent = 0;
-        chat.send(state.recipe.recipeInstructions[0]);
-        if (state.recipe.recipeInstructions.length === 1)
-            chat.send("That's it!");            
-    // start reading the instructions
-    } else if (intents.instructions.start.test(message.text)) {
-        if (!state.recipe) {
-            chat.send("I'm glad you're so hot to trot, but please choose a recipe first.");
-        } else if (state.lastInstructionSent !== undefined) {
-            if (state.lastInstructionSent + 1 === state.recipe.recipeInstructions.length) {
-                chat.send("We're all done with that recipe. You can choose another recipe if you like.");
-            } else {
-                chat.send("We're still working on this recipe. You can continue, or choose another recipe.");
-            }
-        } else {
-            state.lastInstructionSent = 0;
-            chat.send(state.recipe.recipeInstructions[0]);
-            if (state.recipe.recipeInstructions.length === 1)
-                chat.send("That's it!");
-        }
-    } else {
-        chat.send("I can't understand you. It's you, not me. Get it together and try again.");
-    }
-});
+const globalDefaultAction = () => chat.send("I can't understand you. It's you, not me. Get it together and try again.");
 
 const recipeFromName = (name: string) =>
     recipes.find(recipe => recipe.name.toLowerCase() === name.toLowerCase());
+
+const chooseRecipe = (groups: RegExpExecArray) => {
+    const name = groups[1];
+    const recipe = recipeFromName(name);
+    if (recipe) {
+        state.recipe = recipe;
+        delete state.lastInstructionSent; // clear this out in case we're starting over
+        chat.send(`Great, let's make ${name} which ${recipe.recipeYield}!`);
+        recipe.recipeIngredient.forEach(ingredient => {
+            chat.send(ingredient);
+        })
+        chat.send("Let me know when you're ready to go.");
+    } else {
+        chat.send(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
+    }
+}
+
+const queryQuantity = (groups: RegExpExecArray) => {
+    const ingredientQuery = groups[1].split('');
+
+    const ingredient = state.recipe.recipeIngredient
+        .map<[string, number]>(i => [i, lcs(i.split(''), ingredientQuery).length])
+        .reduce((prev, curr) => prev[1] > curr[1] ? prev : curr)
+        [0];
+
+    chat.send(ingredient);
+}
+
+const sayInstruction = (i: number) => {
+    state.lastInstructionSent = i;
+    chat.send(state.recipe.recipeInstructions[i]);
+    if (state.recipe.recipeInstructions.length === i + 1)
+        chat.send("That's it!");
+}
+
+const mustChooseRecipe = () => chat.send("First please choose a recipe");
+
+chat.activity$
+.filter(activity => activity.type === 'message')
+.subscribe((message: Message) => {
+    // First priority is to choose a recipe
+    if (!state.recipe) {
+        testMessage(message, [
+            Test(intents.chooseRecipe, chooseRecipe),
+            Test(intents.queryQuantity, mustChooseRecipe),
+            Test(intents.instructions.start, mustChooseRecipe),
+            Test(intents.instructions.restart, mustChooseRecipe)
+        ], globalDefaultAction);
+        return;
+    }
+    
+    // These can happen any time there is an active recipe
+    if (testMessage(message, [
+            Test(intents.queryQuantity, queryQuantity),
+            // TODO: conversions
+    ])) {
+        return;
+    }
+
+    // Start instructions
+    if (state.lastInstructionSent === undefined) {
+        if (testMessage(message, [
+            Test(intents.instructions.start, () => sayInstruction(0))
+        ])) {
+            return;
+        }
+    }
+
+    // Navigate instructions
+    testMessage(message, [
+        Test(intents.instructions.next, () => {
+            const nextInstruction = state.lastInstructionSent + 1;
+            if (nextInstruction < state.recipe.recipeInstructions.length)
+                sayInstruction(nextInstruction);
+            else
+                chat.send("That's it!");
+        }),
+        Test(intents.instructions.repeat, () => sayInstruction(state.lastInstructionSent)),
+        Test(intents.instructions.previous, () => {
+            const prevInstruction = state.lastInstructionSent - 1;
+
+            if (prevInstruction >= 0)
+                sayInstruction(prevInstruction);
+            else
+                chat.send("We're at the beginning.");
+        }),
+        Test(intents.instructions.restart, () => sayInstruction(0))
+    ], globalDefaultAction);
+});

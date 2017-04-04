@@ -6563,7 +6563,6 @@ var lcs = __webpack_require__(388);
 var weightsAndMeasures_1 = __webpack_require__(96);
 var recipes_1 = __webpack_require__(95);
 var recipes = recipes_1.recipesRaw;
-console.log("recipes", recipes);
 //convertIngredient("1oz cheese", "metric");
 //convertIngredient("1lb cheese", "metric");
 //convertIngredient("10g cheese", "imperial");
@@ -6572,116 +6571,113 @@ var BrowserBot_1 = __webpack_require__(94);
 var browserBot = new BrowserBot_1.BrowserBot();
 window["browserBot"] = browserBot.botConnection;
 var chat = browserBot.chatConnector;
-chat.activity$.subscribe(console.log);
 setTimeout(function () { return chat.send("Let's get cooking!"); }, 1000);
 var intents = {
     instructions: {
         start: /(Let's start|Start|Let's Go|Go|I'm ready|Ready|OK|Okay)\.*/i,
         next: /(Next|What's next|next up|OK|okay|Go|Continue)/i,
-        previous: /(go back|back up)/i,
-        repeat: /(what's that again|huh|say that again|repeat that|please repeat that)/i,
-        restart: /(start over|start again|)/i
+        previous: /(go back|back up|previous)/i,
+        repeat: /(what's that again|huh|say that again|please repeat that|repeat that|)/i,
+        restart: /(start over|start again|restart)/i
     },
     chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
-    queryQuantity: /how (?:many|much) (.+)/i,
+    queryQuantity: /how (?:many|much) (.+)/i
+};
+var Test = function (intent, action, name) { return ({ intent: intent, action: action }); };
+var testMessage = function (message, intentPairs, defaultAction) {
+    var match = intentPairs.some(function (intentPair) {
+        var groups = intentPair.intent.exec(message.text);
+        if (groups && groups[0] === message.text) {
+            intentPair.action(groups);
+            return true;
+        }
+    });
+    if (!match && defaultAction)
+        defaultAction();
+    return match;
 };
 var state = {};
-chat.activity$
-    .filter(function (activity) { return activity.type === 'message'; })
-    .subscribe(function (message) {
-    var groups;
-    // choose a recipe
-    if (groups = intents.chooseRecipe.exec(message.text)) {
-        var name_1 = groups[1];
-        var recipe = recipeFromName(name_1);
-        if (recipe) {
-            state.recipe = recipe;
-            delete state.lastInstructionSent; // clear this out in case we're starting over
-            chat.send("Great, let's make " + name_1 + " which " + recipe.recipeYield + "!");
-            recipe.recipeIngredient.forEach(function (ingredient) {
-                chat.send(ingredient);
-            });
-            chat.send("Let me know when you're ready to go.");
-        }
-        else {
-            chat.send("Sorry, I don't know how to make " + name_1 + ". Maybe you can teach me.");
-        }
-        // Answer a query about ingredient quantity
-    }
-    else if (groups = intents.queryQuantity.exec(message.text)) {
-        if (!state.recipe) {
-            chat.send("I can't answer that without knowing what we're making.");
-        }
-        else {
-            var ingredientQuery_1 = groups[1].split('');
-            var ingredient = state.recipe.recipeIngredient
-                .map(function (i) { return [i, lcs(i.split(''), ingredientQuery_1).length]; })
-                .reduce(function (prev, curr) { return prev[1] > curr[1] ? prev : curr; })[0];
-            chat.send(ingredient);
-        }
-        // read the next instruction
-    }
-    else if (state.lastInstructionSent !== undefined && intents.instructions.next.test(message.text)) {
-        var nextInstruction = state.lastInstructionSent + 1;
-        if (nextInstruction < state.recipe.recipeInstructions.length) {
-            chat.send(state.recipe.recipeInstructions[nextInstruction]);
-            state.lastInstructionSent = nextInstruction;
-            if (state.recipe.recipeInstructions.length === nextInstruction + 1)
-                chat.send("That's it!");
-        }
-        else {
-            chat.send("That's it!");
-        }
-        // repeat the current instruction
-    }
-    else if (state.lastInstructionSent !== undefined && intents.instructions.repeat.test(message.text)) {
-        chat.send(state.recipe.recipeInstructions[state.lastInstructionSent]);
-        // read the previous instruction
-    }
-    else if (state.lastInstructionSent !== undefined && intents.instructions.previous.test(message.text)) {
-        var prevInstruction = state.lastInstructionSent - 1;
-        if (prevInstruction >= 0) {
-            chat.send(state.recipe.recipeInstructions[prevInstruction]);
-            state.lastInstructionSent = prevInstruction;
-        }
-        else {
-            chat.send("We're at the beginning.");
-        }
-        // start over
-    }
-    else if (state.lastInstructionSent !== undefined && intents.instructions.restart.test(message.text)) {
-        state.lastInstructionSent = 0;
-        chat.send(state.recipe.recipeInstructions[0]);
-        if (state.recipe.recipeInstructions.length === 1)
-            chat.send("That's it!");
-        // start reading the instructions
-    }
-    else if (intents.instructions.start.test(message.text)) {
-        if (!state.recipe) {
-            chat.send("I'm glad you're so hot to trot, but please choose a recipe first.");
-        }
-        else if (state.lastInstructionSent !== undefined) {
-            if (state.lastInstructionSent + 1 === state.recipe.recipeInstructions.length) {
-                chat.send("We're all done with that recipe. You can choose another recipe if you like.");
-            }
-            else {
-                chat.send("We're still working on this recipe. You can continue, or choose another recipe.");
-            }
-        }
-        else {
-            state.lastInstructionSent = 0;
-            chat.send(state.recipe.recipeInstructions[0]);
-            if (state.recipe.recipeInstructions.length === 1)
-                chat.send("That's it!");
-        }
-    }
-    else {
-        chat.send("I can't understand you. It's you, not me. Get it together and try again.");
-    }
-});
+var globalDefaultAction = function () { return chat.send("I can't understand you. It's you, not me. Get it together and try again."); };
 var recipeFromName = function (name) {
     return recipes.find(function (recipe) { return recipe.name.toLowerCase() === name.toLowerCase(); });
 };
+var chooseRecipe = function (groups) {
+    var name = groups[1];
+    var recipe = recipeFromName(name);
+    if (recipe) {
+        state.recipe = recipe;
+        delete state.lastInstructionSent; // clear this out in case we're starting over
+        chat.send("Great, let's make " + name + " which " + recipe.recipeYield + "!");
+        recipe.recipeIngredient.forEach(function (ingredient) {
+            chat.send(ingredient);
+        });
+        chat.send("Let me know when you're ready to go.");
+    }
+    else {
+        chat.send("Sorry, I don't know how to make " + name + ". Maybe one day you can teach me.");
+    }
+};
+var queryQuantity = function (groups) {
+    var ingredientQuery = groups[1].split('');
+    var ingredient = state.recipe.recipeIngredient
+        .map(function (i) { return [i, lcs(i.split(''), ingredientQuery).length]; })
+        .reduce(function (prev, curr) { return prev[1] > curr[1] ? prev : curr; })[0];
+    chat.send(ingredient);
+};
+var sayInstruction = function (i) {
+    state.lastInstructionSent = i;
+    chat.send(state.recipe.recipeInstructions[i]);
+    if (state.recipe.recipeInstructions.length === i + 1)
+        chat.send("That's it!");
+};
+var mustChooseRecipe = function () { return chat.send("First please choose a recipe"); };
+chat.activity$
+    .filter(function (activity) { return activity.type === 'message'; })
+    .subscribe(function (message) {
+    // First priority is to choose a recipe
+    if (!state.recipe) {
+        testMessage(message, [
+            Test(intents.chooseRecipe, chooseRecipe),
+            Test(intents.queryQuantity, mustChooseRecipe),
+            Test(intents.instructions.start, mustChooseRecipe),
+            Test(intents.instructions.restart, mustChooseRecipe)
+        ], globalDefaultAction);
+        return;
+    }
+    // These can happen any time there is an active recipe
+    if (testMessage(message, [
+        Test(intents.queryQuantity, queryQuantity),
+    ])) {
+        return;
+    }
+    // Start instructions
+    if (state.lastInstructionSent === undefined) {
+        if (testMessage(message, [
+            Test(intents.instructions.start, function () { return sayInstruction(0); })
+        ])) {
+            return;
+        }
+    }
+    // Navigate instructions
+    testMessage(message, [
+        Test(intents.instructions.next, function () {
+            var nextInstruction = state.lastInstructionSent + 1;
+            if (nextInstruction < state.recipe.recipeInstructions.length)
+                sayInstruction(nextInstruction);
+            else
+                chat.send("That's it!");
+        }),
+        Test(intents.instructions.repeat, function () { return sayInstruction(state.lastInstructionSent); }),
+        Test(intents.instructions.previous, function () {
+            var prevInstruction = state.lastInstructionSent - 1;
+            if (prevInstruction >= 0)
+                sayInstruction(prevInstruction);
+            else
+                chat.send("We're at the beginning.");
+        }),
+        Test(intents.instructions.restart, function () { return sayInstruction(0); })
+    ], globalDefaultAction);
+});
 
 
 /***/ }),
