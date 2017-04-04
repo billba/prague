@@ -14,7 +14,6 @@
   "devDependencies": {
     "awesome-typescript-loader": "^3.1.2",
     "botframework-directlinejs": "^0.9.6",
-    "concurrently": "^3.4.0",
     "http-server": "^0.9.0",
     "source-map-loader": "^0.2.1",
     "typescript": "^2.2.2",
@@ -23,6 +22,8 @@
   "dependencies": {
     "convert-units": "^2.1.0",
     "longest-common-substring": "0.0.1",
+    "redux": "^3.6.0",
+    "redux-observable": "^0.14.1",
     "rxjs": "^5.0.3"
   }
 }

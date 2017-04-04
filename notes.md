@@ -19,3 +19,28 @@ Chats are not priviledged in any way. You don't need to use them at all. But if 
 * Set up your own native (e.g. Facebook) endpoints and use them as you see fit
 * Or abstract a given channel as a Chat Connector, yielding a common activity format and send/receive API
 * You may conveniently combine multiple Chat Connectors into a single event stream
+
+You may handle chat events however you want. The following is a suggestion: drive your bot via state, using the Redux model.
+* Testable
+* Debuggable (save a history of state and set it to an arbitrary point to debug)
+* Reason about chat-specific state in tandem with other app state
+
+So here's how this all plays out:
+
+When a message is received from chat:
+1. Using state, decide how to interpret the intent. e.g. could be a question or an answer to a question
+2. As necessary, update the state to reflect this interpretation using store.dispatch()
+3. If there is any further actions required (a response, an API call), take it now in an epic or chain of epics, making sure to update the state at each stage
+
+When a different event happens (e.g. timer goes off):
+1. Using state, decide how to handle the event
+2. Update the state to reflect this interpretation using store.dispatch()
+3. If there is any further actions required (a response, an API call), take it now in an epic or chain of epics, making sure to update the state at each stage
+
+In other words, chat messages are no different than any other event.
+
+This mechanism is only necessary if state ends up needing to change. If an event just requires a simple response, go ahead and respond.
+
+Why do we need epics at all?
+
+1. To bind an initial dispatch with an async event that follows it.
