@@ -7819,10 +7819,11 @@ var intents = {
     },
     chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
     queryQuantity: /how (?:many|much) (.+)/i,
+    askQuestion: /ask/i,
     all: /(.*)/i
 };
 // Either call as test(intent, action) or test([intent, intent, ...], action)
-var test = function (intents, action, name) {
+var test = function (intents, action) {
     return (Array.isArray(intents) ? intents : [intents]).map(function (intent) { return ({ intent: intent, action: action }); });
 };
 // Either call as testMessage(test) or test([test, test, ...])
@@ -7844,7 +7845,8 @@ var nullAction = { type: null };
 var bot = function (state, action) {
     if (state === void 0) { state = {
         recipe: undefined,
-        lastInstructionSent: undefined
+        lastInstructionSent: undefined,
+        prompt: undefined
     }; }
     switch (action.type) {
         case 'Set_Recipe': {
@@ -7852,6 +7854,9 @@ var bot = function (state, action) {
         }
         case 'Set_Instruction': {
             return __assign({}, state, { lastInstructionSent: action.instruction });
+        }
+        case 'Set_Prompt': {
+            return __assign({}, state, { prompt: action.prompt });
         }
         default:
             return state;
@@ -7902,10 +7907,46 @@ var sayInstruction = function (instruction) {
         chat.send("That's it!");
 };
 var mustChooseRecipe = function () { return chat.send("First please choose a recipe"); };
+var responders = {
+    'Favorite_Color': function (text) {
+        if (text.toLowerCase() === 'blue') {
+            chat.send("That is correct!");
+            return true;
+        }
+        chat.send("Nope, try again");
+        return false;
+    }
+};
+var respondToPrompt = function (message) {
+    var state = store.getState().bot;
+    var responder = responders[state.prompt];
+    if (responder && responder(message.text)) {
+        store.dispatch({ type: 'Set_Prompt', question: undefined });
+        return true;
+    }
+    return false;
+};
+var setPrompt = function (prompt) { return store.dispatch({ type: 'Set_Prompt', prompt: prompt }); };
+var Prompt = (function () {
+    function Prompt() {
+    }
+    Prompt.text = function (prompt, text) {
+        setPrompt(prompt);
+        chat.send(text);
+    };
+    return Prompt;
+}());
 chat.activity$
     .filter(function (activity) { return activity.type === 'message'; })
     .subscribe(function (message) {
     var state = store.getState().bot;
+    if (state.prompt) {
+        respondToPrompt(message);
+        return;
+    }
+    // Test questions
+    if (testMessage(message, test(intents.askQuestion, function (_) { return Prompt.text('Favorite_Color', "What is your favorite color?"); })))
+        return;
     // First priority is to choose a recipe
     if (!state.recipe) {
         testMessage(message, [
