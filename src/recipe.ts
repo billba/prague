@@ -80,10 +80,8 @@ const test = (intents: RegExp | RegExp[], action: IntentAction, name?: string) =
 // Either call as testMessage(test) or test([test, test, ...])
 const testMessage = (message: Message, intentPairs: IntentPair[] | IntentPair[][], defaultAction?: () => void) => {
     const match = [].concat(... (Array.isArray(intentPairs[0]) ? intentPairs : [intentPairs])).some(intentPair => {
-        let groups: RegExpExecArray;
-        if (!intentPair.intent || (
-            (groups = intentPair.intent.exec(message.text)) && groups[0] === message.text)
-        ) {
+        const groups = intentPair.intent.exec(message.text)
+        if (groups && groups[0] === message.text) {
             intentPair.action(groups);
             return true;
         }
@@ -147,14 +145,15 @@ const bot = (
 
 const epicSetRecipe: Epic<RecipeAction, State> = (action$, store) =>
     action$.ofType('Set_Recipe')
-    .map((action: any) => store.getState().bot)
-    .flatMap((state: RecipeState) =>  Observable.from([
-        `Great, let's make ${state.recipe.name} which ${state.recipe.recipeYield.toLowerCase()}!`,
-        "Here are the ingredients:",
-        ... state.recipe.recipeIngredient,
-        "Let me know when you're ready to go."
-    ]))
-    .zip(Observable.timer(2000, 2000), x => x)
+    .flatMap((action: any) =>
+        Observable.from([
+            `Great, let's make ${action.recipe.name} which ${action.recipe.recipeYield.toLowerCase()}!`,
+            "Here are the ingredients:",
+            ... action.recipe.recipeIngredient,
+            "Let me know when you're ready to go."
+        ])
+        .zip(Observable.timer(0, 2000), x => x)
+    )
     .do(ingredient => chat.send(ingredient))
     .count()
     .mapTo(nullAction);

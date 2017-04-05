@@ -7828,8 +7828,8 @@ var test = function (intents, action, name) {
 // Either call as testMessage(test) or test([test, test, ...])
 var testMessage = function (message, intentPairs, defaultAction) {
     var match = [].concat.apply([], (Array.isArray(intentPairs[0]) ? intentPairs : [intentPairs])).some(function (intentPair) {
-        var groups;
-        if (!intentPair.intent || ((groups = intentPair.intent.exec(message.text)) && groups[0] === message.text)) {
+        var groups = intentPair.intent.exec(message.text);
+        if (groups && groups[0] === message.text) {
             intentPair.action(groups);
             return true;
         }
@@ -7859,14 +7859,15 @@ var bot = function (state, action) {
 };
 var epicSetRecipe = function (action$, store) {
     return action$.ofType('Set_Recipe')
-        .map(function (action) { return store.getState().bot; })
-        .flatMap(function (state) { return rxjs_1.Observable.from([
-        "Great, let's make " + state.recipe.name + " which " + state.recipe.recipeYield.toLowerCase() + "!",
-        "Here are the ingredients:"
-    ].concat(state.recipe.recipeIngredient, [
-        "Let me know when you're ready to go."
-    ])); })
-        .zip(rxjs_1.Observable.timer(2000, 2000), function (x) { return x; })
+        .flatMap(function (action) {
+        return rxjs_1.Observable.from([
+            "Great, let's make " + action.recipe.name + " which " + action.recipe.recipeYield.toLowerCase() + "!",
+            "Here are the ingredients:"
+        ].concat(action.recipe.recipeIngredient, [
+            "Let me know when you're ready to go."
+        ]))
+            .zip(rxjs_1.Observable.timer(0, 2000), function (x) { return x; });
+    })
         .do(function (ingredient) { return chat.send(ingredient); })
         .count()
         .mapTo(nullAction);
