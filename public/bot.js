@@ -7820,6 +7820,7 @@ var intents = {
     chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
     queryQuantity: /how (?:many|much) (.+)/i,
     askQuestion: /ask/i,
+    askYorNQuestion: /yorn/i,
     all: /(.*)/i
 };
 // Either call as test(intent, action) or test([intent, intent, ...], action)
@@ -7907,6 +7908,43 @@ var sayInstruction = function (instruction) {
         chat.send("That's it!");
 };
 var mustChooseRecipe = function () { return chat.send("First please choose a recipe"); };
+var choiceLists = {
+    'YorN': ['Yes', 'No']
+};
+var Prompt = (function () {
+    function Prompt() {
+    }
+    Prompt.set = function (prompt) {
+        store.dispatch({ type: 'Set_Prompt', prompt: prompt });
+    };
+    Prompt.text = function (prompt, text) {
+        this.set(prompt);
+        chat.send(text);
+    };
+    Prompt.choice = function (prompt, choiceName, text) {
+        var choiceList = choiceLists[choiceName];
+        if (!choiceList)
+            return;
+        this.set(prompt);
+        chat.postActivity({
+            type: 'message',
+            from: { id: 'RecipeBot' },
+            text: text,
+            suggestedActions: { actions: choiceList.map(function (choice) { return ({
+                    type: 'postBack',
+                    title: choice,
+                    value: choice
+                }); }) }
+        });
+    };
+    Prompt.choiceResponder = function (choiceName, responder) {
+        return function (text) {
+            var choice = choiceLists[choiceName].find(function (choice) { return choice.toLowerCase() === text.toLowerCase(); });
+            return responder(choice);
+        };
+    };
+    return Prompt;
+}());
 var responders = {
     'Favorite_Color': function (text) {
         if (text.toLowerCase() === 'blue') {
@@ -7915,7 +7953,15 @@ var responders = {
         }
         chat.send("Nope, try again");
         return false;
-    }
+    },
+    'Like_Cheese': Prompt.choiceResponder('YorN', function (choice) {
+        if (choice) {
+            chat.send("Interesting.");
+            return true;
+        }
+        chat.send("Frankly we don't handle this well.");
+        return false;
+    })
 };
 var respondToPrompt = function (message) {
     var state = store.getState().bot;
@@ -7926,16 +7972,6 @@ var respondToPrompt = function (message) {
     }
     return false;
 };
-var setPrompt = function (prompt) { return store.dispatch({ type: 'Set_Prompt', prompt: prompt }); };
-var Prompt = (function () {
-    function Prompt() {
-    }
-    Prompt.text = function (prompt, text) {
-        setPrompt(prompt);
-        chat.send(text);
-    };
-    return Prompt;
-}());
 chat.activity$
     .filter(function (activity) { return activity.type === 'message'; })
     .subscribe(function (message) {
@@ -7945,7 +7981,10 @@ chat.activity$
         return;
     }
     // Test questions
-    if (testMessage(message, test(intents.askQuestion, function (_) { return Prompt.text('Favorite_Color', "What is your favorite color?"); })))
+    if (testMessage(message, [
+        test(intents.askQuestion, function (_) { return Prompt.text('Favorite_Color', "What is your favorite color?"); }),
+        test(intents.askYorNQuestion, function (_) { return Prompt.choice('Like_Cheese', 'YorN', "Do you like cheese?"); })
+    ]))
         return;
     // First priority is to choose a recipe
     if (!state.recipe) {

@@ -40,7 +40,7 @@ interface NutritionInformation {
 }
 
 import { Observable } from 'rxjs';
-import { Message } from 'botframework-directlinejs';
+import { Message, CardAction } from 'botframework-directlinejs';
 import { BrowserBot } from './BrowserBot';
 
 const browserBot = new BrowserBot()
@@ -62,6 +62,7 @@ const intents = {
     chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
     queryQuantity: /how (?:many|much) (.+)/i,
     askQuestion: /ask/i,
+    askYorNQuestion: /yorn/i,
     all: /(.*)/i
 }
 
@@ -222,6 +223,53 @@ interface Responders {
     [prompt: string]: Responder;
 }
 
+type Choice = string; // TODO: eventually this will be something more complex
+
+type ChoiceList = Choice[];
+
+interface ChoiceLists {
+    [choiceName: string]: ChoiceList;
+}
+
+const choiceLists: ChoiceLists = {
+    'YorN': ['Yes', 'No']
+}
+
+class Prompt {
+    static set(prompt: string) {
+        store.dispatch<RecipeAction>({ type: 'Set_Prompt', prompt });
+    }
+
+    static text(prompt: string, text: string) {
+        this.set(prompt);
+        chat.send(text);        
+    }
+
+    static choice(prompt: string, choiceName: string, text: string) {
+        const choiceList = choiceLists[choiceName];
+        if (!choiceList)
+            return;
+        this.set(prompt);
+        chat.postActivity({
+            type: 'message',
+            from: { id: 'RecipeBot' },
+            text,
+            suggestedActions: { actions: choiceList.map<CardAction>(choice => ({
+                type: 'postBack',
+                title: choice,
+                value: choice
+            })) }
+        });
+    }
+
+    static choiceResponder(choiceName: string, responder: (choice: Choice) => boolean) {
+        return (text: string) => {
+            const choice = choiceLists[choiceName].find(choice => choice.toLowerCase() === text.toLowerCase());
+            return responder(choice);
+        }
+    }
+}
+
 const responders: Responders = {
     'Favorite_Color': text => {
         if (text.toLowerCase() === 'blue') {
@@ -230,7 +278,15 @@ const responders: Responders = {
         }
         chat.send("Nope, try again");
         return false;
-    }
+    },
+    'Like_Cheese': Prompt.choiceResponder('YorN', choice => {
+        if (choice) {
+            chat.send("Interesting.");
+            return true;
+        }
+        chat.send("Frankly we don't handle this well.");
+        return false;
+    })
 }
 
 const respondToPrompt = (message: Message) => {
@@ -246,15 +302,6 @@ const respondToPrompt = (message: Message) => {
     return false;
 }
 
-const setPrompt = (prompt: string) => store.dispatch<RecipeAction>({ type: 'Set_Prompt', prompt });
-
-class Prompt {
-    static text(prompt: string, text: string) {
-        setPrompt(prompt);
-        chat.send(text);        
-    }
-}
-
 chat.activity$
 .filter(activity => activity.type === 'message')
 .subscribe((message: Message) => {
@@ -266,7 +313,10 @@ chat.activity$
     }
 
     // Test questions
-    if (testMessage(message, test(intents.askQuestion, _ => Prompt.text('Favorite_Color', "What is your favorite color?"))))
+    if (testMessage(message, [
+        test(intents.askQuestion, _ => Prompt.text('Favorite_Color', "What is your favorite color?")),
+        test(intents.askYorNQuestion, _ => Prompt.choice('Like_Cheese', 'YorN', "Do you like cheese?"))
+    ]))
         return;
 
     // First priority is to choose a recipe
