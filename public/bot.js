@@ -8084,12 +8084,13 @@ var recipeResponders = function (prompt) { return ({
 }); };
 var prompt = new Prompt_1.Prompt(chat, store, recipeChoiceLists, recipeResponders);
 var queries = {
+    always: Intent_1.always,
     noRecipe: function (state) { return !state.bot.recipe; },
     noInstructionsSent: function (state) { return state.bot.lastInstructionSent === undefined; },
 };
 var contexts = [
     // Test intents
-    Intent_1.context(Intent_1.always, [
+    Intent_1.context(queries.always, [
         re(intents.askQuestion, function (_) { return prompt.text('Favorite_Color', "What is your favorite color?"); }),
         re(intents.askYorNQuestion, function (_) { return prompt.confirm('Like_Cheese', "Do you like cheese?"); }),
         re(intents.askChoiceQuestion, function (_) { return prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"); })
@@ -8105,12 +8106,12 @@ var contexts = [
         re(intents.all, chooseRecipe)
     ]),
     // These can happen any time there is an active recipe
-    Intent_1.context(Intent_1.always, re(intents.queryQuantity, queryQuantity)),
+    Intent_1.context(queries.always, re(intents.queryQuantity, queryQuantity)),
     // TODO: conversions go here
     // Start instructions
     Intent_1.context(queries.noInstructionsSent, re(intents.instructions.start, function (state) { return sayInstruction(state, 0); })),
     // Navigate instructions
-    Intent_1.context(Intent_1.always, [
+    Intent_1.context(queries.always, [
         re(intents.instructions.next, function (store) {
             var state = store.getState();
             var nextInstruction = state.bot.lastInstructionSent + 1;

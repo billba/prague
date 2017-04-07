@@ -42,7 +42,7 @@ interface NutritionInformation {
 import { Observable } from 'rxjs';
 import { Message, CardAction } from 'botframework-directlinejs';
 import { ChatConnector } from './Chat';
-import { App, Handler as _Handler, Context, defaultRule, context, always } from './Intent';
+import { App, Handler as _Handler, Context, defaultRule, context, always, Queries } from './Intent';
 import { re as _re } from './RegExp';
 import { BrowserBot } from './BrowserBot';
 
@@ -234,14 +234,15 @@ const recipeResponders: RespondersFactory<AppState> = prompt => ({
 
 const prompt = new Prompt(chat, store, recipeChoiceLists, recipeResponders);
 
-const queries = {
+const queries: Queries<AppState> = {
+    always: always,
     noRecipe: state => !state.bot.recipe,
     noInstructionsSent: state => state.bot.lastInstructionSent === undefined,
 }
 
 const contexts: Context<AppState>[] = [
         // Test intents
-        context(always, [
+        context(queries.always, [
             re(intents.askQuestion, _ => prompt.text('Favorite_Color', "What is your favorite color?")),
             re(intents.askYorNQuestion, _ => prompt.confirm('Like_Cheese', "Do you like cheese?")),
             re(intents.askChoiceQuestion, _ => prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
@@ -257,7 +258,7 @@ const contexts: Context<AppState>[] = [
             re(intents.all, chooseRecipe)
         ]),
         // These can happen any time there is an active recipe
-        context(always, re(intents.queryQuantity, queryQuantity)),
+        context(queries.always, re(intents.queryQuantity, queryQuantity)),
         // TODO: conversions go here
         // Start instructions
         context(
@@ -265,7 +266,7 @@ const contexts: Context<AppState>[] = [
             re(intents.instructions.start, (state) => sayInstruction(state, 0))
         ),
         // Navigate instructions
-        context(always, [
+        context(queries.always, [
             re(intents.instructions.next, (store) => {
                 const state = store.getState();
                 const nextInstruction = state.bot.lastInstructionSent + 1;

@@ -17,6 +17,10 @@ export interface Query<S> {
     (state: S): boolean;
 }
 
+export interface Queries<S> {
+    [name: string]: Query<S>
+}
+
 export interface Rule<S> {
     recognizers: Recognizer<S>[];
     handler: Handler<S>;
