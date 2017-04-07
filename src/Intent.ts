@@ -1,28 +1,70 @@
 import { Message } from 'botframework-directlinejs';
+import { Store } from 'redux';
 
-export interface IntentAction {
-    (groups: RegExpExecArray): void; // return false to continue on to next test
+export interface Entities {
+    [name: string]: any;
 }
 
-export interface IntentPair {
-    intent: RegExp,
-    action: IntentAction;  
+export interface Recognizer<S> {
+    (state: S, message: Message): Entities;
 }
 
-// Either call as test(intent, action) or test([intent, intent, ...], action)
-export const test = (intents: RegExp | RegExp[], action: IntentAction) =>
-    (Array.isArray(intents) ? intents : [intents]).map(intent => ({ intent, action }));
+export interface Handler<S> {
+    (store: Store<S>, message: Message, entities: Entities): void;
+}
 
-// Either call as testMessage(test) or test([test, test, ...])
-export const testMessage = (message: Message, intentPairs: IntentPair[] | IntentPair[][], defaultAction?: () => void) => {
-    const match = [].concat(... (Array.isArray(intentPairs[0]) ? intentPairs : [intentPairs])).some(intentPair => {
-        const groups = intentPair.intent.exec(message.text)
-        if (groups && groups[0] === message.text) {
-            intentPair.action(groups);
-            return true;
+export interface Query<S> {
+    (state: S): boolean;
+}
+
+export interface Rule<S> {
+    recognizers: Recognizer<S>[];
+    handler: Handler<S>;
+}
+
+export interface Context<S> {
+    query: Query<S>;
+    rules: Rule<S>[];
+}
+
+export class App<S> {
+    constructor(private store: Store<S>, private contexts: Context<S>[]) {
+    }
+
+    public runMessage(message: Message) {
+        const state = this.store.getState();
+        for (const context of this.contexts) {
+            if (context.query(state)) {
+                for (const rule of context.rules) {
+                    const recognizers = rule.recognizers;
+                    if (!recognizers || recognizers.length === 0) {
+                        // handler always executes if there are no recognizers
+                        rule.handler(this.store, message, null);
+                        return true;
+                    }
+                    for (const recognizer of recognizers) {
+                        const entities = recognizer(state, message);
+                        if (entities) {
+                            rule.handler(this.store, message, entities);
+                            return true;
+                        }
+                    }
+                }
+            }
         }
-    });
-    if (!match && defaultAction)
-        defaultAction();
-    return match;
+        
+        return false;
+    }
 }
+
+export const context = <S>(query: Query<S>, rules: Rule<S> | Rule<S>[]): Context<S> => ({
+    query,
+    rules: (Array.isArray(rules) ? rules : [rules])
+})
+
+export const always = () => true;
+
+export const defaultRule = <S>(handler: Handler<S>): Rule<S> => ({
+    recognizers: null,
+    handler
+})

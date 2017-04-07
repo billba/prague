@@ -42,8 +42,12 @@ interface NutritionInformation {
 import { Observable } from 'rxjs';
 import { Message, CardAction } from 'botframework-directlinejs';
 import { ChatConnector } from './Chat';
-import { test, testMessage, IntentAction } from './Intent';
+import { App, Handler as _Handler, Context, defaultRule, context, always } from './Intent';
+import { re as _re } from './RegExp';
 import { BrowserBot } from './BrowserBot';
+
+type Handler = _Handler<AppState>;
+const re = (intents: RegExp | RegExp[], handler: Handler) => _re(intents, handler); // TODO: there's got to be a better way
 
 const browserBot = new BrowserBot()
 
@@ -156,13 +160,13 @@ const store = createStore(
     )))
 );
 
-const globalDefaultAction = () => chat.send("I can't understand you. It's you, not me. Get it together and try again.");
+const globalDefaultRule = defaultRule<AppState>(() => chat.send("I can't understand you. It's you, not me. Get it together and try again."));
 
 const recipeFromName = (name: string) =>
     recipes.find(recipe => recipe.name.toLowerCase() === name.toLowerCase());
 
-const chooseRecipe: IntentAction = groups => {
-    const name = groups[1];
+const chooseRecipe: Handler = (store, message, entities) => {
+    const name = entities['groups'][1];
     const recipe = recipeFromName(name);
     if (recipe)
         store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe });
@@ -170,8 +174,8 @@ const chooseRecipe: IntentAction = groups => {
         chat.send(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
 }
 
-const queryQuantity: IntentAction = groups => {
-    const ingredientQuery = groups[1].split('');
+const queryQuantity: Handler = (store, message, entities) => {
+    const ingredientQuery = entities['groups'][1].split('');
 
     const ingredient = store.getState().bot.recipe.recipeIngredient
         .map<[string, number]>(i => [i, lcs(i.split(''), ingredientQuery).length])
@@ -181,7 +185,7 @@ const queryQuantity: IntentAction = groups => {
     chat.send(ingredient);
 }
 
-const sayInstruction = (instruction: number) => {
+const sayInstruction = (store, instruction: number) => {
     store.dispatch({ type: 'Set_Instruction', instruction });
     const state = store.getState().bot;
     chat.send(state.recipe.recipeInstructions[state.lastInstructionSent]);
@@ -230,68 +234,62 @@ const recipeResponders: RespondersFactory<AppState> = prompt => ({
 
 const prompt = new Prompt(chat, store, recipeChoiceLists, recipeResponders);
 
-chat.activity$
-.filter(activity => activity.type === 'message')
-.subscribe((message: Message) => {
-    const state = store.getState().bot;
-
-    if (prompt.respond(message))
-        return;
-
-    // Test questions
-    if (testMessage(message, [
-        test(intents.askQuestion, _ => prompt.text('Favorite_Color', "What is your favorite color?")),
-        test(intents.askYorNQuestion, _ => prompt.confirm('Like_Cheese', "Do you like cheese?")),
-        test(intents.askChoiceQuestion, _ => prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
-    ]))
-        return;
-
-    // First priority is to choose a recipe
-    if (!state.recipe) {
-        testMessage(message, [
-            test(intents.chooseRecipe, chooseRecipe),
-            test([
+const contexts: Context<AppState>[] = [
+        // Test intents
+        context(always, [
+            re(intents.askQuestion, _ => prompt.text('Favorite_Color', "What is your favorite color?")),
+            re(intents.askYorNQuestion, _ => prompt.confirm('Like_Cheese', "Do you like cheese?")),
+            re(intents.askChoiceQuestion, _ => prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
+        ]),
+        // First priority is to choose a recipe
+        context(state => !state.bot.recipe, [
+            re(intents.chooseRecipe, chooseRecipe),
+            re([
                 intents.queryQuantity,
                 intents.instructions.start,
                 intents.instructions.restart
             ], mustChooseRecipe),
-            test(intents.all, chooseRecipe)
-        ], globalDefaultAction);
+            re(intents.all, chooseRecipe)
+        ]),
+        // These can happen any time there is an active recipe
+        context(always, re(intents.queryQuantity, queryQuantity)),
+        // TODO: conversions go here
+        // Start instructions
+        context(
+            state => state.bot.lastInstructionSent === undefined,
+            re(intents.instructions.start, (state) => sayInstruction(state, 0))
+        ),
+        // Navigate instructions
+        context(always, [
+            re(intents.instructions.next, (store) => {
+                const state = store.getState();
+                const nextInstruction = state.bot.lastInstructionSent + 1;
+                if (nextInstruction < state.bot.recipe.recipeInstructions.length)
+                    sayInstruction(state, nextInstruction);
+                else
+                    chat.send("That's it!");
+            }),
+            re(intents.instructions.repeat, (store) => sayInstruction(store, store.getState().bot.lastInstructionSent)),
+            re(intents.instructions.previous, (store) => {
+                const prevInstruction = store.getState().bot.lastInstructionSent - 1;
+
+                if (prevInstruction >= 0)
+                    sayInstruction(store, prevInstruction);
+                else
+                    chat.send("We're at the beginning.");
+            }),
+            re(intents.instructions.restart, (store) => sayInstruction(store, 0)),
+            globalDefaultRule
+        ])
+];
+
+const app = new App(store, contexts);
+
+chat.activity$
+.filter(activity => activity.type === 'message')
+.subscribe((message: Message) => {
+    console.log("message", message);
+    if (prompt.respond(message))
         return;
-    }
-    
-    // These can happen any time there is an active recipe
-    if (testMessage(message, [
-            test(intents.queryQuantity, queryQuantity),
-            // TODO: conversions go here
-    ])) {
-        return;
-    }
-
-    // Start instructions
-    if (state.lastInstructionSent === undefined) {
-        if (testMessage(message, test(intents.instructions.start, () => sayInstruction(0))))
-            return;
-    }
-
-    // Navigate instructions
-    testMessage(message, [
-        test(intents.instructions.next, () => {
-            const nextInstruction = state.lastInstructionSent + 1;
-            if (nextInstruction < state.recipe.recipeInstructions.length)
-                sayInstruction(nextInstruction);
-            else
-                chat.send("That's it!");
-        }),
-        test(intents.instructions.repeat, () => sayInstruction(state.lastInstructionSent)),
-        test(intents.instructions.previous, () => {
-            const prevInstruction = state.lastInstructionSent - 1;
-
-            if (prevInstruction >= 0)
-                sayInstruction(prevInstruction);
-            else
-                chat.send("We're at the beginning.");
-        }),
-        test(intents.instructions.restart, () => sayInstruction(0))
-    ], globalDefaultAction);
+    app.runMessage(message);
 });
