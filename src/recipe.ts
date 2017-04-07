@@ -41,8 +41,9 @@ interface NutritionInformation {
 
 import { Observable } from 'rxjs';
 import { Message, CardAction } from 'botframework-directlinejs';
+import { ChatConnector } from './Chat';
+import { test, testMessage, IntentAction } from './Intent';
 import { BrowserBot } from './BrowserBot';
-import { ChatConnector } from './ChatConnector';
 
 const browserBot = new BrowserBot()
 
@@ -64,34 +65,8 @@ const intents = {
     queryQuantity: /how (?:many|much) (.+)/i,
     askQuestion: /ask/i,
     askYorNQuestion: /yorn/i,
+    askChoiceQuestion: /choice/i,
     all: /(.*)/i
-}
-
-interface IntentAction {
-    (groups: RegExpExecArray): void; // return false to continue on to next test
-}
-
-interface IntentPair {
-    intent: RegExp,
-    action: IntentAction;  
-}
-
-// Either call as test(intent, action) or test([intent, intent, ...], action)
-const test = (intents: RegExp | RegExp[], action: IntentAction) =>
-    (Array.isArray(intents) ? intents : [intents]).map(intent => ({ intent, action }));
-
-// Either call as testMessage(test) or test([test, test, ...])
-const testMessage = (message: Message, intentPairs: IntentPair[] | IntentPair[][], defaultAction?: () => void) => {
-    const match = [].concat(... (Array.isArray(intentPairs[0]) ? intentPairs : [intentPairs])).some(intentPair => {
-        const groups = intentPair.intent.exec(message.text)
-        if (groups && groups[0] === message.text) {
-            intentPair.action(groups);
-            return true;
-        }
-    });
-    if (!match && defaultAction)
-        defaultAction();
-    return match;
 }
 
 import { Store, createStore, combineReducers, applyMiddleware, Action } from 'redux';
@@ -221,26 +196,36 @@ const mustChooseRecipe = () => chat.send("First please choose a recipe");
 import { ChoiceLists, RespondersFactory, Prompt } from './Prompt';
 
 const recipeChoiceLists: ChoiceLists = {
-    'YorN': ['Yes', 'No']
+    'Cheeses': ['Cheddar', 'Wensleydale', 'Brie', 'Velveeta']
 }
 
 const recipeResponders: RespondersFactory<AppState> = prompt => ({
-    'Favorite_Color': text => {
-        if (text.toLowerCase() === 'blue') {
+    'Favorite_Color': message => {
+        if (message.text.toLowerCase() === 'blue') {
             chat.send("That is correct!");
             return true;
         }
         chat.send("Nope, try again");
         return false;
     },
-    'Like_Cheese': prompt.choiceResponder('YorN', choice => {
+    'Favorite_Cheese': prompt.choiceResponder('Cheeses', choice => {
         if (choice) {
-            chat.send("Interesting.");
+            if (choice === 'Velveeta')
+                chat.send('Ima let you finish but FYI that is not really cheese.');
+            else
+                chat.send("Interesting.");
             return true;
         }
         chat.send("Frankly we don't handle this well.");
         return false;
-    })
+    }),
+    'Like_Cheese': prompt.confirmResponder(confirmed => {
+        if (confirmed)
+            chat.send('That is correct.');
+        else
+            chat.send("That is incorrect.");
+        return true;
+    }),
 })
 
 const prompt = new Prompt(chat, store, recipeChoiceLists, recipeResponders);
@@ -256,7 +241,8 @@ chat.activity$
     // Test questions
     if (testMessage(message, [
         test(intents.askQuestion, _ => prompt.text('Favorite_Color', "What is your favorite color?")),
-        test(intents.askYorNQuestion, _ => prompt.choice('Like_Cheese', 'YorN', "Do you like cheese?"))
+        test(intents.askYorNQuestion, _ => prompt.confirm('Like_Cheese', "Do you like cheese?")),
+        test(intents.askChoiceQuestion, _ => prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
     ]))
         return;
 

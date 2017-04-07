@@ -1,4 +1,4 @@
-import { ChatConnector } from './ChatConnector';
+import { ChatConnector } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
 
@@ -10,7 +10,7 @@ export interface Promptable {
 }
 
 export interface Responder {
-    (answer: string): boolean;
+    (answer: Message): boolean;
 }
 
 export interface Responders {
@@ -52,7 +52,7 @@ export class Prompt<S extends Promptable> {
 
         const responder = this.responders[state.promptKey];
 
-        if (responder && responder(message.text))
+        if (responder && responder(message))
             this.clear();
 
         return true;
@@ -65,11 +65,11 @@ export class Prompt<S extends Promptable> {
         this.chat.send(text);        
     }
 
-    choice(prompt: string, choiceName: string, text: string) {
+    choice(promptKey: string, choiceName: string, text: string) {
         const choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
-        this.set(prompt);
+        this.set(promptKey);
         this.chat.postActivity({
             type: 'message',
             from: { id: 'RecipeBot' },
@@ -82,12 +82,32 @@ export class Prompt<S extends Promptable> {
         });
     }
 
+    private yorn: ChoiceList = ['Yes', 'No'];
+
+    confirm(promptKey: string, text: string) {
+        this.set(promptKey);
+        this.chat.postActivity({
+            type: 'message',
+            from: { id: 'RecipeBot' },
+            text,
+            suggestedActions: { actions: this.yorn.map<CardAction>(choice => ({
+                type: 'postBack',
+                title: choice,
+                value: choice
+            })) }
+        });
+    }
+
     // Prompt Responders - eventually the Connectors will have to do some translation of these, somehow
 
     choiceResponder(choiceName: string, responder: (choice: Choice) => boolean): Responder {
-        return text => {
-            const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === text.toLowerCase());
+        return message => {
+            const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
             return responder(choice);
         }
+    }
+
+    confirmResponder(responder: (confirmed: boolean) => boolean): Responder {
+        return message => responder(message.text.toLowerCase() === 'yes');
     }
 }
