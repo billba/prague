@@ -234,6 +234,11 @@ const recipeResponders: RespondersFactory<AppState> = prompt => ({
 
 const prompt = new Prompt(chat, store, recipeChoiceLists, recipeResponders);
 
+const queries = {
+    noRecipe: state => !state.bot.recipe,
+    noInstructionsSent: state => state.bot.lastInstructionSent === undefined,
+}
+
 const contexts: Context<AppState>[] = [
         // Test intents
         context(always, [
@@ -242,7 +247,7 @@ const contexts: Context<AppState>[] = [
             re(intents.askChoiceQuestion, _ => prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
         ]),
         // First priority is to choose a recipe
-        context(state => !state.bot.recipe, [
+        context(queries.noRecipe, [
             re(intents.chooseRecipe, chooseRecipe),
             re([
                 intents.queryQuantity,
@@ -256,7 +261,7 @@ const contexts: Context<AppState>[] = [
         // TODO: conversions go here
         // Start instructions
         context(
-            state => state.bot.lastInstructionSent === undefined,
+            queries.noInstructionsSent,
             re(intents.instructions.start, (state) => sayInstruction(state, 0))
         ),
         // Navigate instructions

@@ -8083,6 +8083,10 @@ var recipeResponders = function (prompt) { return ({
     }),
 }); };
 var prompt = new Prompt_1.Prompt(chat, store, recipeChoiceLists, recipeResponders);
+var queries = {
+    noRecipe: function (state) { return !state.bot.recipe; },
+    noInstructionsSent: function (state) { return state.bot.lastInstructionSent === undefined; },
+};
 var contexts = [
     // Test intents
     Intent_1.context(Intent_1.always, [
@@ -8091,7 +8095,7 @@ var contexts = [
         re(intents.askChoiceQuestion, function (_) { return prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"); })
     ]),
     // First priority is to choose a recipe
-    Intent_1.context(function (state) { return !state.bot.recipe; }, [
+    Intent_1.context(queries.noRecipe, [
         re(intents.chooseRecipe, chooseRecipe),
         re([
             intents.queryQuantity,
@@ -8104,7 +8108,7 @@ var contexts = [
     Intent_1.context(Intent_1.always, re(intents.queryQuantity, queryQuantity)),
     // TODO: conversions go here
     // Start instructions
-    Intent_1.context(function (state) { return state.bot.lastInstructionSent === undefined; }, re(intents.instructions.start, function (state) { return sayInstruction(state, 0); })),
+    Intent_1.context(queries.noInstructionsSent, re(intents.instructions.start, function (state) { return sayInstruction(state, 0); })),
     // Navigate instructions
     Intent_1.context(Intent_1.always, [
         re(intents.instructions.next, function (store) {
