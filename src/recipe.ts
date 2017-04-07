@@ -42,6 +42,7 @@ interface NutritionInformation {
 import { Observable } from 'rxjs';
 import { Message, CardAction } from 'botframework-directlinejs';
 import { BrowserBot } from './BrowserBot';
+import { ChatConnector } from './ChatConnector';
 
 const browserBot = new BrowserBot()
 
@@ -103,10 +104,10 @@ const nullAction = { type: null };
 interface RecipeState {
     recipe: PartialRecipe,
     lastInstructionSent: number,
-    prompt: string
+    promptKey: string
 }
 
-export interface State {
+export interface AppState {
     bot: RecipeState
 }
 
@@ -119,15 +120,15 @@ type RecipeAction = {
     type: 'Set_Instruction',
     instruction: number
 } | {
-    type: 'Set_Prompt',
-    prompt: string
+    type: 'Set_PromptKey',
+    promptKey: string
 }
 
 const bot = (
     state: RecipeState = {
         recipe: undefined,
         lastInstructionSent: undefined,
-        prompt: undefined
+        promptKey: undefined
     },
     action: RecipeAction
 ) => {
@@ -145,10 +146,10 @@ const bot = (
                 lastInstructionSent: action.instruction
             }
         }
-        case 'Set_Prompt': {
+        case 'Set_PromptKey': {
             return {
                 ... state,
-                prompt: action.prompt
+                promptKey: action.promptKey
             }
         }
         default:
@@ -156,7 +157,7 @@ const bot = (
     }
 }
 
-const epicSetRecipe: Epic<RecipeAction, State> = (action$, store) =>
+const epicSetRecipe: Epic<RecipeAction, AppState> = (action$, store) =>
     action$.ofType('Set_Recipe')
     .flatMap((action: any) =>
         Observable.from([
@@ -172,7 +173,7 @@ const epicSetRecipe: Epic<RecipeAction, State> = (action$, store) =>
     .mapTo(nullAction);
 
 const store = createStore(
-    combineReducers<State>({
+    combineReducers<AppState>({
         bot
     }),
     applyMiddleware(createEpicMiddleware(combineEpics(
@@ -215,62 +216,15 @@ const sayInstruction = (instruction: number) => {
 
 const mustChooseRecipe = () => chat.send("First please choose a recipe");
 
-interface Responder {
-    (answer: string): boolean;
-}
+// implements Prompts
 
-interface Responders {
-    [prompt: string]: Responder;
-}
+import { ChoiceLists, RespondersFactory, Prompt } from './Prompt';
 
-type Choice = string; // TODO: eventually this will be something more complex
-
-type ChoiceList = Choice[];
-
-interface ChoiceLists {
-    [choiceName: string]: ChoiceList;
-}
-
-const choiceLists: ChoiceLists = {
+const recipeChoiceLists: ChoiceLists = {
     'YorN': ['Yes', 'No']
 }
 
-class Prompt {
-    static set(prompt: string) {
-        store.dispatch<RecipeAction>({ type: 'Set_Prompt', prompt });
-    }
-
-    static text(prompt: string, text: string) {
-        this.set(prompt);
-        chat.send(text);        
-    }
-
-    static choice(prompt: string, choiceName: string, text: string) {
-        const choiceList = choiceLists[choiceName];
-        if (!choiceList)
-            return;
-        this.set(prompt);
-        chat.postActivity({
-            type: 'message',
-            from: { id: 'RecipeBot' },
-            text,
-            suggestedActions: { actions: choiceList.map<CardAction>(choice => ({
-                type: 'postBack',
-                title: choice,
-                value: choice
-            })) }
-        });
-    }
-
-    static choiceResponder(choiceName: string, responder: (choice: Choice) => boolean) {
-        return (text: string) => {
-            const choice = choiceLists[choiceName].find(choice => choice.toLowerCase() === text.toLowerCase());
-            return responder(choice);
-        }
-    }
-}
-
-const responders: Responders = {
+const recipeResponders: RespondersFactory<AppState> = prompt => ({
     'Favorite_Color': text => {
         if (text.toLowerCase() === 'blue') {
             chat.send("That is correct!");
@@ -279,7 +233,7 @@ const responders: Responders = {
         chat.send("Nope, try again");
         return false;
     },
-    'Like_Cheese': Prompt.choiceResponder('YorN', choice => {
+    'Like_Cheese': prompt.choiceResponder('YorN', choice => {
         if (choice) {
             chat.send("Interesting.");
             return true;
@@ -287,35 +241,22 @@ const responders: Responders = {
         chat.send("Frankly we don't handle this well.");
         return false;
     })
-}
+})
 
-const respondToPrompt = (message: Message) => {
-    const state = store.getState().bot;
-
-    const responder = responders[state.prompt];
-
-    if (responder && responder(message.text)) {
-        store.dispatch({ type: 'Set_Prompt', question: undefined });
-        return true;
-    }
-    
-    return false;
-}
+const prompt = new Prompt(chat, store, recipeChoiceLists, recipeResponders);
 
 chat.activity$
 .filter(activity => activity.type === 'message')
 .subscribe((message: Message) => {
     const state = store.getState().bot;
 
-    if (state.prompt) {
-        respondToPrompt(message);
+    if (prompt.respond(message))
         return;
-    }
 
     // Test questions
     if (testMessage(message, [
-        test(intents.askQuestion, _ => Prompt.text('Favorite_Color', "What is your favorite color?")),
-        test(intents.askYorNQuestion, _ => Prompt.choice('Like_Cheese', 'YorN', "Do you like cheese?"))
+        test(intents.askQuestion, _ => prompt.text('Favorite_Color', "What is your favorite color?")),
+        test(intents.askYorNQuestion, _ => prompt.choice('Like_Cheese', 'YorN', "Do you like cheese?"))
     ]))
         return;
 
