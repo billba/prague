@@ -1,7 +1,8 @@
 import { ChatConnector } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
-import { Entities, Recognizer, Handler, Rule, Context } from './Intent';
+import { Entities, Recognizer, Rule, Context } from './Intent';
+import { Observable } from 'rxjs';
 
 // Eventually we'll probably want to turn this into a selector function instead of a hardwired interface definition
 export interface Promptable {
@@ -42,17 +43,14 @@ export class Prompt<S extends Promptable> {
     }
 
     private recognizer(state: S, message: Message): Entities {
-        console.log("recognizer this", this);
         const rule = this.promptRules[state.bot.promptKey];
-        if (!rule)
-            return null
-        return rule.recognizers[0](state, message);
+        return rule && rule.recognizers[0](state, message);
     }
 
     private handler(store: Store<S>, message: Message, entities: Entities) {
-        console.log("handler this.promptRules", this.promptRules);
-        this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
+        const result = this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
         this.clear();
+        return result;
     }
 
     context(): Context<S> {
@@ -114,20 +112,14 @@ export class Prompt<S extends Promptable> {
     choiceRecognizer(choiceName: string): Recognizer<S> {
         return (state, message) => {
             const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
-            if (choice)
-                return { choice };
-            else
-                return null;
+            return choice ? { choice } : null;
         }
     }
 
     confirmRecognizer(): Recognizer<S> {
         return (state, message) => {
             const confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
-            if (confirm)
-                return { confirm };
-            else
-                return null;
+            return confirm ? { confirm } : null;    
         }
     }
 }

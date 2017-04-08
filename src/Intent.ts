@@ -1,3 +1,4 @@
+import { Observable } from 'rxjs';
 import { Message } from 'botframework-directlinejs';
 import { Store } from 'redux';
 
@@ -6,13 +7,13 @@ export interface Entities {
 }
 
 export interface Recognizer<S> {
-    (state: S, message: Message): Entities;
+    (state: S, message: Message): Entities | Observable<Entities>;
 }
 
 const alwaysRecognize = () => ({});
 
 export interface Handler<S> {
-    (store: Store<S>, message: Message, entities: Entities): void;
+    (store: Store<S>, message: Message, entities: Entities): void | Observable<void>;
 }
 
 export interface Query<S> {
@@ -47,27 +48,31 @@ export const context = <S>(query: Query<S>, ... rules: (Rule<S> | Rule<S>[])[]):
     rules: [].concat(... rules.map(rule => (Array.isArray(rule) ? rule : [rule])))
 })
 
+const false$ = Observable.of(false);
+const true$ = Observable.of(true);
 
 export class IntentEngine<S> {
     constructor(private store: Store<S>, private contexts: Context<S>[]) {
     }
 
-    public runMessage(message: Message) {
+    runMessage(message: Message) {
         const state = this.store.getState();
-        for (const context of this.contexts) {
-            if (context.query(state)) {
-                for (const rule of context.rules) {
-                    for (const recognizer of rule.recognizers) {
-                        const entities = recognizer(state, message);
-                        if (entities) {
-                            rule.handler(this.store, message, entities);
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        
-        return false;
+        return Observable.from(this.contexts)
+        .filter(context => context.query(state))
+        .concatMap(context => Observable.from(context.rules))
+        .concatMap(rule => Observable.from(rule.recognizers)
+            .concatMap(recognizer => {
+                const entities = recognizer(state, message);
+                console.log("recognizer", entities);
+                return entities instanceof Observable ? entities : Observable.of(entities);
+            })
+            .filter(entities => !!entities)
+            .flatMap<Entities, boolean>(entities => {
+                const result = rule.handler(this.store, message, entities);
+                console.log("handler", result);
+                return result instanceof Observable ? result.mapTo(true$) : true$;
+            })
+        )
+        .first(result => result, null, false)
     }
 }

@@ -300,7 +300,6 @@ const intentEngine = new IntentEngine(store, contexts);
 
 chat.activity$
 .filter(activity => activity.type === 'message')
-.subscribe((message: Message) => {
-    console.log("message", message);
-    intentEngine.runMessage(message);
-});
+.do(message => console.log("message", message))
+.flatMap((message: Message) => intentEngine.runMessage(message))
+.subscribe();

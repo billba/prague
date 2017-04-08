@@ -7568,6 +7568,7 @@ exports.BrowserBot = BrowserBot;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
+var rxjs_1 = __webpack_require__(45);
 var alwaysRecognize = function () { return ({}); };
 exports.always = function () { return true; };
 exports.rule = function (recognizer, handler) { return ({
@@ -7585,30 +7586,32 @@ exports.context = function (query) {
         rules: [].concat.apply([], rules.map(function (rule) { return (Array.isArray(rule) ? rule : [rule]); }))
     });
 };
+var false$ = rxjs_1.Observable.of(false);
+var true$ = rxjs_1.Observable.of(true);
 var IntentEngine = (function () {
     function IntentEngine(store, contexts) {
         this.store = store;
         this.contexts = contexts;
     }
     IntentEngine.prototype.runMessage = function (message) {
+        var _this = this;
         var state = this.store.getState();
-        for (var _i = 0, _a = this.contexts; _i < _a.length; _i++) {
-            var context_1 = _a[_i];
-            if (context_1.query(state)) {
-                for (var _b = 0, _c = context_1.rules; _b < _c.length; _b++) {
-                    var rule_1 = _c[_b];
-                    for (var _d = 0, _e = rule_1.recognizers; _d < _e.length; _d++) {
-                        var recognizer = _e[_d];
-                        var entities = recognizer(state, message);
-                        if (entities) {
-                            rule_1.handler(this.store, message, entities);
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
+        return rxjs_1.Observable.from(this.contexts)
+            .filter(function (context) { return context.query(state); })
+            .concatMap(function (context) { return rxjs_1.Observable.from(context.rules); })
+            .concatMap(function (rule) { return rxjs_1.Observable.from(rule.recognizers)
+            .concatMap(function (recognizer) {
+            var entities = recognizer(state, message);
+            console.log("recognizer", entities);
+            return entities instanceof rxjs_1.Observable ? entities : rxjs_1.Observable.of(entities);
+        })
+            .filter(function (entities) { return !!entities; })
+            .flatMap(function (entities) {
+            var result = rule.handler(_this.store, message, entities);
+            console.log("handler", result);
+            return result instanceof rxjs_1.Observable ? result.mapTo(true$) : true$;
+        }); })
+            .first(function (result) { return result; }, null, false);
     };
     return IntentEngine;
 }());
@@ -7638,16 +7641,13 @@ var Prompt = (function () {
         this.set(undefined);
     };
     Prompt.prototype.recognizer = function (state, message) {
-        console.log("recognizer this", this);
         var rule = this.promptRules[state.bot.promptKey];
-        if (!rule)
-            return null;
-        return rule.recognizers[0](state, message);
+        return rule && rule.recognizers[0](state, message);
     };
     Prompt.prototype.handler = function (store, message, entities) {
-        console.log("handler this.promptRules", this.promptRules);
-        this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
+        var result = this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
         this.clear();
+        return result;
     };
     Prompt.prototype.context = function () {
         var _this = this;
@@ -7701,19 +7701,13 @@ var Prompt = (function () {
         var _this = this;
         return function (state, message) {
             var choice = _this.choiceLists[choiceName].find(function (choice) { return choice.toLowerCase() === message.text.toLowerCase(); });
-            if (choice)
-                return { choice: choice };
-            else
-                return null;
+            return choice ? { choice: choice } : null;
         };
     };
     Prompt.prototype.confirmRecognizer = function () {
         return function (state, message) {
             var confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
-            if (confirm)
-                return { confirm: confirm };
-            else
-                return null;
+            return confirm ? { confirm: confirm } : null;
         };
     };
     return Prompt;
@@ -7733,9 +7727,7 @@ exports.re = function (intents, handler) { return ({
     recognizers: (Array.isArray(intents) ? intents : [intents]).map(function (intent) {
         return function (state, message) {
             var groups = intent.exec(message.text);
-            if (groups && groups[0] === message.text)
-                return { groups: groups };
-            return null;
+            return groups && groups[0] === message.text && { groups: groups };
         };
     }),
     handler: handler
@@ -8140,10 +8132,9 @@ var contexts = [
 var intentEngine = new Intent_1.IntentEngine(store, contexts);
 chat.activity$
     .filter(function (activity) { return activity.type === 'message'; })
-    .subscribe(function (message) {
-    console.log("message", message);
-    intentEngine.runMessage(message);
-});
+    .do(function (message) { return console.log("message", message); })
+    .flatMap(function (message) { return intentEngine.runMessage(message); })
+    .subscribe();
 
 
 /***/ }),
