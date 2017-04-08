@@ -7568,29 +7568,40 @@ exports.BrowserBot = BrowserBot;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var App = (function () {
-    function App(store, contexts) {
+var alwaysRecognize = function () { return ({}); };
+exports.always = function () { return true; };
+exports.rule = function (recognizer, handler) { return ({
+    recognizers: [recognizer],
+    handler: handler
+}); };
+exports.defaultRule = function (handler) { return exports.rule(alwaysRecognize, handler); };
+exports.context = function (query) {
+    var rules = [];
+    for (var _i = 1; _i < arguments.length; _i++) {
+        rules[_i - 1] = arguments[_i];
+    }
+    return ({
+        query: query,
+        rules: [].concat.apply([], rules.map(function (rule) { return (Array.isArray(rule) ? rule : [rule]); }))
+    });
+};
+var IntentEngine = (function () {
+    function IntentEngine(store, contexts) {
         this.store = store;
         this.contexts = contexts;
     }
-    App.prototype.runMessage = function (message) {
+    IntentEngine.prototype.runMessage = function (message) {
         var state = this.store.getState();
         for (var _i = 0, _a = this.contexts; _i < _a.length; _i++) {
             var context_1 = _a[_i];
             if (context_1.query(state)) {
                 for (var _b = 0, _c = context_1.rules; _b < _c.length; _b++) {
-                    var rule = _c[_b];
-                    var recognizers = rule.recognizers;
-                    if (!recognizers || recognizers.length === 0) {
-                        // handler always executes if there are no recognizers
-                        rule.handler(this.store, message, null);
-                        return true;
-                    }
-                    for (var _d = 0, recognizers_1 = recognizers; _d < recognizers_1.length; _d++) {
-                        var recognizer = recognizers_1[_d];
+                    var rule_1 = _c[_b];
+                    for (var _d = 0, _e = rule_1.recognizers; _d < _e.length; _d++) {
+                        var recognizer = _e[_d];
                         var entities = recognizer(state, message);
                         if (entities) {
-                            rule.handler(this.store, message, entities);
+                            rule_1.handler(this.store, message, entities);
                             return true;
                         }
                     }
@@ -7599,18 +7610,9 @@ var App = (function () {
         }
         return false;
     };
-    return App;
+    return IntentEngine;
 }());
-exports.App = App;
-exports.context = function (query, rules) { return ({
-    query: query,
-    rules: (Array.isArray(rules) ? rules : [rules])
-}); };
-exports.always = function () { return true; };
-exports.defaultRule = function (handler) { return ({
-    recognizers: null,
-    handler: handler
-}); };
+exports.IntentEngine = IntentEngine;
 
 
 /***/ }),
@@ -7621,13 +7623,13 @@ exports.defaultRule = function (handler) { return ({
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var Prompt = (function () {
-    function Prompt(chat, store, choiceLists, respondersFactory) {
+    function Prompt(chat, store, choiceLists, promptRulesMaker) {
         this.chat = chat;
         this.store = store;
         this.choiceLists = choiceLists;
-        this.respondersFactory = respondersFactory;
+        this.promptRulesMaker = promptRulesMaker;
         this.yorn = ['Yes', 'No'];
-        this.responders = respondersFactory(this);
+        this.promptRules = promptRulesMaker(this);
     }
     Prompt.prototype.set = function (promptKey) {
         this.store.dispatch({ type: 'Set_PromptKey', promptKey: promptKey });
@@ -7635,18 +7637,31 @@ var Prompt = (function () {
     Prompt.prototype.clear = function () {
         this.set(undefined);
     };
-    Prompt.prototype.respond = function (message) {
-        var state = this.store.getState().bot;
-        if (!this.store.getState().bot.promptKey)
-            return false;
-        var responder = this.responders[state.promptKey];
-        if (responder && responder(message))
-            this.clear();
-        return true;
+    Prompt.prototype.recognizer = function (state, message) {
+        console.log("recognizer this", this);
+        var rule = this.promptRules[state.bot.promptKey];
+        if (!rule)
+            return null;
+        return rule.recognizers[0](state, message);
+    };
+    Prompt.prototype.handler = function (store, message, entities) {
+        console.log("handler this.promptRules", this.promptRules);
+        this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
+        this.clear();
+    };
+    Prompt.prototype.context = function () {
+        var _this = this;
+        return ({
+            query: function (state) { return state.bot.promptKey !== undefined; },
+            rules: [{
+                    recognizers: [function (state, message) { return _this.recognizer(state, message); }],
+                    handler: function (store, message, entities) { return _this.handler(store, message, entities); }
+                }]
+        });
     };
     // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
-    Prompt.prototype.text = function (prompt, text) {
-        this.set(prompt);
+    Prompt.prototype.text = function (promptKey, text) {
+        this.set(promptKey);
         this.chat.send(text);
     };
     Prompt.prototype.choice = function (promptKey, choiceName, text) {
@@ -7678,16 +7693,28 @@ var Prompt = (function () {
                 }); }) }
         });
     };
-    // Prompt Responders - eventually the Connectors will have to do some translation of these, somehow
-    Prompt.prototype.choiceResponder = function (choiceName, responder) {
+    // Prompt Recognizers - eventually the Connectors will have to do some translation of these, somehow
+    Prompt.prototype.textRecognizer = function () {
+        return function (state, message) { return ({ text: message.text }); };
+    };
+    Prompt.prototype.choiceRecognizer = function (choiceName) {
         var _this = this;
-        return function (message) {
+        return function (state, message) {
             var choice = _this.choiceLists[choiceName].find(function (choice) { return choice.toLowerCase() === message.text.toLowerCase(); });
-            return responder(choice);
+            if (choice)
+                return { choice: choice };
+            else
+                return null;
         };
     };
-    Prompt.prototype.confirmResponder = function (responder) {
-        return function (message) { return responder(message.text.toLowerCase() === 'yes'); };
+    Prompt.prototype.confirmRecognizer = function () {
+        return function (state, message) {
+            var confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
+            if (confirm)
+                return { confirm: confirm };
+            else
+                return null;
+        };
     };
     return Prompt;
 }());
@@ -7966,21 +7993,6 @@ var browserBot = new BrowserBot_1.BrowserBot();
 window["browserBot"] = browserBot.botConnection;
 var chat = browserBot.chatConnector;
 setTimeout(function () { return chat.send("Let's get cooking!"); }, 1000);
-var intents = {
-    instructions: {
-        start: /(Let's start|Start|Let's Go|Go|I'm ready|Ready|OK|Okay)\.*/i,
-        next: /(Next|What's next|next up|OK|okay|Go|Continue)/i,
-        previous: /(go back|back up|previous)/i,
-        repeat: /(what's that again|huh|say that again|please repeat that|repeat that|repeat)/i,
-        restart: /(start over|start again|restart)/i
-    },
-    chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
-    queryQuantity: /how (?:many|much) (.+)/i,
-    askQuestion: /ask/i,
-    askYorNQuestion: /yorn/i,
-    askChoiceQuestion: /choice/i,
-    all: /(.*)/i
-};
 var redux_1 = __webpack_require__(115);
 var redux_observable_1 = __webpack_require__(114);
 var nullAction = { type: null };
@@ -8013,7 +8025,7 @@ var epicSetRecipe = function (action$, store) {
         ].concat(action.recipe.recipeIngredient, [
             "Let me know when you're ready to go."
         ]))
-            .zip(rxjs_1.Observable.timer(0, 2000), function (x) { return x; });
+            .zip(rxjs_1.Observable.timer(0, 1000), function (x) { return x; });
     })
         .do(function (ingredient) { return chat.send(ingredient); })
         .count()
@@ -8022,10 +8034,34 @@ var epicSetRecipe = function (action$, store) {
 var store = redux_1.createStore(redux_1.combineReducers({
     bot: bot
 }), redux_1.applyMiddleware(redux_observable_1.createEpicMiddleware(redux_observable_1.combineEpics(epicSetRecipe))));
-var globalDefaultRule = Intent_1.defaultRule(function () { return chat.send("I can't understand you. It's you, not me. Get it together and try again."); });
-var recipeFromName = function (name) {
-    return recipes.find(function (recipe) { return recipe.name.toLowerCase() === name.toLowerCase(); });
+// Prompts
+var Prompt_1 = __webpack_require__(109);
+var recipeChoiceLists = {
+    'Cheeses': ['Cheddar', 'Wensleydale', 'Brie', 'Velveeta']
 };
+var recipePromptRules = function (prompt) { return ({
+    'Favorite_Color': Intent_1.rule(prompt.textRecognizer(), function (store, message, entities) {
+        if (entities['text'] === 'blue')
+            chat.send("That is correct!");
+        else
+            chat.send("That is incorrect");
+    }),
+    'Favorite_Cheese': Intent_1.rule(prompt.choiceRecognizer('Cheeses'), function (store, message, entities) {
+        if (entities['choice'] === 'Velveeta')
+            chat.send('Ima let you finish but FYI that is not really cheese.');
+        else
+            chat.send("Interesting.");
+    }),
+    'Like_Cheese': Intent_1.rule(prompt.confirmRecognizer(), function (store, message, entities) {
+        if (entities['confirm'])
+            chat.send('That is correct.');
+        else
+            chat.send("That is incorrect.");
+    })
+}); };
+var prompt = new Prompt_1.Prompt(chat, store, recipeChoiceLists, recipePromptRules);
+// Intents
+// Message handlers
 var chooseRecipe = function (store, message, entities) {
     var name = entities['groups'][1];
     var recipe = recipeFromName(name);
@@ -8041,6 +8077,21 @@ var queryQuantity = function (store, message, entities) {
         .reduce(function (prev, curr) { return prev[1] > curr[1] ? prev : curr; })[0];
     chat.send(ingredient);
 };
+var nextInstruction = function (store) {
+    var state = store.getState();
+    var nextInstruction = state.bot.lastInstructionSent + 1;
+    if (nextInstruction < state.bot.recipe.recipeInstructions.length)
+        sayInstruction(store, nextInstruction);
+    else
+        chat.send("That's it!");
+};
+var previousInstruction = function (store) {
+    var prevInstruction = store.getState().bot.lastInstructionSent - 1;
+    if (prevInstruction >= 0)
+        sayInstruction(store, prevInstruction);
+    else
+        chat.send("We're at the beginning.");
+};
 var sayInstruction = function (store, instruction) {
     store.dispatch({ type: 'Set_Instruction', instruction: instruction });
     var state = store.getState().bot;
@@ -8048,98 +8099,50 @@ var sayInstruction = function (store, instruction) {
     if (state.recipe.recipeInstructions.length === state.lastInstructionSent + 1)
         chat.send("That's it!");
 };
-var mustChooseRecipe = function () { return chat.send("First please choose a recipe"); };
-// implements Prompts
-var Prompt_1 = __webpack_require__(109);
-var recipeChoiceLists = {
-    'Cheeses': ['Cheddar', 'Wensleydale', 'Brie', 'Velveeta']
+var globalDefaultRule = Intent_1.defaultRule(function () { return chat.send("I can't understand you. It's you, not me. Get it together and try again."); });
+var recipeFromName = function (name) {
+    return recipes.find(function (recipe) { return recipe.name.toLowerCase() === name.toLowerCase(); });
 };
-var recipeResponders = function (prompt) { return ({
-    'Favorite_Color': function (message) {
-        if (message.text.toLowerCase() === 'blue') {
-            chat.send("That is correct!");
-            return true;
-        }
-        chat.send("Nope, try again");
-        return false;
-    },
-    'Favorite_Cheese': prompt.choiceResponder('Cheeses', function (choice) {
-        if (choice) {
-            if (choice === 'Velveeta')
-                chat.send('Ima let you finish but FYI that is not really cheese.');
-            else
-                chat.send("Interesting.");
-            return true;
-        }
-        chat.send("Frankly we don't handle this well.");
-        return false;
-    }),
-    'Like_Cheese': prompt.confirmResponder(function (confirmed) {
-        if (confirmed)
-            chat.send('That is correct.');
-        else
-            chat.send("That is incorrect.");
-        return true;
-    }),
-}); };
-var prompt = new Prompt_1.Prompt(chat, store, recipeChoiceLists, recipeResponders);
 var queries = {
     always: Intent_1.always,
     noRecipe: function (state) { return !state.bot.recipe; },
     noInstructionsSent: function (state) { return state.bot.lastInstructionSent === undefined; },
 };
+var intents = {
+    instructions: {
+        start: /(Let's start|Start|Let's Go|Go|I'm ready|Ready|OK|Okay)\.*/i,
+        next: /(Next|What's next|next up|OK|okay|Go|Continue)/i,
+        previous: /(go back|back up|previous)/i,
+        repeat: /(what's that again|huh|say that again|please repeat that|repeat that|repeat)/i,
+        restart: /(start over|start again|restart)/i
+    },
+    chooseRecipe: /I want to make (?:|a|some)*\s*(.+)/i,
+    queryQuantity: /how (?:many|much) (.+)/i,
+    askQuestion: /ask/i,
+    askYorNQuestion: /yorn/i,
+    askChoiceQuestion: /choice/i,
+    all: /(.*)/i
+};
 var contexts = [
-    // Test intents
-    Intent_1.context(queries.always, [
-        re(intents.askQuestion, function (_) { return prompt.text('Favorite_Color', "What is your favorite color?"); }),
-        re(intents.askYorNQuestion, function (_) { return prompt.confirm('Like_Cheese', "Do you like cheese?"); }),
-        re(intents.askChoiceQuestion, function (_) { return prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"); })
-    ]),
-    // First priority is to choose a recipe
-    Intent_1.context(queries.noRecipe, [
-        re(intents.chooseRecipe, chooseRecipe),
-        re([
-            intents.queryQuantity,
-            intents.instructions.start,
-            intents.instructions.restart
-        ], mustChooseRecipe),
-        re(intents.all, chooseRecipe)
-    ]),
-    // These can happen any time there is an active recipe
+    // Prompts
+    prompt.context(),
+    // For testing Prompts
+    Intent_1.context(queries.always, re(intents.askQuestion, function (_) { return prompt.text('Favorite_Color', "What is your favorite color?"); }), re(intents.askYorNQuestion, function (_) { return prompt.confirm('Like_Cheese', "Do you like cheese?"); }), re(intents.askChoiceQuestion, function (_) { return prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"); })),
+    // If there is no recipe, we have to pick one
+    Intent_1.context(queries.noRecipe, re(intents.chooseRecipe, chooseRecipe), re([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], function (_) { return chat.send("First please choose a recipe"); }), re(intents.all, chooseRecipe)),
+    // Now that we have a recipe, these can happen at any time
     Intent_1.context(queries.always, re(intents.queryQuantity, queryQuantity)),
-    // TODO: conversions go here
-    // Start instructions
-    Intent_1.context(queries.noInstructionsSent, re(intents.instructions.start, function (state) { return sayInstruction(state, 0); })),
-    // Navigate instructions
-    Intent_1.context(queries.always, [
-        re(intents.instructions.next, function (store) {
-            var state = store.getState();
-            var nextInstruction = state.bot.lastInstructionSent + 1;
-            if (nextInstruction < state.bot.recipe.recipeInstructions.length)
-                sayInstruction(state, nextInstruction);
-            else
-                chat.send("That's it!");
-        }),
-        re(intents.instructions.repeat, function (store) { return sayInstruction(store, store.getState().bot.lastInstructionSent); }),
-        re(intents.instructions.previous, function (store) {
-            var prevInstruction = store.getState().bot.lastInstructionSent - 1;
-            if (prevInstruction >= 0)
-                sayInstruction(store, prevInstruction);
-            else
-                chat.send("We're at the beginning.");
-        }),
-        re(intents.instructions.restart, function (store) { return sayInstruction(store, 0); }),
-        globalDefaultRule
-    ])
+    // If we haven't started listing instructions, wait for the user to tell us to start
+    Intent_1.context(queries.noInstructionsSent, re([intents.instructions.start, intents.instructions.next], function (store) { return sayInstruction(store, 0); })),
+    // We are listing instructions. Let the user navigate among them.
+    Intent_1.context(queries.always, re(intents.instructions.next, nextInstruction), re(intents.instructions.repeat, function (store) { return sayInstruction(store, store.getState().bot.lastInstructionSent); }), re(intents.instructions.previous, previousInstruction), re(intents.instructions.restart, function (store) { return sayInstruction(store, 0); }), globalDefaultRule)
 ];
-var app = new Intent_1.App(store, contexts);
+var intentEngine = new Intent_1.IntentEngine(store, contexts);
 chat.activity$
     .filter(function (activity) { return activity.type === 'message'; })
     .subscribe(function (message) {
     console.log("message", message);
-    if (prompt.respond(message))
-        return;
-    app.runMessage(message);
+    intentEngine.runMessage(message);
 });
 
 

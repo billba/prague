@@ -1,6 +1,7 @@
 import { ChatConnector } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
+import { Entities, Recognizer, Handler, Rule, Context } from './Intent';
 
 // Eventually we'll probably want to turn this into a selector function instead of a hardwired interface definition
 export interface Promptable {
@@ -9,16 +10,12 @@ export interface Promptable {
     }
 }
 
-export interface Responder {
-    (answer: Message): boolean;
+export interface PromptRules<S> {
+    [promptKey: string]: Rule<S>;
 }
 
-export interface Responders {
-    [promptKey: string]: Responder;
-}
-
-export interface RespondersFactory<S extends Promptable> {
-    (prompt: Prompt<S>): Responders;
+export interface PromptRulesMaker<S extends Promptable> {
+    (prompt: Prompt<S>): PromptRules<S>;
 }
 
 export type Choice = string; // TODO: eventually this will be something more complex
@@ -30,13 +27,13 @@ export interface ChoiceLists {
 }
 
 export class Prompt<S extends Promptable> {
-    private responders: Responders;
+    private promptRules: PromptRules<S>;
 
-    constructor(private chat: ChatConnector, private store: Store<S>, private choiceLists: ChoiceLists, private respondersFactory: RespondersFactory<S>) {
-        this.responders = respondersFactory(this);
+    constructor(private chat: ChatConnector, private store: Store<S>, private choiceLists: ChoiceLists, private promptRulesMaker: PromptRulesMaker<S>) {
+        this.promptRules = promptRulesMaker(this);
     }
 
-    set(promptKey: string) {
+    private set(promptKey: string) {
         this.store.dispatch({ type: 'Set_PromptKey', promptKey });
     }
 
@@ -44,24 +41,34 @@ export class Prompt<S extends Promptable> {
         this.set(undefined);
     }
 
-    respond(message: Message) {
-        const state = this.store.getState().bot;
+    private recognizer(state: S, message: Message): Entities {
+        console.log("recognizer this", this);
+        const rule = this.promptRules[state.bot.promptKey];
+        if (!rule)
+            return null
+        return rule.recognizers[0](state, message);
+    }
 
-        if (!this.store.getState().bot.promptKey)
-            return false;
+    private handler(store: Store<S>, message: Message, entities: Entities) {
+        console.log("handler this.promptRules", this.promptRules);
+        this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
+        this.clear();
+    }
 
-        const responder = this.responders[state.promptKey];
-
-        if (responder && responder(message))
-            this.clear();
-
-        return true;
+    context(): Context<S> {
+        return ({
+            query: state => state.bot.promptKey !== undefined,
+            rules: [{
+                recognizers: [(state, message) => this.recognizer(state, message)],
+                handler: (store, message, entities) => this.handler(store, message, entities)
+            }]
+        });
     }
 
     // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
 
-    text(prompt: string, text: string) {
-        this.set(prompt);
+    text(promptKey: string, text: string) {
+        this.set(promptKey);
         this.chat.send(text);        
     }
 
@@ -98,16 +105,29 @@ export class Prompt<S extends Promptable> {
         });
     }
 
-    // Prompt Responders - eventually the Connectors will have to do some translation of these, somehow
+    // Prompt Recognizers - eventually the Connectors will have to do some translation of these, somehow
 
-    choiceResponder(choiceName: string, responder: (choice: Choice) => boolean): Responder {
-        return message => {
+    textRecognizer(): Recognizer<S> {
+        return (state, message) => ({ text: message.text });
+    }
+
+    choiceRecognizer(choiceName: string): Recognizer<S> {
+        return (state, message) => {
             const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
-            return responder(choice);
+            if (choice)
+                return { choice };
+            else
+                return null;
         }
     }
 
-    confirmResponder(responder: (confirmed: boolean) => boolean): Responder {
-        return message => responder(message.text.toLowerCase() === 'yes');
+    confirmRecognizer(): Recognizer<S> {
+        return (state, message) => {
+            const confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
+            if (confirm)
+                return { confirm };
+            else
+                return null;
+        }
     }
 }

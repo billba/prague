@@ -9,6 +9,8 @@ export interface Recognizer<S> {
     (state: S, message: Message): Entities;
 }
 
+const alwaysRecognize = () => ({});
+
 export interface Handler<S> {
     (store: Store<S>, message: Message, entities: Entities): void;
 }
@@ -16,6 +18,8 @@ export interface Handler<S> {
 export interface Query<S> {
     (state: S): boolean;
 }
+
+export const always = () => true;
 
 export interface Queries<S> {
     [name: string]: Query<S>
@@ -26,12 +30,25 @@ export interface Rule<S> {
     handler: Handler<S>;
 }
 
+export const rule = <S>(recognizer: Recognizer<S>, handler: Handler<S>) => ({
+    recognizers: [recognizer],
+    handler
+});
+
+export const defaultRule = <S>(handler: Handler<S>): Rule<S> => rule(alwaysRecognize, handler);
+
 export interface Context<S> {
     query: Query<S>;
     rules: Rule<S>[];
 }
 
-export class App<S> {
+export const context = <S>(query: Query<S>, ... rules: (Rule<S> | Rule<S>[])[]): Context<S> => ({
+    query,
+    rules: [].concat(... rules.map(rule => (Array.isArray(rule) ? rule : [rule])))
+})
+
+
+export class IntentEngine<S> {
     constructor(private store: Store<S>, private contexts: Context<S>[]) {
     }
 
@@ -40,13 +57,7 @@ export class App<S> {
         for (const context of this.contexts) {
             if (context.query(state)) {
                 for (const rule of context.rules) {
-                    const recognizers = rule.recognizers;
-                    if (!recognizers || recognizers.length === 0) {
-                        // handler always executes if there are no recognizers
-                        rule.handler(this.store, message, null);
-                        return true;
-                    }
-                    for (const recognizer of recognizers) {
+                    for (const recognizer of rule.recognizers) {
                         const entities = recognizer(state, message);
                         if (entities) {
                             rule.handler(this.store, message, entities);
@@ -60,15 +71,3 @@ export class App<S> {
         return false;
     }
 }
-
-export const context = <S>(query: Query<S>, rules: Rule<S> | Rule<S>[]): Context<S> => ({
-    query,
-    rules: (Array.isArray(rules) ? rules : [rules])
-})
-
-export const always = () => true;
-
-export const defaultRule = <S>(handler: Handler<S>): Rule<S> => ({
-    recognizers: null,
-    handler
-})
