@@ -1,4 +1,4 @@
-import { ChatConnector } from './Chat';
+import { UniversalChat } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
 import { Entities, Recognizer, Rule, Context } from './Intent';
@@ -30,7 +30,7 @@ export interface ChoiceLists {
 export class Prompt<S extends Promptable> {
     private promptRules: PromptRules<S>;
 
-    constructor(private chat: ChatConnector, private store: Store<S>, private choiceLists: ChoiceLists, private promptRulesMaker: PromptRulesMaker<S>) {
+    constructor(private chat: UniversalChat, private store: Store<S>, private choiceLists: ChoiceLists, private promptRulesMaker: PromptRulesMaker<S>) {
         this.promptRules = promptRulesMaker(this);
     }
 
@@ -65,17 +65,17 @@ export class Prompt<S extends Promptable> {
 
     // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
 
-    text(promptKey: string, text: string) {
+    text(message: Message, promptKey: string, text: string) {
         this.set(promptKey);
-        this.chat.send(text);        
+        this.chat.reply(message, text);        
     }
 
-    choice(promptKey: string, choiceName: string, text: string) {
+    choice(message: Message, promptKey: string, choiceName: string, text: string) {
         const choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
         this.set(promptKey);
-        this.chat.postActivity({
+        this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
             text,
@@ -89,9 +89,9 @@ export class Prompt<S extends Promptable> {
 
     private yorn: ChoiceList = ['Yes', 'No'];
 
-    confirm(promptKey: string, text: string) {
+    confirm(message: Message, promptKey: string, text: string) {
         this.set(promptKey);
-        this.chat.postActivity({
+        this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
             text,

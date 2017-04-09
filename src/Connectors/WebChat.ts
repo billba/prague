@@ -1,13 +1,13 @@
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { IBotConnection, Activity, ConnectionStatus } from 'botframework-directlinejs';
-import { ChatConnector } from './Chat';
+import { ChatConnector } from '../Chat';
 
-export class BrowserBot {
+export class WebChatConnector {
     constructor() {
     }
 
     private activityFromChat$ = new Subject<Activity>();
-    private idFromChat = 0;
+    private id = 0;
     
     private activityToChat$ = new Subject<Activity>();
     private idToChat = 0;
@@ -15,10 +15,10 @@ export class BrowserBot {
     private postActivityFromChat(activity: Activity) {
         const newActivity: Activity = {
             ... activity,
-            channelId: "WebChat",
-            conversation: { id: "WebChat" },
+            channelId: "webchat",
+            conversation: { id: "webchat" },
             timestamp: (new Date()).toISOString(),
-            id: (this.idFromChat++).toString()
+            id: (this.id++).toString()
         }
         this.activityFromChat$.next(newActivity);
         return Observable.of(newActivity.id);
@@ -29,7 +29,7 @@ export class BrowserBot {
         const newActivity: Activity = {
             ... activity,
             timestamp: (new Date()).toISOString(),
-            id: (this.idToChat++).toString()
+            id: (this.id++).toString()
         }
         this.activityToChat$.next(newActivity);
         return Observable.of(newActivity);
@@ -43,12 +43,8 @@ export class BrowserBot {
     }
 
     public chatConnector: ChatConnector = {
+        channelId: 'webchat',
         postActivity: (activity: Activity) => this.postActivityToChat(activity),
-        send: (text: string) => this.postActivityToChat({
-            type: 'message',
-            from: { id: 'BrowserBot' },
-            text
-        }).subscribe(),
         activity$: this.activityFromChat$ as Observable<Activity>,
     }
 }

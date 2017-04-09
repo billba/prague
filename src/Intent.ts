@@ -63,13 +63,11 @@ export class IntentEngine<S> {
         .concatMap(rule => Observable.from(rule.recognizers)
             .concatMap(recognizer => {
                 const entities = recognizer(state, message);
-                console.log("recognizer", entities);
                 return entities instanceof Observable ? entities : Observable.of(entities);
             })
             .filter(entities => !!entities)
             .flatMap<Entities, boolean>(entities => {
                 const result = rule.handler(this.store, message, entities);
-                console.log("handler", result);
                 return result instanceof Observable ? result.mapTo(true$) : true$;
             })
         )

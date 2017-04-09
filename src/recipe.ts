@@ -41,21 +41,19 @@ interface NutritionInformation {
 
 import { Observable } from 'rxjs';
 import { Message, CardAction } from 'botframework-directlinejs';
-import { ChatConnector } from './Chat';
+import { UniversalChat } from './Chat';
+import { WebChatConnector } from './Connectors/WebChat';
 import { IntentEngine, Handler as _Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
 import { re as _re } from './RegExp';
-import { BrowserBot } from './BrowserBot';
 
 type Handler = _Handler<AppState>;
 const re = (intents: RegExp | RegExp[], handler: Handler) => _re(intents, handler); // TODO: there's got to be a better way
 
-const browserBot = new BrowserBot()
+const webChat = new WebChatConnector()
+window["browserBot"] = webChat.botConnection;
+const chat = new UniversalChat(webChat.chatConnector);
 
-window["browserBot"] = browserBot.botConnection;
-
-const chat = browserBot.chatConnector;
-
-setTimeout(() => chat.send("Let's get cooking!"), 1000);
+// setTimeout(() => chat.send("Let's get cooking!"), 1000);
 
 import { Store, createStore, combineReducers, applyMiddleware, Action } from 'redux';
 import { Epic, combineEpics, createEpicMiddleware } from 'redux-observable';
@@ -120,27 +118,12 @@ const bot = (
     }
 }
 
-const epicSetRecipe: Epic<RecipeAction, AppState> = (action$, store) =>
-    action$.ofType('Set_Recipe')
-    .flatMap((action: any) =>
-        Observable.from([
-            `Great, let's make ${action.recipe.name} which ${action.recipe.recipeYield.toLowerCase()}!`,
-            "Here are the ingredients:",
-            ... action.recipe.recipeIngredient,
-            "Let me know when you're ready to go."
-        ])
-        .zip(Observable.timer(0, 1000), x => x)
-    )
-    .do(ingredient => chat.send(ingredient))
-    .count()
-    .mapTo(nullAction);
-
 const store = createStore(
     combineReducers<AppState>({
         bot
     }),
     applyMiddleware(createEpicMiddleware(combineEpics(
-        epicSetRecipe
+        // Epics go here
     )))
 );
 
@@ -156,25 +139,25 @@ const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
     'Favorite_Color': rule(prompt.textRecognizer(),
         (store, message, entities) => {
             if (entities['text'] === 'blue')
-                chat.send("That is correct!");
+                chat.reply(message, "That is correct!");
             else
-                chat.send("That is incorrect");
+                chat.reply(message, "That is incorrect");
         }
     ),
     'Favorite_Cheese': rule(prompt.choiceRecognizer('Cheeses'),
         (store, message, entities) => {
             if (entities['choice'] === 'Velveeta')
-                chat.send('Ima let you finish but FYI that is not really cheese.');
+                chat.reply(message, 'Ima let you finish but FYI that is not really cheese.');
             else
-                chat.send("Interesting.");
+                chat.reply(message, "Interesting.");
         }
     ),
     'Like_Cheese': rule(prompt.confirmRecognizer(),
         (store, message, entities) => {
             if (entities['confirm'])
-                chat.send('That is correct.');
+                chat.reply(message, 'That is correct.');
             else
-                chat.send("That is incorrect.");
+                chat.reply(message, "That is incorrect.");
         }
     )
 });
@@ -188,10 +171,21 @@ const prompt = new Prompt(chat, store, recipeChoiceLists, recipePromptRules);
 const chooseRecipe: Handler = (store, message, entities) => {
     const name = entities['groups'][1];
     const recipe = recipeFromName(name);
-    if (recipe)
+    if (recipe) {
         store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe });
-    else
-        chat.send(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
+        return Observable.from([
+            `Great, let's make ${name} which ${recipe.recipeYield.toLowerCase()}!`,
+            "Here are the ingredients:",
+            ... recipe.recipeIngredient,
+            "Let me know when you're ready to go."
+        ])
+        .zip(Observable.timer(0, 1000), x => x)
+        .do(ingredient => chat.reply(message, ingredient))
+        .count()
+        .mapTo(null);
+    } else {
+        chat.replyAsync(message, `Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
+    }
 }
 
 const queryQuantity: Handler = (store, message, entities) => {
@@ -202,35 +196,35 @@ const queryQuantity: Handler = (store, message, entities) => {
         .reduce((prev, curr) => prev[1] > curr[1] ? prev : curr)
         [0];
 
-    chat.send(ingredient);
+    chat.reply(message, ingredient);
 }
 
-const nextInstruction: Handler = (store) => {
+const nextInstruction: Handler = (store, message) => {
     const state = store.getState();
     const nextInstruction = state.bot.lastInstructionSent + 1;
     if (nextInstruction < state.bot.recipe.recipeInstructions.length)
-        sayInstruction(store, nextInstruction);
+        sayInstruction(store, message, nextInstruction);
     else
-        chat.send("That's it!");
+        chat.reply(message, "That's it!");
 }
 
-const previousInstruction: Handler = (store) => {
+const previousInstruction: Handler = (store, message) => {
     const prevInstruction = store.getState().bot.lastInstructionSent - 1;
     if (prevInstruction >= 0)
-        sayInstruction(store, prevInstruction);
+        sayInstruction(store, message, prevInstruction);
     else
-        chat.send("We're at the beginning.");
+        chat.reply(message, "We're at the beginning.");
 }
 
-const sayInstruction = (store, instruction: number) => {
+const sayInstruction = (store: Store<AppState>, message: Message, instruction: number) => {
     store.dispatch({ type: 'Set_Instruction', instruction });
     const state = store.getState().bot;
-    chat.send(state.recipe.recipeInstructions[state.lastInstructionSent]);
+    chat.reply(message, state.recipe.recipeInstructions[state.lastInstructionSent]);
     if (state.recipe.recipeInstructions.length === state.lastInstructionSent + 1)
-        chat.send("That's it!");
+        chat.reply(message, "That's it!");
 }
 
-const globalDefaultRule = defaultRule<AppState>(() => chat.send("I can't understand you. It's you, not me. Get it together and try again."));
+const globalDefaultRule = defaultRule<AppState>((store, message, entities) => chat.reply(message, "I can't understand you. It's you, not me. Get it together and try again."));
 
 const recipeFromName = (name: string) =>
     recipes.find(recipe => recipe.name.toLowerCase() === name.toLowerCase());
@@ -264,15 +258,15 @@ const contexts: Context<AppState>[] = [
 
     // For testing Prompts
     context(queries.always,
-        re(intents.askQuestion, _ => prompt.text('Favorite_Color', "What is your favorite color?")),
-        re(intents.askYorNQuestion, _ => prompt.confirm('Like_Cheese', "Do you like cheese?")),
-        re(intents.askChoiceQuestion, _ => prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
+        re(intents.askQuestion, (store, message) => prompt.text(message, 'Favorite_Color', "What is your favorite color?")),
+        re(intents.askYorNQuestion, (store, message) => prompt.confirm(message, 'Like_Cheese', "Do you like cheese?")),
+        re(intents.askChoiceQuestion, (store, message) => prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
     ),
 
     // If there is no recipe, we have to pick one
     context(queries.noRecipe,
         re(intents.chooseRecipe, chooseRecipe),
-        re([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], _ => chat.send("First please choose a recipe")),
+        re([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], (store, message) => chat.reply(message, "First please choose a recipe")),
         re(intents.all, chooseRecipe)
     ),
 
@@ -283,15 +277,15 @@ const contexts: Context<AppState>[] = [
 
     // If we haven't started listing instructions, wait for the user to tell us to start
     context(queries.noInstructionsSent,
-        re([intents.instructions.start, intents.instructions.next], store => sayInstruction(store, 0))
+        re([intents.instructions.start, intents.instructions.next], (store, message) => sayInstruction(store, message, 0))
     ),
 
     // We are listing instructions. Let the user navigate among them.
     context(queries.always,
         re(intents.instructions.next, nextInstruction),
-        re(intents.instructions.repeat, store => sayInstruction(store, store.getState().bot.lastInstructionSent)),
+        re(intents.instructions.repeat, (store, message) => sayInstruction(store, message, store.getState().bot.lastInstructionSent)),
         re(intents.instructions.previous, previousInstruction),
-        re(intents.instructions.restart, store => sayInstruction(store, 0)),
+        re(intents.instructions.restart, (store, message) => sayInstruction(store, message, 0)),
         globalDefaultRule
     )
 ];

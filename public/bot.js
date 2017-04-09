@@ -7506,62 +7506,7 @@ exports.clearImmediate = clearImmediate;
 
 
 /***/ }),
-/* 107 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-var __assign = (this && this.__assign) || Object.assign || function(t) {
-    for (var s, i = 1, n = arguments.length; i < n; i++) {
-        s = arguments[i];
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-            t[p] = s[p];
-    }
-    return t;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-var rxjs_1 = __webpack_require__(45);
-var botframework_directlinejs_1 = __webpack_require__(117);
-var BrowserBot = (function () {
-    function BrowserBot() {
-        var _this = this;
-        this.activityFromChat$ = new rxjs_1.Subject();
-        this.idFromChat = 0;
-        this.activityToChat$ = new rxjs_1.Subject();
-        this.idToChat = 0;
-        this.botConnection = {
-            postActivity: function (activity) { return _this.postActivityFromChat(activity); },
-            activity$: this.activityToChat$,
-            connectionStatus$: new rxjs_1.BehaviorSubject(botframework_directlinejs_1.ConnectionStatus.Online),
-            end: function () { }
-        };
-        this.chatConnector = {
-            postActivity: function (activity) { return _this.postActivityToChat(activity); },
-            send: function (text) { return _this.postActivityToChat({
-                type: 'message',
-                from: { id: 'BrowserBot' },
-                text: text
-            }).subscribe(); },
-            activity$: this.activityFromChat$,
-        };
-    }
-    BrowserBot.prototype.postActivityFromChat = function (activity) {
-        var newActivity = __assign({}, activity, { channelId: "WebChat", conversation: { id: "WebChat" }, timestamp: (new Date()).toISOString(), id: (this.idFromChat++).toString() });
-        this.activityFromChat$.next(newActivity);
-        return rxjs_1.Observable.of(newActivity.id);
-    };
-    BrowserBot.prototype.postActivityToChat = function (activity) {
-        console.log("posting", activity);
-        var newActivity = __assign({}, activity, { timestamp: (new Date()).toISOString(), id: (this.idToChat++).toString() });
-        this.activityToChat$.next(newActivity);
-        return rxjs_1.Observable.of(newActivity);
-    };
-    return BrowserBot;
-}());
-exports.BrowserBot = BrowserBot;
-
-
-/***/ }),
+/* 107 */,
 /* 108 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -7602,13 +7547,11 @@ var IntentEngine = (function () {
             .concatMap(function (rule) { return rxjs_1.Observable.from(rule.recognizers)
             .concatMap(function (recognizer) {
             var entities = recognizer(state, message);
-            console.log("recognizer", entities);
             return entities instanceof rxjs_1.Observable ? entities : rxjs_1.Observable.of(entities);
         })
             .filter(function (entities) { return !!entities; })
             .flatMap(function (entities) {
             var result = rule.handler(_this.store, message, entities);
-            console.log("handler", result);
             return result instanceof rxjs_1.Observable ? result.mapTo(true$) : true$;
         }); })
             .first(function (result) { return result; }, null, false);
@@ -7660,16 +7603,16 @@ var Prompt = (function () {
         });
     };
     // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
-    Prompt.prototype.text = function (promptKey, text) {
+    Prompt.prototype.text = function (message, promptKey, text) {
         this.set(promptKey);
-        this.chat.send(text);
+        this.chat.reply(message, text);
     };
-    Prompt.prototype.choice = function (promptKey, choiceName, text) {
+    Prompt.prototype.choice = function (message, promptKey, choiceName, text) {
         var choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
         this.set(promptKey);
-        this.chat.postActivity({
+        this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
             text: text,
@@ -7680,9 +7623,9 @@ var Prompt = (function () {
                 }); }) }
         });
     };
-    Prompt.prototype.confirm = function (promptKey, text) {
+    Prompt.prototype.confirm = function (message, promptKey, text) {
         this.set(promptKey);
-        this.chat.postActivity({
+        this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
             text: text,
@@ -7977,14 +7920,15 @@ var recipes = recipes_1.recipesRaw;
 //convertIngredient("10g cheese", "imperial");
 weightsAndMeasures_1.convertIngredient("10floz milk", "metric");
 var rxjs_1 = __webpack_require__(45);
+var Chat_1 = __webpack_require__(419);
+var WebChat_1 = __webpack_require__(418);
 var Intent_1 = __webpack_require__(108);
 var RegExp_1 = __webpack_require__(110);
-var BrowserBot_1 = __webpack_require__(107);
 var re = function (intents, handler) { return RegExp_1.re(intents, handler); }; // TODO: there's got to be a better way
-var browserBot = new BrowserBot_1.BrowserBot();
-window["browserBot"] = browserBot.botConnection;
-var chat = browserBot.chatConnector;
-setTimeout(function () { return chat.send("Let's get cooking!"); }, 1000);
+var webChat = new WebChat_1.WebChatConnector();
+window["browserBot"] = webChat.botConnection;
+var chat = new Chat_1.UniversalChat(webChat.chatConnector);
+// setTimeout(() => chat.send("Let's get cooking!"), 1000);
 var redux_1 = __webpack_require__(115);
 var redux_observable_1 = __webpack_require__(114);
 var nullAction = { type: null };
@@ -8008,24 +7952,9 @@ var bot = function (state, action) {
             return state;
     }
 };
-var epicSetRecipe = function (action$, store) {
-    return action$.ofType('Set_Recipe')
-        .flatMap(function (action) {
-        return rxjs_1.Observable.from([
-            "Great, let's make " + action.recipe.name + " which " + action.recipe.recipeYield.toLowerCase() + "!",
-            "Here are the ingredients:"
-        ].concat(action.recipe.recipeIngredient, [
-            "Let me know when you're ready to go."
-        ]))
-            .zip(rxjs_1.Observable.timer(0, 1000), function (x) { return x; });
-    })
-        .do(function (ingredient) { return chat.send(ingredient); })
-        .count()
-        .mapTo(nullAction);
-};
 var store = redux_1.createStore(redux_1.combineReducers({
     bot: bot
-}), redux_1.applyMiddleware(redux_observable_1.createEpicMiddleware(redux_observable_1.combineEpics(epicSetRecipe))));
+}), redux_1.applyMiddleware(redux_observable_1.createEpicMiddleware(redux_observable_1.combineEpics())));
 // Prompts
 var Prompt_1 = __webpack_require__(109);
 var recipeChoiceLists = {
@@ -8034,21 +7963,21 @@ var recipeChoiceLists = {
 var recipePromptRules = function (prompt) { return ({
     'Favorite_Color': Intent_1.rule(prompt.textRecognizer(), function (store, message, entities) {
         if (entities['text'] === 'blue')
-            chat.send("That is correct!");
+            chat.reply(message, "That is correct!");
         else
-            chat.send("That is incorrect");
+            chat.reply(message, "That is incorrect");
     }),
     'Favorite_Cheese': Intent_1.rule(prompt.choiceRecognizer('Cheeses'), function (store, message, entities) {
         if (entities['choice'] === 'Velveeta')
-            chat.send('Ima let you finish but FYI that is not really cheese.');
+            chat.reply(message, 'Ima let you finish but FYI that is not really cheese.');
         else
-            chat.send("Interesting.");
+            chat.reply(message, "Interesting.");
     }),
     'Like_Cheese': Intent_1.rule(prompt.confirmRecognizer(), function (store, message, entities) {
         if (entities['confirm'])
-            chat.send('That is correct.');
+            chat.reply(message, 'That is correct.');
         else
-            chat.send("That is incorrect.");
+            chat.reply(message, "That is incorrect.");
     })
 }); };
 var prompt = new Prompt_1.Prompt(chat, store, recipeChoiceLists, recipePromptRules);
@@ -8057,41 +7986,53 @@ var prompt = new Prompt_1.Prompt(chat, store, recipeChoiceLists, recipePromptRul
 var chooseRecipe = function (store, message, entities) {
     var name = entities['groups'][1];
     var recipe = recipeFromName(name);
-    if (recipe)
+    if (recipe) {
         store.dispatch({ type: 'Set_Recipe', recipe: recipe });
-    else
-        chat.send("Sorry, I don't know how to make " + name + ". Maybe one day you can teach me.");
+        return rxjs_1.Observable.from([
+            "Great, let's make " + name + " which " + recipe.recipeYield.toLowerCase() + "!",
+            "Here are the ingredients:"
+        ].concat(recipe.recipeIngredient, [
+            "Let me know when you're ready to go."
+        ]))
+            .zip(rxjs_1.Observable.timer(0, 1000), function (x) { return x; })
+            .do(function (ingredient) { return chat.reply(message, ingredient); })
+            .count()
+            .mapTo(null);
+    }
+    else {
+        chat.replyAsync(message, "Sorry, I don't know how to make " + name + ". Maybe one day you can teach me.");
+    }
 };
 var queryQuantity = function (store, message, entities) {
     var ingredientQuery = entities['groups'][1].split('');
     var ingredient = store.getState().bot.recipe.recipeIngredient
         .map(function (i) { return [i, lcs(i.split(''), ingredientQuery).length]; })
         .reduce(function (prev, curr) { return prev[1] > curr[1] ? prev : curr; })[0];
-    chat.send(ingredient);
+    chat.reply(message, ingredient);
 };
-var nextInstruction = function (store) {
+var nextInstruction = function (store, message) {
     var state = store.getState();
     var nextInstruction = state.bot.lastInstructionSent + 1;
     if (nextInstruction < state.bot.recipe.recipeInstructions.length)
-        sayInstruction(store, nextInstruction);
+        sayInstruction(store, message, nextInstruction);
     else
-        chat.send("That's it!");
+        chat.reply(message, "That's it!");
 };
-var previousInstruction = function (store) {
+var previousInstruction = function (store, message) {
     var prevInstruction = store.getState().bot.lastInstructionSent - 1;
     if (prevInstruction >= 0)
-        sayInstruction(store, prevInstruction);
+        sayInstruction(store, message, prevInstruction);
     else
-        chat.send("We're at the beginning.");
+        chat.reply(message, "We're at the beginning.");
 };
-var sayInstruction = function (store, instruction) {
+var sayInstruction = function (store, message, instruction) {
     store.dispatch({ type: 'Set_Instruction', instruction: instruction });
     var state = store.getState().bot;
-    chat.send(state.recipe.recipeInstructions[state.lastInstructionSent]);
+    chat.reply(message, state.recipe.recipeInstructions[state.lastInstructionSent]);
     if (state.recipe.recipeInstructions.length === state.lastInstructionSent + 1)
-        chat.send("That's it!");
+        chat.reply(message, "That's it!");
 };
-var globalDefaultRule = Intent_1.defaultRule(function () { return chat.send("I can't understand you. It's you, not me. Get it together and try again."); });
+var globalDefaultRule = Intent_1.defaultRule(function (store, message, entities) { return chat.reply(message, "I can't understand you. It's you, not me. Get it together and try again."); });
 var recipeFromName = function (name) {
     return recipes.find(function (recipe) { return recipe.name.toLowerCase() === name.toLowerCase(); });
 };
@@ -8119,15 +8060,15 @@ var contexts = [
     // Prompts
     prompt.context(),
     // For testing Prompts
-    Intent_1.context(queries.always, re(intents.askQuestion, function (_) { return prompt.text('Favorite_Color', "What is your favorite color?"); }), re(intents.askYorNQuestion, function (_) { return prompt.confirm('Like_Cheese', "Do you like cheese?"); }), re(intents.askChoiceQuestion, function (_) { return prompt.choice('Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"); })),
+    Intent_1.context(queries.always, re(intents.askQuestion, function (store, message) { return prompt.text(message, 'Favorite_Color', "What is your favorite color?"); }), re(intents.askYorNQuestion, function (store, message) { return prompt.confirm(message, 'Like_Cheese', "Do you like cheese?"); }), re(intents.askChoiceQuestion, function (store, message) { return prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"); })),
     // If there is no recipe, we have to pick one
-    Intent_1.context(queries.noRecipe, re(intents.chooseRecipe, chooseRecipe), re([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], function (_) { return chat.send("First please choose a recipe"); }), re(intents.all, chooseRecipe)),
+    Intent_1.context(queries.noRecipe, re(intents.chooseRecipe, chooseRecipe), re([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], function (store, message) { return chat.reply(message, "First please choose a recipe"); }), re(intents.all, chooseRecipe)),
     // Now that we have a recipe, these can happen at any time
     Intent_1.context(queries.always, re(intents.queryQuantity, queryQuantity)),
     // If we haven't started listing instructions, wait for the user to tell us to start
-    Intent_1.context(queries.noInstructionsSent, re([intents.instructions.start, intents.instructions.next], function (store) { return sayInstruction(store, 0); })),
+    Intent_1.context(queries.noInstructionsSent, re([intents.instructions.start, intents.instructions.next], function (store, message) { return sayInstruction(store, message, 0); })),
     // We are listing instructions. Let the user navigate among them.
-    Intent_1.context(queries.always, re(intents.instructions.next, nextInstruction), re(intents.instructions.repeat, function (store) { return sayInstruction(store, store.getState().bot.lastInstructionSent); }), re(intents.instructions.previous, previousInstruction), re(intents.instructions.restart, function (store) { return sayInstruction(store, 0); }), globalDefaultRule)
+    Intent_1.context(queries.always, re(intents.instructions.next, nextInstruction), re(intents.instructions.repeat, function (store, message) { return sayInstruction(store, message, store.getState().bot.lastInstructionSent); }), re(intents.instructions.previous, previousInstruction), re(intents.instructions.restart, function (store, message) { return sayInstruction(store, message, 0); }), globalDefaultRule)
 ];
 var intentEngine = new Intent_1.IntentEngine(store, contexts);
 chat.activity$
@@ -24787,6 +24728,111 @@ module.exports = function(module) {
 	}
 	return module;
 };
+
+
+/***/ }),
+/* 418 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __assign = (this && this.__assign) || Object.assign || function(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+    }
+    return t;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var rxjs_1 = __webpack_require__(45);
+var botframework_directlinejs_1 = __webpack_require__(117);
+var WebChatConnector = (function () {
+    function WebChatConnector() {
+        var _this = this;
+        this.activityFromChat$ = new rxjs_1.Subject();
+        this.id = 0;
+        this.activityToChat$ = new rxjs_1.Subject();
+        this.idToChat = 0;
+        this.botConnection = {
+            postActivity: function (activity) { return _this.postActivityFromChat(activity); },
+            activity$: this.activityToChat$,
+            connectionStatus$: new rxjs_1.BehaviorSubject(botframework_directlinejs_1.ConnectionStatus.Online),
+            end: function () { }
+        };
+        this.chatConnector = {
+            channelId: 'webchat',
+            postActivity: function (activity) { return _this.postActivityToChat(activity); },
+            activity$: this.activityFromChat$,
+        };
+    }
+    WebChatConnector.prototype.postActivityFromChat = function (activity) {
+        var newActivity = __assign({}, activity, { channelId: "webchat", conversation: { id: "webchat" }, timestamp: (new Date()).toISOString(), id: (this.id++).toString() });
+        this.activityFromChat$.next(newActivity);
+        return rxjs_1.Observable.of(newActivity.id);
+    };
+    WebChatConnector.prototype.postActivityToChat = function (activity) {
+        console.log("posting", activity);
+        var newActivity = __assign({}, activity, { timestamp: (new Date()).toISOString(), id: (this.id++).toString() });
+        this.activityToChat$.next(newActivity);
+        return rxjs_1.Observable.of(newActivity);
+    };
+    return WebChatConnector;
+}());
+exports.WebChatConnector = WebChatConnector;
+
+
+/***/ }),
+/* 419 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+// Generic Chat support
+
+var __assign = (this && this.__assign) || Object.assign || function(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+    }
+    return t;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var rxjs_1 = __webpack_require__(45);
+var UniversalChat = (function () {
+    function UniversalChat() {
+        var chats = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            chats[_i] = arguments[_i];
+        }
+        var _this = this;
+        this.chats = {};
+        this.channelId = 'chat';
+        chats.forEach(function (chat) {
+            _this.chats[chat.channelId] = chat;
+        });
+        this.activity$ = rxjs_1.Observable.merge.apply(rxjs_1.Observable, chats.map(function (chat) { return chat.activity$; }));
+    }
+    UniversalChat.prototype.replyAsync = function (to, send) {
+        var activity = typeof send === "string"
+            ? {
+                type: 'message',
+                from: { id: 'from' },
+                text: send,
+                channelId: to.channelId,
+                conversation: to.conversation
+            } : __assign({}, send, { channelId: to.channelId, conversation: to.conversation });
+        return this.postActivity(activity);
+    };
+    UniversalChat.prototype.reply = function (to, send) {
+        this.replyAsync(to, send).subscribe();
+    };
+    UniversalChat.prototype.postActivity = function (activity) {
+        return this.chats[activity.channelId].postActivity(activity).mapTo(null);
+    };
+    return UniversalChat;
+}());
+exports.UniversalChat = UniversalChat;
 
 
 /***/ })
