@@ -1,7 +1,7 @@
 import { UniversalChat } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
-import { Entities, Recognizer, Rule, Context } from './Intent';
+import { Args, Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
 
 // Eventually we'll probably want to turn this into a selector function instead of a hardwired interface definition
@@ -42,23 +42,20 @@ export class Prompt<S extends Promptable> {
         this.set(undefined);
     }
 
-    private recognizer(state: S, message: Message): Entities {
-        const rule = this.promptRules[state.bot.promptKey];
-        return rule && rule.recognizers[0](state, message);
-    }
-
-    private handler(store: Store<S>, message: Message, entities: Entities) {
-        const result = this.promptRules[store.getState().bot.promptKey].handler(this.store, message, entities);
-        this.clear();
-        return result;
-    }
-
     context(): Context<S> {
         return ({
             query: state => state.bot.promptKey !== undefined,
             rules: [{
-                recognizers: [(state, message) => this.recognizer(state, message)],
-                handler: (store, message, entities) => this.handler(store, message, entities)
+                recognizer: (state, message) => {
+                    const rule = this.promptRules[state.bot.promptKey];
+                    return rule && rule.recognizer(state, message);
+                },
+                handler: (store, message, args) => {
+                    const result = this.promptRules[store.getState().bot.promptKey].handler(this.store, message, args);
+                    this.clear();
+                    return result;
+                },
+                name: `PROMPT`
             }]
         });
     }

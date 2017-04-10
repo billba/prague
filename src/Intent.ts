@@ -2,18 +2,18 @@ import { Observable } from 'rxjs';
 import { Message } from 'botframework-directlinejs';
 import { Store } from 'redux';
 
-export interface Entities {
+export interface Args {
     [name: string]: any;
 }
 
 export interface Recognizer<S> {
-    (state: S, message: Message): Entities | Observable<Entities>;
+    (state: S, message: Message): Args | Observable<Args>;
 }
 
 const alwaysRecognize = () => ({});
 
 export interface Handler<S> {
-    (store: Store<S>, message: Message, entities: Entities): void | Observable<void>;
+    (store: Store<S>, message: Message, args: Args): any | Observable<any>;
 }
 
 export interface Query<S> {
@@ -27,13 +27,15 @@ export interface Queries<S> {
 }
 
 export interface Rule<S> {
-    recognizers: Recognizer<S>[];
+    recognizer: Recognizer<S>;
     handler: Handler<S>;
+    name?: string;
 }
 
-export const rule = <S>(recognizer: Recognizer<S>, handler: Handler<S>) => ({
-    recognizers: [recognizer],
-    handler
+export const rule = <S>(recognizer: Recognizer<S>, handler: Handler<S>, name?: string): Rule<S> => ({
+    recognizer,
+    handler,
+    name
 });
 
 export const defaultRule = <S>(handler: Handler<S>): Rule<S> => rule(alwaysRecognize, handler);
@@ -43,34 +45,34 @@ export interface Context<S> {
     rules: Rule<S>[];
 }
 
+export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
+
 export const context = <S>(query: Query<S>, ... rules: (Rule<S> | Rule<S>[])[]): Context<S> => ({
     query,
-    rules: [].concat(... rules.map(rule => (Array.isArray(rule) ? rule : [rule])))
+    rules: [].concat(... rules.map(rule => arrayize(rule)))
 })
 
-const false$ = Observable.of(false);
 const true$ = Observable.of(true);
+const observerize = <T>(args: T | Observable<T>) => args instanceof Observable ? args : Observable.of(args);
 
-export class IntentEngine<S> {
-    constructor(private store: Store<S>, private contexts: Context<S>[]) {
-    }
-
-    runMessage(message: Message) {
-        const state = this.store.getState();
-        return Observable.from(this.contexts)
+export const runMessage = <S>(store: Store<S>, contexts: Context<S>[], message: Message) => {
+    console.log("running", message, contexts);
+    const state = store.getState();
+    return Observable.from(contexts)
         .filter(context => context.query(state))
-        .concatMap(context => Observable.from(context.rules))
-        .concatMap(rule => Observable.from(rule.recognizers)
-            .concatMap(recognizer => {
-                const entities = recognizer(state, message);
-                return entities instanceof Observable ? entities : Observable.of(entities);
+        .switchMap(context => Observable.from(context.rules)
+            .switchMap(rule => {
+                console.log(`running rule ${rule.name}`);
+                return observerize(rule.recognizer(state, message))
+                .do(_ => console.log(`rule ${rule.name} succeeded!`))
+                .filter(args => !!args)
+                .do(_ => console.log(`rule ${rule.name} calling handler`))
+                .flatMap(args => observerize(rule.handler(store, message, args))
+                    .take(1) // because handlers may emit more than one value
+                )
             })
-            .filter(entities => !!entities)
-            .flatMap<Entities, boolean>(entities => {
-                const result = rule.handler(this.store, message, entities);
-                return result instanceof Observable ? result.mapTo(true$) : true$;
-            })
+            .take(1) // so that we don't keep going through rules
         )
-        .first(result => result, null, false)
-    }
+        .take(1) // so that we don't keep going through contexts
 }
+

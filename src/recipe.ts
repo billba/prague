@@ -43,15 +43,16 @@ import { Observable } from 'rxjs';
 import { Message, CardAction } from 'botframework-directlinejs';
 import { UniversalChat } from './Chat';
 import { WebChatConnector } from './Connectors/WebChat';
-import { IntentEngine, Handler as _Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
-import { re as _re } from './RegExp';
+import { runMessage, Handler as _Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
+import { RE } from './RegExp';
 
 type Handler = _Handler<AppState>;
-const re = (intents: RegExp | RegExp[], handler: Handler) => _re(intents, handler); // TODO: there's got to be a better way
 
 const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
 const chat = new UniversalChat(webChat.chatConnector);
+
+const reply = (text: string): Handler => (store, message, args) => chat.reply(message, text);
 
 // setTimeout(() => chat.send("Let's get cooking!"), 1000);
 
@@ -137,24 +138,24 @@ const recipeChoiceLists: ChoiceLists = {
 
 const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
     'Favorite_Color': rule(prompt.textRecognizer(),
-        (store, message, entities) => {
-            if (entities['text'] === 'blue')
+        (store, message, args) => {
+            if (args['text'] === 'blue')
                 chat.reply(message, "That is correct!");
             else
                 chat.reply(message, "That is incorrect");
         }
     ),
     'Favorite_Cheese': rule(prompt.choiceRecognizer('Cheeses'),
-        (store, message, entities) => {
-            if (entities['choice'] === 'Velveeta')
+        (store, message, args) => {
+            if (args['choice'] === 'Velveeta')
                 chat.reply(message, 'Ima let you finish but FYI that is not really cheese.');
             else
                 chat.reply(message, "Interesting.");
         }
     ),
     'Like_Cheese': rule(prompt.confirmRecognizer(),
-        (store, message, entities) => {
-            if (entities['confirm'])
+        (store, message, args) => {
+            if (args['confirm'])
                 chat.reply(message, 'That is correct.');
             else
                 chat.reply(message, "That is incorrect.");
@@ -168,28 +169,29 @@ const prompt = new Prompt(chat, store, recipeChoiceLists, recipePromptRules);
 
 // Message handlers
 
-const chooseRecipe: Handler = (store, message, entities) => {
-    const name = entities['groups'][1];
+const chooseRecipe: Handler = (store, message, args) => {
+    console.log("in handler");
+    const name = args['groups'][1];
     const recipe = recipeFromName(name);
     if (recipe) {
         store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe });
+
         return Observable.from([
             `Great, let's make ${name} which ${recipe.recipeYield.toLowerCase()}!`,
             "Here are the ingredients:",
             ... recipe.recipeIngredient,
             "Let me know when you're ready to go."
         ])
-        .zip(Observable.timer(0, 1000), x => x)
+        // .zip(Observable.timer(0, 1000), x => x) // Right now we're having trouble introducing delays
         .do(ingredient => chat.reply(message, ingredient))
-        .count()
-        .mapTo(null);
+        .count();
     } else {
-        chat.replyAsync(message, `Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
+        return chat.reply(message, `Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
     }
 }
 
-const queryQuantity: Handler = (store, message, entities) => {
-    const ingredientQuery = entities['groups'][1].split('');
+const queryQuantity: Handler = (store, message, args) => {
+    const ingredientQuery = args['groups'][1].split('');
 
     const ingredient = store.getState().bot.recipe.recipeIngredient
         .map<[string, number]>(i => [i, lcs(i.split(''), ingredientQuery).length])
@@ -224,7 +226,7 @@ const sayInstruction = (store: Store<AppState>, message: Message, instruction: n
         chat.reply(message, "That's it!");
 }
 
-const globalDefaultRule = defaultRule<AppState>((store, message, entities) => chat.reply(message, "I can't understand you. It's you, not me. Get it together and try again."));
+const globalDefaultRule = defaultRule<AppState>(reply("I can't understand you. It's you, not me. Get it together and try again."));
 
 const recipeFromName = (name: string) =>
     recipes.find(recipe => recipe.name.toLowerCase() === name.toLowerCase());
@@ -234,6 +236,8 @@ const queries: Queries<AppState> = {
     noRecipe: state => !state.bot.recipe,
     noInstructionsSent: state => state.bot.lastInstructionSent === undefined,
 }
+
+// RegExp
 
 const intents = {
     instructions: {
@@ -251,6 +255,18 @@ const intents = {
     all: /(.*)/i
 }
 
+const re = new RE<AppState>();
+
+// LUIS
+
+import { LUIS } from './LUIS';
+
+const luis = new LUIS<AppState>({
+    name: 'testModel',
+    id: 'id',
+    key: 'key'
+});
+
 const contexts: Context<AppState>[] = [
 
     // Prompts
@@ -258,42 +274,49 @@ const contexts: Context<AppState>[] = [
 
     // For testing Prompts
     context(queries.always,
-        re(intents.askQuestion, (store, message) => prompt.text(message, 'Favorite_Color', "What is your favorite color?")),
-        re(intents.askYorNQuestion, (store, message) => prompt.confirm(message, 'Like_Cheese', "Do you like cheese?")),
-        re(intents.askChoiceQuestion, (store, message) => prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
+        re.rule(intents.askQuestion, (store, message) => prompt.text(message, 'Favorite_Color', "What is your favorite color?")),
+        re.rule(intents.askYorNQuestion, (store, message) => prompt.confirm(message, 'Like_Cheese', "Do you like cheese?")),
+        re.rule(intents.askChoiceQuestion, (store, message) => prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
+    ),
+
+    // For testing LUIS
+
+    context(queries.always,
+        luis.rule('testModel', [
+            luis.intent('singASong', (store, message, entities) => chat.reply(message, `Let's sing ${entities.song}`)),
+            luis.intent('findSomething', (store, message, entities) => chat.reply(message, `Okay let's find a ${entities.what} in ${entities.where}`))
+        ])
     ),
 
     // If there is no recipe, we have to pick one
     context(queries.noRecipe,
-        re(intents.chooseRecipe, chooseRecipe),
-        re([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], (store, message) => chat.reply(message, "First please choose a recipe")),
-        re(intents.all, chooseRecipe)
+        re.rule(intents.chooseRecipe, chooseRecipe),
+        re.rule([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], reply("First please choose a recipe")),
+        re.rule(intents.all, chooseRecipe)
     ),
 
     // Now that we have a recipe, these can happen at any time
     context(queries.always,
-        re(intents.queryQuantity, queryQuantity), /* TODO: conversions go here */
+        re.rule(intents.queryQuantity, queryQuantity), /* TODO: conversions go here */
     ),
 
     // If we haven't started listing instructions, wait for the user to tell us to start
     context(queries.noInstructionsSent,
-        re([intents.instructions.start, intents.instructions.next], (store, message) => sayInstruction(store, message, 0))
+        re.rule([intents.instructions.start, intents.instructions.next], (store, message) => sayInstruction(store, message, 0))
     ),
 
     // We are listing instructions. Let the user navigate among them.
     context(queries.always,
-        re(intents.instructions.next, nextInstruction),
-        re(intents.instructions.repeat, (store, message) => sayInstruction(store, message, store.getState().bot.lastInstructionSent)),
-        re(intents.instructions.previous, previousInstruction),
-        re(intents.instructions.restart, (store, message) => sayInstruction(store, message, 0)),
+        re.rule(intents.instructions.next, nextInstruction),
+        re.rule(intents.instructions.repeat, (store, message) => sayInstruction(store, message, store.getState().bot.lastInstructionSent)),
+        re.rule(intents.instructions.previous, previousInstruction),
+        re.rule(intents.instructions.restart, (store, message) => sayInstruction(store, message, 0)),
         globalDefaultRule
     )
 ];
 
-const intentEngine = new IntentEngine(store, contexts);
-
 chat.activity$
 .filter(activity => activity.type === 'message')
 .do(message => console.log("message", message))
-.flatMap((message: Message) => intentEngine.runMessage(message))
+.switchMap((message: Message) => runMessage(store, contexts, message))
 .subscribe();

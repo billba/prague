@@ -1,16 +1,25 @@
 import { Observable } from 'rxjs';
-import { Recognizer, Handler, Rule, rule } from './Intent';
-import { Message } from 'botframework-directlinejs';
+import { Handler, Rule, arrayize } from './Intent';
 
-// Either call as re(intent, handler) or test([intent, intent, ...], handler)
-export const re = <S>(
-    intents: RegExp | RegExp[],
-    handler: Handler<S>
-): Rule<S> => ({
-    recognizers: (Array.isArray(intents) ? intents : [intents]).map<Recognizer<S>>(intent =>
-        (state, message) => {
-            const groups = intent.exec(message.text);
-            return groups && groups[0] === message.text && { groups };
-        }),
-    handler
-});
+export class RE<S> {
+    constructor() {
+    }
+
+    // Either call as re(intent, handler) or test([intent, intent, ...], handler)
+    rule(
+        intents: RegExp | RegExp[],
+        handler: Handler<S>
+    ): Rule<S> {
+        return {
+            recognizer: (store, message) => 
+                Observable.from(arrayize(intents))
+                    .map(regexp => regexp.exec(message.text))
+                    .filter(groups => groups && groups[0] === message.text)
+                    .take(1)
+                    .map(groups => ({ groups }))
+                    .do(args => console.log("RegEx result", args)),
+            handler,
+            name: `REGEXP`
+        };
+    }
+}
