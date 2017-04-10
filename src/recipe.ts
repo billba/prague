@@ -202,10 +202,10 @@ const queryQuantity: Handler = (store, message, args) => {
 }
 
 const nextInstruction: Handler = (store, message) => {
-    const state = store.getState();
-    const nextInstruction = state.bot.lastInstructionSent + 1;
-    if (nextInstruction < state.bot.recipe.recipeInstructions.length)
-        sayInstruction(store, message, nextInstruction);
+    const bot = store.getState().bot;
+    const nextInstruction = bot.lastInstructionSent + 1;
+    if (nextInstruction < bot.recipe.recipeInstructions.length)
+        sayInstruction(store, message, { instruction: nextInstruction });
     else
         chat.reply(message, "That's it!");
 }
@@ -213,16 +213,16 @@ const nextInstruction: Handler = (store, message) => {
 const previousInstruction: Handler = (store, message) => {
     const prevInstruction = store.getState().bot.lastInstructionSent - 1;
     if (prevInstruction >= 0)
-        sayInstruction(store, message, prevInstruction);
+        sayInstruction(store, message, { instruction: prevInstruction });
     else
         chat.reply(message, "We're at the beginning.");
 }
 
-const sayInstruction = (store: Store<AppState>, message: Message, instruction: number) => {
-    store.dispatch({ type: 'Set_Instruction', instruction });
-    const state = store.getState().bot;
-    chat.reply(message, state.recipe.recipeInstructions[state.lastInstructionSent]);
-    if (state.recipe.recipeInstructions.length === state.lastInstructionSent + 1)
+const sayInstruction = (store: Store<AppState>, message: Message, args: { instruction: number }) => {
+    store.dispatch({ type: 'Set_Instruction', instruction: args.instruction });
+    const bot = store.getState().bot;
+    chat.reply(message, bot.recipe.recipeInstructions[bot.lastInstructionSent]);
+    if (bot.recipe.recipeInstructions.length === bot.lastInstructionSent + 1)
         chat.reply(message, "That's it!");
 }
 
@@ -302,15 +302,15 @@ const contexts: Context<AppState>[] = [
 
     // If we haven't started listing instructions, wait for the user to tell us to start
     context(queries.noInstructionsSent,
-        re.rule([intents.instructions.start, intents.instructions.next], (store, message) => sayInstruction(store, message, 0))
+        re.rule([intents.instructions.start, intents.instructions.next], (store, message) => sayInstruction(store, message, { instruction: 0 }))
     ),
 
     // We are listing instructions. Let the user navigate among them.
     context(queries.always,
         re.rule(intents.instructions.next, nextInstruction),
-        re.rule(intents.instructions.repeat, (store, message) => sayInstruction(store, message, store.getState().bot.lastInstructionSent)),
+        re.rule(intents.instructions.repeat, (store, message) => sayInstruction(store, message, { instruction: store.getState().bot.lastInstructionSent })),
         re.rule(intents.instructions.previous, previousInstruction),
-        re.rule(intents.instructions.restart, (store, message) => sayInstruction(store, message, 0)),
+        re.rule(intents.instructions.restart, (store, message) => sayInstruction(store, message, { instruction: 0 })),
         globalDefaultRule
     )
 ];
