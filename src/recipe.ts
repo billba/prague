@@ -137,40 +137,27 @@ const recipeChoiceLists: ChoiceLists = {
 }
 
 const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
-    'Favorite_Color': rule(prompt.textRecognizer(), 
-        (message, args, store) => {
-            if (args['text'] === 'blue')
-                chat.reply(message, "That is correct!");
-            else
-                chat.reply(message, "That is incorrect");
-        }
+    'Favorite_Color': prompt.text((message, args) =>
+        chat.reply(message, args['text'] === "blue" ? "That is correct!" : "That is incorrect"),
     ),
-    'Favorite_Cheese': rule(prompt.choiceRecognizer('Cheeses'),
-        (message, args, store) => {
-            if (args['choice'] === 'Velveeta')
-                chat.reply(message, 'Ima let you finish but FYI that is not really cheese.');
-            else
-                chat.reply(message, "Interesting.");
-        }
+    'Favorite_Cheese': prompt.choice('Cheeses', (message, args) =>
+        chat.reply(message, args['choice'] === "Velveeta" ? "Ima let you finish but FYI that is not really cheese." : "Interesting.")
     ),
-    'Like_Cheese': rule(prompt.confirmRecognizer(),
-        (message, args, store) => {
-            if (args['confirm'])
-                chat.reply(message, 'That is correct.');
-            else
-                chat.reply(message, "That is incorrect.");
-        }
-    )
+    'Like_Cheese': prompt.confirm((message, args) => {
+        console.log("here");
+        chat.reply(message, args['confirm'] ? "That is correct." : "That is incorrect.")
+    }),
 });
 
-const prompt = new Prompt(chat, store, recipeChoiceLists, recipePromptRules);
+const getPromptKey = () => store.getState().bot.promptKey;
+const setPromptKey = (promptKey: string) => store.dispatch({ type: 'Set_PromptKey', promptKey });
+const prompt = new Prompt<AppState>(chat, store, recipeChoiceLists, recipePromptRules, getPromptKey, setPromptKey);
 
 // Intents
 
 // Message handlers
 
 const chooseRecipe: Handler = (message, args, store) => {
-    console.log("in handler");
     const name = args['groups'][1];
     const recipe = recipeFromName(name);
     if (recipe) {
@@ -274,9 +261,9 @@ const contexts: Context<AppState>[] = [
 
     // For testing Prompts
     context(queries.always,
-        re.rule(intents.askQuestion, (message) => prompt.text(message, 'Favorite_Color', "What is your favorite color?")),
-        re.rule(intents.askYorNQuestion, (message) => prompt.confirm(message, 'Like_Cheese', "Do you like cheese?")),
-        re.rule(intents.askChoiceQuestion, (message) => prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
+        re.rule(intents.askQuestion, (message) => prompt.textCreate(message, 'Favorite_Color', "What is your favorite color?")),
+        re.rule(intents.askYorNQuestion, (message) => prompt.confirmCreate(message, 'Like_Cheese', "Do you like cheese?")),
+        re.rule(intents.askChoiceQuestion, (message) => prompt.choiceCreate(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
     ),
 
     // For testing LUIS

@@ -1,21 +1,14 @@
 import { UniversalChat } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
-import { Recognizer, Rule, Context } from './Intent';
+import { Handler, Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
-
-// Eventually we'll probably want to turn this into a selector function instead of a hardwired interface definition
-export interface Promptable {
-    bot: {
-        promptKey: string;
-    }
-}
 
 export interface PromptRules<S> {
     [promptKey: string]: Rule<S>;
 }
 
-export interface PromptRulesMaker<S extends Promptable> {
+export interface PromptRulesMaker<S> {
     (prompt: Prompt<S>): PromptRules<S>;
 }
 
@@ -27,33 +20,62 @@ export interface ChoiceLists {
     [choiceKey: string]: ChoiceList;
 }
 
-export class Prompt<S extends Promptable> {
+export class Prompt<S> {
     private promptRules: PromptRules<S>;
 
-    constructor(private chat: UniversalChat, private store: Store<S>, private choiceLists: ChoiceLists, private promptRulesMaker: PromptRulesMaker<S>) {
+    constructor(
+        private chat: UniversalChat,
+        private store: Store<S>,
+        private choiceLists: ChoiceLists,
+        private promptRulesMaker: PromptRulesMaker<S>,
+        private getPromptKey: () => string,
+        private setPromptKey: (promptKey: string) => void
+
+    ) {
         this.promptRules = promptRulesMaker(this);
     }
 
-    private set(promptKey: string) {
-        this.store.dispatch({ type: 'Set_PromptKey', promptKey });
+    // Prompt Rule Creators
+    text(handler: Handler<S>): Rule<S> {
+        return {
+            recognizer: (message) => ({ text: message.text }),
+            handler
+        }
     }
 
-    private clear() {
-        this.set(undefined);
+    choice(choiceName: string, handler: Handler<S>) {
+        return {
+            recognizer: (message) => {
+                const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
+                return choice && { choice };
+            },
+            handler
+        }
+    }
+
+    confirm(handler: Handler<S>) {
+        return {
+            recognizer: (message) => {
+                const confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
+                return confirm && { confirm };
+            },
+            handler
+        }
     }
 
     context(): Context<S> {
         return ({
-            query: state => state.bot.promptKey !== undefined,
+            query: () => this.getPromptKey() !== undefined,
             rules: [{
                 recognizer: (message, state) => {
-                    const rule = this.promptRules[state.bot.promptKey];
-                    return rule && rule.recognizer(message, state);
+                    const rule = this.promptRules[this.getPromptKey()];
+                    return rule && rule.recognizer(message);
                 },
                 handler: (message, args, store) => {
-                    const result = this.promptRules[store.getState().bot.promptKey].handler(message, args, this.store);
-                    this.clear();
-                    return result;
+                    console.log("in meta handler");
+                    const rule = this.promptRules[this.getPromptKey()];
+                    this.setPromptKey(undefined);
+                    return rule.handler(message, args, store);
                 },
                 name: `PROMPT`
             }]
@@ -62,16 +84,16 @@ export class Prompt<S extends Promptable> {
 
     // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
 
-    text(message: Message, promptKey: string, text: string) {
-        this.set(promptKey);
+    textCreate(message: Message, promptKey: string, text: string) {
+        this.setPromptKey(promptKey);
         this.chat.reply(message, text);        
     }
 
-    choice(message: Message, promptKey: string, choiceName: string, text: string) {
+    choiceCreate(message: Message, promptKey: string, choiceName: string, text: string) {
         const choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
-        this.set(promptKey);
+        this.setPromptKey(promptKey);
         this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
@@ -86,8 +108,8 @@ export class Prompt<S extends Promptable> {
 
     private yorn: ChoiceList = ['Yes', 'No'];
 
-    confirm(message: Message, promptKey: string, text: string) {
-        this.set(promptKey);
+    confirmCreate(message: Message, promptKey: string, text: string) {
+        this.setPromptKey(promptKey);
         this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
@@ -98,25 +120,5 @@ export class Prompt<S extends Promptable> {
                 value: choice
             })) }
         });
-    }
-
-    // Prompt Recognizers - eventually the Connectors will have to do some translation of these, somehow
-
-    textRecognizer(): Recognizer<S> {
-        return (message, state) => ({ text: message.text });
-    }
-
-    choiceRecognizer(choiceName: string): Recognizer<S> {
-        return (message, state) => {
-            const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
-            return choice ? { choice } : null;
-        }
-    }
-
-    confirmRecognizer(): Recognizer<S> {
-        return (message, state) => {
-            const confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
-            return confirm ? { confirm } : null;    
-        }
     }
 }
