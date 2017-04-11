@@ -2,18 +2,14 @@ import { Observable } from 'rxjs';
 import { Message } from 'botframework-directlinejs';
 import { Store } from 'redux';
 
-export interface Args {
-    [name: string]: any;
-}
-
 export interface Recognizer<S> {
-    (state: S, message: Message): Args | Observable<Args>;
+    (message: Message, state?: S): any | Observable<any>;
 }
 
 const alwaysRecognize = () => ({});
 
 export interface Handler<S> {
-    (store: Store<S>, message: Message, args: Args): any | Observable<any>;
+    (message: Message, args?: any, store?: Store<S>): any | Observable<any>;
 }
 
 export interface Query<S> {
@@ -63,11 +59,11 @@ export const runMessage = <S>(store: Store<S>, contexts: Context<S>[], message: 
         .switchMap(context => Observable.from(context.rules)
             .switchMap(rule => {
                 console.log(`running rule ${rule.name}`);
-                return observerize(rule.recognizer(state, message))
+                return observerize(rule.recognizer(message, state))
                 .do(_ => console.log(`rule ${rule.name} succeeded!`))
                 .filter(args => !!args)
                 .do(_ => console.log(`rule ${rule.name} calling handler`))
-                .flatMap(args => observerize(rule.handler(store, message, args))
+                .flatMap(args => observerize(rule.handler(message, args, store))
                     .take(1) // because handlers may emit more than one value
                 )
             })

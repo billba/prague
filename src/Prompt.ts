@@ -1,7 +1,7 @@
 import { UniversalChat } from './Chat';
 import { Store } from 'redux';
 import { Message, CardAction } from 'botframework-directlinejs';
-import { Args, Recognizer, Rule, Context } from './Intent';
+import { Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
 
 // Eventually we'll probably want to turn this into a selector function instead of a hardwired interface definition
@@ -46,12 +46,12 @@ export class Prompt<S extends Promptable> {
         return ({
             query: state => state.bot.promptKey !== undefined,
             rules: [{
-                recognizer: (state, message) => {
+                recognizer: (message, state) => {
                     const rule = this.promptRules[state.bot.promptKey];
-                    return rule && rule.recognizer(state, message);
+                    return rule && rule.recognizer(message, state);
                 },
-                handler: (store, message, args) => {
-                    const result = this.promptRules[store.getState().bot.promptKey].handler(this.store, message, args);
+                handler: (message, args, store) => {
+                    const result = this.promptRules[store.getState().bot.promptKey].handler(message, args, this.store);
                     this.clear();
                     return result;
                 },
@@ -103,18 +103,18 @@ export class Prompt<S extends Promptable> {
     // Prompt Recognizers - eventually the Connectors will have to do some translation of these, somehow
 
     textRecognizer(): Recognizer<S> {
-        return (state, message) => ({ text: message.text });
+        return (message, state) => ({ text: message.text });
     }
 
     choiceRecognizer(choiceName: string): Recognizer<S> {
-        return (state, message) => {
+        return (message, state) => {
             const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
             return choice ? { choice } : null;
         }
     }
 
     confirmRecognizer(): Recognizer<S> {
-        return (state, message) => {
+        return (message, state) => {
             const confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
             return confirm ? { confirm } : null;    
         }

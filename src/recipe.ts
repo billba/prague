@@ -52,7 +52,7 @@ const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
 const chat = new UniversalChat(webChat.chatConnector);
 
-const reply = (text: string): Handler => (store, message, args) => chat.reply(message, text);
+const reply = (text: string): Handler => (message) => chat.reply(message, text);
 
 // setTimeout(() => chat.send("Let's get cooking!"), 1000);
 
@@ -137,8 +137,8 @@ const recipeChoiceLists: ChoiceLists = {
 }
 
 const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
-    'Favorite_Color': rule(prompt.textRecognizer(),
-        (store, message, args) => {
+    'Favorite_Color': rule(prompt.textRecognizer(), 
+        (message, args, store) => {
             if (args['text'] === 'blue')
                 chat.reply(message, "That is correct!");
             else
@@ -146,7 +146,7 @@ const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
         }
     ),
     'Favorite_Cheese': rule(prompt.choiceRecognizer('Cheeses'),
-        (store, message, args) => {
+        (message, args, store) => {
             if (args['choice'] === 'Velveeta')
                 chat.reply(message, 'Ima let you finish but FYI that is not really cheese.');
             else
@@ -154,7 +154,7 @@ const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
         }
     ),
     'Like_Cheese': rule(prompt.confirmRecognizer(),
-        (store, message, args) => {
+        (message, args, store) => {
             if (args['confirm'])
                 chat.reply(message, 'That is correct.');
             else
@@ -169,7 +169,7 @@ const prompt = new Prompt(chat, store, recipeChoiceLists, recipePromptRules);
 
 // Message handlers
 
-const chooseRecipe: Handler = (store, message, args) => {
+const chooseRecipe: Handler = (message, args, store) => {
     console.log("in handler");
     const name = args['groups'][1];
     const recipe = recipeFromName(name);
@@ -190,7 +190,7 @@ const chooseRecipe: Handler = (store, message, args) => {
     }
 }
 
-const queryQuantity: Handler = (store, message, args) => {
+const queryQuantity: Handler = (message, args, store) => {
     const ingredientQuery = args['groups'][1].split('');
 
     const ingredient = store.getState().bot.recipe.recipeIngredient
@@ -201,24 +201,24 @@ const queryQuantity: Handler = (store, message, args) => {
     chat.reply(message, ingredient);
 }
 
-const nextInstruction: Handler = (store, message) => {
+const nextInstruction: Handler = (message, args, store) => {
     const bot = store.getState().bot;
     const nextInstruction = bot.lastInstructionSent + 1;
     if (nextInstruction < bot.recipe.recipeInstructions.length)
-        sayInstruction(store, message, { instruction: nextInstruction });
+        sayInstruction(message, { instruction: nextInstruction }, store);
     else
         chat.reply(message, "That's it!");
 }
 
-const previousInstruction: Handler = (store, message) => {
+const previousInstruction: Handler = (message, args, store) => {
     const prevInstruction = store.getState().bot.lastInstructionSent - 1;
     if (prevInstruction >= 0)
-        sayInstruction(store, message, { instruction: prevInstruction });
+        sayInstruction(message, { instruction: prevInstruction }, store);
     else
         chat.reply(message, "We're at the beginning.");
 }
 
-const sayInstruction = (store: Store<AppState>, message: Message, args: { instruction: number }) => {
+const sayInstruction: Handler = (message: Message, args: { instruction: number }, store) => {
     store.dispatch({ type: 'Set_Instruction', instruction: args.instruction });
     const bot = store.getState().bot;
     chat.reply(message, bot.recipe.recipeInstructions[bot.lastInstructionSent]);
@@ -274,17 +274,17 @@ const contexts: Context<AppState>[] = [
 
     // For testing Prompts
     context(queries.always,
-        re.rule(intents.askQuestion, (store, message) => prompt.text(message, 'Favorite_Color', "What is your favorite color?")),
-        re.rule(intents.askYorNQuestion, (store, message) => prompt.confirm(message, 'Like_Cheese', "Do you like cheese?")),
-        re.rule(intents.askChoiceQuestion, (store, message) => prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
+        re.rule(intents.askQuestion, (message) => prompt.text(message, 'Favorite_Color', "What is your favorite color?")),
+        re.rule(intents.askYorNQuestion, (message) => prompt.confirm(message, 'Like_Cheese', "Do you like cheese?")),
+        re.rule(intents.askChoiceQuestion, (message) => prompt.choice(message, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
     ),
 
     // For testing LUIS
 
     context(queries.always,
         luis.rule('testModel', [
-            luis.intent('singASong', (store, message, entities) => chat.reply(message, `Let's sing ${entities.song}`)),
-            luis.intent('findSomething', (store, message, entities) => chat.reply(message, `Okay let's find a ${entities.what} in ${entities.where}`))
+            luis.intent('singASong', (message, args) => chat.reply(message, `Let's sing ${args.song}`)),
+            luis.intent('findSomething', (message, args) => chat.reply(message, `Okay let's find a ${args.what} in ${args.where}`))
         ])
     ),
 
@@ -302,15 +302,15 @@ const contexts: Context<AppState>[] = [
 
     // If we haven't started listing instructions, wait for the user to tell us to start
     context(queries.noInstructionsSent,
-        re.rule([intents.instructions.start, intents.instructions.next], (store, message) => sayInstruction(store, message, { instruction: 0 }))
+        re.rule([intents.instructions.start, intents.instructions.next], (message, args, store) => sayInstruction(message, { instruction: 0 }, store))
     ),
 
     // We are listing instructions. Let the user navigate among them.
     context(queries.always,
         re.rule(intents.instructions.next, nextInstruction),
-        re.rule(intents.instructions.repeat, (store, message) => sayInstruction(store, message, { instruction: store.getState().bot.lastInstructionSent })),
+        re.rule(intents.instructions.repeat, (message, args, store) => sayInstruction(message, { instruction: store.getState().bot.lastInstructionSent }, store)),
         re.rule(intents.instructions.previous, previousInstruction),
-        re.rule(intents.instructions.restart, (store, message) => sayInstruction(store, message, { instruction: 0 })),
+        re.rule(intents.instructions.restart, (message, args, store) => sayInstruction(message, { instruction: 0 }, store)),
         globalDefaultRule
     )
 ];

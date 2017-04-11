@@ -11,7 +11,7 @@ export class RE<S> {
         handler: Handler<S>
     ): Rule<S> {
         return {
-            recognizer: (store, message) => 
+            recognizer: (message, state) => 
                 Observable.from(arrayize(intents))
                     .map(regexp => regexp.exec(message.text))
                     .filter(groups => groups && groups[0] === message.text)

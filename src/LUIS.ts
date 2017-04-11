@@ -127,7 +127,7 @@ export class LUIS<S> {
     // IMPORTANT: the order of rules is not important - the handler for the *highest-ranked intent* will be executed
     rule(modelName: string, luisRules: LuisRule<S>[], threshold = .50): Rule<S> {
         return {
-            recognizer: (state, message) =>
+            recognizer: (message, state) =>
                 this.call(modelName, message.text)
                 .flatMap(luisResult =>
                     Observable.from(luisResult)
@@ -135,8 +135,8 @@ export class LUIS<S> {
                     .filter(match => luisRules.some(luisRule => luisRule.intent === match.intent))
                     .take(1) // take the highest ranked intent in our rule list
                 ),
-            handler: (store, message, args: LuisMatch) => 
-                luisRules.find(luisRule => luisRule.intent === args.intent).handler(store, message, args.entities),
+            handler: (message, args: LuisMatch, store) => 
+                luisRules.find(luisRule => luisRule.intent === args.intent).handler(message, args.entities, store),
             name: `LUIS: ${modelName}/${luisRules.map(lr => lr.intent).join('+')}`
         };
     }
