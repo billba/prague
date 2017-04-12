@@ -40,8 +40,7 @@ interface NutritionInformation {
 }
 
 import { Observable } from 'rxjs';
-import { Message, CardAction } from 'botframework-directlinejs';
-import { UniversalChat } from './Chat';
+import { UniversalChat, Message, CardAction, Address, getAddress } from './Chat';
 import { WebChatConnector } from './Connectors/WebChat';
 import { runMessage, Handler as _Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
 import { RE } from './RegExp';
@@ -61,58 +60,75 @@ import { Epic, combineEpics, createEpicMiddleware } from 'redux-observable';
 
 type PartialRecipe = Partial<Recipe>;
 
-const nullAction = { type: null };
-
 interface RecipeState {
     recipe: PartialRecipe,
     lastInstructionSent: number,
     promptKey: string
 }
 
-export interface AppState {
-    bot: RecipeState
+import { BotState, getBotData, updatedBotState } from './ReduxBotState';
+
+type RecipeBotState = BotState<undefined, undefined, undefined, undefined, RecipeState>;
+
+interface AppState {
+    bot: RecipeBotState;
 }
 
 type RecipeAction = {
-    type: 'Set_Recipe',
-    recipe: PartialRecipe
+    type: 'New_User',
+    address: Address,
 } | {
-    type: 'Recipe_Not_Found'
+    type: 'Set_Recipe',
+    recipe: PartialRecipe,
+    address: Address,
 } | {
     type: 'Set_Instruction',
-    instruction: number
+    instruction: number,
+    address: Address,
 } | {
     type: 'Set_PromptKey',
-    promptKey: string
+    promptKey: string,
+    address: Address,
 }
 
-const bot = (
-    state: RecipeState = {
-        recipe: undefined,
-        lastInstructionSent: undefined,
-        promptKey: undefined
-    },
+const recipebot = (
+    state: RecipeBotState = {} as RecipeBotState,
     action: RecipeAction
 ) => {
     switch (action.type) {
+        case 'New_User': {
+            const original = getBotData(state, action.address);
+            return updatedBotState(state, original, {
+                userInConversation: {
+                    recipe: undefined,
+                    lastInstructionSent: undefined,
+                    promptKey: undefined
+                }});
+        }
         case 'Set_Recipe': {
-            return {
-                ... state,
-                recipe: action.recipe,
-                lastInstructionSent: undefined
-            }
+            const original = getBotData(state, action.address);
+            return updatedBotState(state, original, {
+                userInConversation: {
+                    ... original.userInConversation,
+                    recipe: action.recipe,
+                    lastInstructionSent: undefined
+                }});
         }
         case 'Set_Instruction': {
-            return {
-                ... state,
-                lastInstructionSent: action.instruction
-            }
+            const original = getBotData(state, action.address);
+            return updatedBotState(state, original, {
+                userInConversation: {
+                    ... original.userInConversation,
+                    lastInstructionSent: action.instruction
+                }});
         }
         case 'Set_PromptKey': {
-            return {
-                ... state,
-                promptKey: action.promptKey
-            }
+            const original = getBotData(state, action.address);
+            return updatedBotState(state, original, {
+                userInConversation: {
+                    ... original.userInConversation,
+                    promptKey: action.promptKey
+                }});
         }
         default:
             return state;
@@ -121,7 +137,7 @@ const bot = (
 
 const store = createStore(
     combineReducers<AppState>({
-        bot
+        bot: recipebot
     }),
     applyMiddleware(createEpicMiddleware(combineEpics(
         // Epics go here
@@ -149,8 +165,8 @@ const recipePromptRules: PromptRulesMaker<AppState> = prompt => ({
     }),
 });
 
-const getPromptKey = () => store.getState().bot.promptKey;
-const setPromptKey = (promptKey: string) => store.dispatch({ type: 'Set_PromptKey', promptKey });
+const getPromptKey = (address: Address) => getBotData(store.getState().bot, address).userInConversation.promptKey;
+const setPromptKey = (promptKey: string, address: Address, ) => store.dispatch<RecipeAction>({ type: 'Set_PromptKey', promptKey, address });
 const prompt = new Prompt<AppState>(chat, store, recipeChoiceLists, recipePromptRules, getPromptKey, setPromptKey);
 
 // Intents
@@ -161,7 +177,7 @@ const chooseRecipe: Handler = (message, args, store) => {
     const name = args['groups'][1];
     const recipe = recipeFromName(name);
     if (recipe) {
-        store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe });
+        store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe, address: getAddress(message) });
 
         return Observable.from([
             `Great, let's make ${name} which ${recipe.recipeYield.toLowerCase()}!`,
@@ -180,7 +196,7 @@ const chooseRecipe: Handler = (message, args, store) => {
 const queryQuantity: Handler = (message, args, store) => {
     const ingredientQuery = args['groups'][1].split('');
 
-    const ingredient = store.getState().bot.recipe.recipeIngredient
+    const ingredient = getBotData(store.getState().bot, getAddress(message)).userInConversation.recipe.recipeIngredient
         .map<[string, number]>(i => [i, lcs(i.split(''), ingredientQuery).length])
         .reduce((prev, curr) => prev[1] > curr[1] ? prev : curr)
         [0];
@@ -189,16 +205,16 @@ const queryQuantity: Handler = (message, args, store) => {
 }
 
 const nextInstruction: Handler = (message, args, store) => {
-    const bot = store.getState().bot;
-    const nextInstruction = bot.lastInstructionSent + 1;
-    if (nextInstruction < bot.recipe.recipeInstructions.length)
+    const data = getBotData(store.getState().bot, getAddress(message)).userInConversation;
+    const nextInstruction = data.lastInstructionSent + 1;
+    if (nextInstruction < data.recipe.recipeInstructions.length)
         sayInstruction(message, { instruction: nextInstruction }, store);
     else
         chat.reply(message, "That's it!");
 }
 
 const previousInstruction: Handler = (message, args, store) => {
-    const prevInstruction = store.getState().bot.lastInstructionSent - 1;
+    const prevInstruction = getBotData(store.getState().bot, getAddress(message)).userInConversation.lastInstructionSent - 1;
     if (prevInstruction >= 0)
         sayInstruction(message, { instruction: prevInstruction }, store);
     else
@@ -206,10 +222,11 @@ const previousInstruction: Handler = (message, args, store) => {
 }
 
 const sayInstruction: Handler = (message: Message, args: { instruction: number }, store) => {
-    store.dispatch({ type: 'Set_Instruction', instruction: args.instruction });
-    const bot = store.getState().bot;
-    chat.reply(message, bot.recipe.recipeInstructions[bot.lastInstructionSent]);
-    if (bot.recipe.recipeInstructions.length === bot.lastInstructionSent + 1)
+    const address = getAddress(message);
+    store.dispatch<RecipeAction>({ type: 'Set_Instruction', instruction: args.instruction, address });
+    const data = getBotData(store.getState().bot, address).userInConversation;
+    chat.reply(message, data.recipe.recipeInstructions[data.lastInstructionSent]);
+    if (data.recipe.recipeInstructions.length === data.lastInstructionSent + 1)
         chat.reply(message, "That's it!");
 }
 
@@ -220,8 +237,8 @@ const recipeFromName = (name: string) =>
 
 const queries: Queries<AppState> = {
     always: always,
-    noRecipe: state => !state.bot.recipe,
-    noInstructionsSent: state => state.bot.lastInstructionSent === undefined,
+    noRecipe: (state, address) => !getBotData(state.bot, address).userInConversation.recipe,
+    noInstructionsSent: (state, address) => getBotData(state.bot, address).userInConversation.lastInstructionSent === undefined,
 }
 
 // RegExp
@@ -295,7 +312,7 @@ const contexts: Context<AppState>[] = [
     // We are listing instructions. Let the user navigate among them.
     context(queries.always,
         re.rule(intents.instructions.next, nextInstruction),
-        re.rule(intents.instructions.repeat, (message, args, store) => sayInstruction(message, { instruction: store.getState().bot.lastInstructionSent }, store)),
+        re.rule(intents.instructions.repeat, (message, args, store) => sayInstruction(message, { instruction: getBotData(store.getState().bot, getAddress(message)).userInConversation.lastInstructionSent }, store)),
         re.rule(intents.instructions.previous, previousInstruction),
         re.rule(intents.instructions.restart, (message, args, store) => sayInstruction(message, { instruction: 0 }, store)),
         globalDefaultRule
@@ -305,5 +322,7 @@ const contexts: Context<AppState>[] = [
 chat.activity$
 .filter(activity => activity.type === 'message')
 .do(message => console.log("message", message))
+.do(_ => console.log("state before", store.getState()))
 .switchMap((message: Message) => runMessage(store, contexts, message))
+.do(_ => console.log("state after", store.getState()))
 .subscribe();

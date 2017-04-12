@@ -1,6 +1,5 @@
-import { UniversalChat } from './Chat';
+import { UniversalChat, Message, CardAction, Address, getAddress } from './Chat';
 import { Store } from 'redux';
-import { Message, CardAction } from 'botframework-directlinejs';
 import { Handler, Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
 
@@ -28,8 +27,8 @@ export class Prompt<S> {
         private store: Store<S>,
         private choiceLists: ChoiceLists,
         private promptRulesMaker: PromptRulesMaker<S>,
-        private getPromptKey: () => string,
-        private setPromptKey: (promptKey: string) => void
+        private getPromptKey: (address: Address) => string,
+        private setPromptKey: (promptKey: string, address: Address) => void
 
     ) {
         this.promptRules = promptRulesMaker(this);
@@ -65,16 +64,19 @@ export class Prompt<S> {
 
     context(): Context<S> {
         return ({
-            query: () => this.getPromptKey() !== undefined,
+            query: (state, address) => {
+                console.log("address", address);
+                console.log("promptKey", this.getPromptKey(address));
+                return this.getPromptKey(address) !== undefined},
             rules: [{
                 recognizer: (message, state) => {
-                    const rule = this.promptRules[this.getPromptKey()];
+                    const rule = this.promptRules[this.getPromptKey(getAddress(message))];
                     return rule && rule.recognizer(message);
                 },
                 handler: (message, args, store) => {
-                    console.log("in meta handler");
-                    const rule = this.promptRules[this.getPromptKey()];
-                    this.setPromptKey(undefined);
+                    const address = getAddress(message);
+                    const rule = this.promptRules[this.getPromptKey(address)];
+                    this.setPromptKey(undefined, address);
                     return rule.handler(message, args, store);
                 },
                 name: `PROMPT`
@@ -85,7 +87,7 @@ export class Prompt<S> {
     // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
 
     textCreate(message: Message, promptKey: string, text: string) {
-        this.setPromptKey(promptKey);
+        this.setPromptKey(promptKey, getAddress(message));
         this.chat.reply(message, text);        
     }
 
@@ -93,7 +95,7 @@ export class Prompt<S> {
         const choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
-        this.setPromptKey(promptKey);
+        this.setPromptKey(promptKey, getAddress(message));
         this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },
@@ -109,7 +111,7 @@ export class Prompt<S> {
     private yorn: ChoiceList = ['Yes', 'No'];
 
     confirmCreate(message: Message, promptKey: string, text: string) {
-        this.setPromptKey(promptKey);
+        this.setPromptKey(promptKey, getAddress(message));
         this.chat.reply(message, {
             type: 'message',
             from: { id: 'RecipeBot' },

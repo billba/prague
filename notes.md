@@ -44,3 +44,31 @@ This mechanism is only necessary if state ends up needing to change. If an event
 Why do we need epics at all?
 
 1. To bind an initial dispatch with an async event that follows it.
+
+
+
+---
+
+Current issue: Redux assumes everything is always initialized, but of course that's not true for new users because we don't know they exist. So we need a good place to "notice" that there's a new user so that we can call store.dispatch('new_user)).
+
+A thing I'm toying with: send botData to query and recognizer, because it's ever so convenient. But it really ties this engine to a very specific implementation of state. Sigh.
+
+New idea: a general-purpose helper for a given implementation.
+
+something like 
+
+mySessionFn = <Session>(message) => Session;
+
+interface Session<State> {
+    ...
+}
+
+* runMessage(mySessionFn, message) => { session = mySessionFn(message) }
+* accesses the store
+* creates user if there isn't already one
+* aggregates useful stuff, like the current message, address, state, botdata, store dispatcher (but maybe not store?)
+* passed as **optional** param to query, recognizer, and helper
+* basically Steve's session idea, but extensible
+* you, the person writing helpers, define the type of session
+
+query(session) > recognizer(session) > handler(session, args)

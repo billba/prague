@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Message } from 'botframework-directlinejs';
+import { Message, Address, getAddress } from './Chat';
 import { Store } from 'redux';
 
 export interface Recognizer<S> {
@@ -13,7 +13,7 @@ export interface Handler<S> {
 }
 
 export interface Query<S> {
-    (state: S): boolean;
+    (state: S, address?: Address): boolean;
 }
 
 export const always = () => true;
@@ -52,10 +52,10 @@ const true$ = Observable.of(true);
 const observerize = <T>(args: T | Observable<T>) => args instanceof Observable ? args : Observable.of(args);
 
 export const runMessage = <S>(store: Store<S>, contexts: Context<S>[], message: Message) => {
-    console.log("running", message, contexts);
     const state = store.getState();
     return Observable.from(contexts)
-        .filter(context => context.query(state))
+        .do(context => console.log("context", context))
+        .filter(context => context.query(state, getAddress(message)))
         .switchMap(context => Observable.from(context.rules)
             .switchMap(rule => {
                 console.log(`running rule ${rule.name}`);

@@ -1,7 +1,8 @@
 // Generic Chat support
 
 import { Observable } from 'rxjs';
-import { Activity } from 'botframework-directlinejs';
+import { Activity, Message } from 'botframework-directlinejs';
+export { Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
     channelId: string;
@@ -50,3 +51,15 @@ export class UniversalChat implements ChatConnector {
         return this.chats[activity.channelId].postActivity(activity).mapTo(null);
     }
 }
+
+export interface Address {
+    userId?: string,
+    conversationId?: string,
+    channelId?: string
+}
+
+export const getAddress = (message: Message): Address => ({
+    userId: message.from.id,
+    conversationId: message.conversation.id,
+    channelId: message.channelId
+})
