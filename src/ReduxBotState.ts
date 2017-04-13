@@ -1,4 +1,7 @@
-import { Address } from './Chat';
+import { Observable } from 'rxjs';
+import { TextSession } from './Intent';
+import { UniversalChat, Message, Activity, Address, getAddress, ChatSession } from './Chat';
+import { Store, Dispatch, Action } from 'redux';
 
 interface UserInConversation<USERINCONVERSATION> {
     [userId: string]: {
@@ -43,19 +46,14 @@ export interface BotData<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> {
 
 // This selector is a great candidate for memoization via reselect
 export const getBotData = <BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>(
-    bot: BotState<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>, address: Address
+    bot: BotState<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>,
+    address: Address
 ): BotData<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> => {
-    const channel = bot.channels &&
-        bot.channels[address.channelId];
-    const user = channel &&
-        channel.users &&
-        channel.users[address.userId];
-    const conversation = channel &&
-        channel.conversations &&
-        channel.conversations[address.conversationId];
-    const userInConversation = conversation &&
-        conversation.users &&
-        conversation.users[address.userId];
+    const channel = bot.channels && bot.channels[address.channelId];
+    const user = channel && channel.users && channel.users[address.userId];
+    const conversation = channel && channel.conversations && channel.conversations[address.conversationId];
+    const userInConversation = conversation && conversation.users && conversation.users[address.userId];
+
     return {
         bot: bot.data,
         user: user && user.data,
@@ -70,7 +68,7 @@ export const updatedBotState = <BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSA
     bot: BotState<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>,
     original: BotData<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>,
     update: BotData<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>
-) => {
+): BotState<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> => {
     return update.bot || update.user || update.channel || update.conversation || update.userInConversation ? {
         data: update.bot || bot.data,
         channels: update.user || update.channel || update.conversation || update.userInConversation ? {
@@ -84,7 +82,7 @@ export const updatedBotState = <BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSA
                         users: update.userInConversation ? {
                             ... bot.channels[original.address.channelId].conversations[original.address.conversationId].users,
                             [original.address.userId]: {
-                                data: update.userInConversation || original.user
+                                data: update.userInConversation || original.userInConversation
                             }
                         } : bot.channels[original.address.channelId].conversations[original.address.conversationId].users
                     }
@@ -100,3 +98,45 @@ export const updatedBotState = <BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSA
     } : bot;
 }
 
+export interface ReduxSession<APP, BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> {
+    state: APP;
+    data: BotData<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>;
+    store: Store<APP>,
+}
+
+export class ReduxChatSession<APP, BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> implements ChatSession, ReduxSession<APP, BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> {
+    text: string;
+    address: Address;
+    state: APP;
+    data: BotData<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>;
+
+    constructor(
+        public message: Message,
+        public chat: UniversalChat,
+        public store: Store<APP>,
+        private getBotState: (state: APP) => BotState<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>
+    ) {
+        this.address = getAddress(message);
+        this.state = store.getState();
+        this.text = message.text;
+        this.data = getBotData(this.getBotState(this.state), this.address)
+    }
+
+    send(message: Activity | string) {
+        this.chat.reply(this.address, message);
+    }
+}   
+
+export class ReduxChat<APP, BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION> {
+    session$: Observable<ReduxChatSession<APP, BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>>;
+
+    constructor(
+        public chat: UniversalChat,
+        private store: Store<APP>,
+        private getBotState: (state: APP) => BotState<BOT, USER, CHANNEL, CONVERSATION, USERINCONVERSATION>
+    ) {
+        this.session$ = chat.activity$
+            .filter(activity => activity.type === 'message')
+            .map((message: Message) => new ReduxChatSession(message, this.chat, this.store, this.getBotState))
+    }
+}

@@ -2,18 +2,22 @@ import { Observable } from 'rxjs';
 import { Message, Address, getAddress } from './Chat';
 import { Store } from 'redux';
 
-export interface Recognizer<S> {
-    (message: Message, state?: S): any | Observable<any>;
+export interface TextSession {
+    text: string; // plain text for recognizers that use such things
 }
 
-const alwaysRecognize = () => ({});
+export interface Recognizer<S> {
+    (session: S): any | Observable<any>;
+}
+
+const alwaysRecognize = () => Observable.of({});
 
 export interface Handler<S> {
-    (message: Message, args?: any, store?: Store<S>): any | Observable<any>;
+    (session: S, args?: any): any | Observable<any>;
 }
 
 export interface Query<S> {
-    (state: S, address?: Address): boolean;
+    (session: S): boolean;
 }
 
 export const always = () => true;
@@ -48,22 +52,20 @@ export const context = <S>(query: Query<S>, ... rules: (Rule<S> | Rule<S>[])[]):
     rules: [].concat(... rules.map(rule => arrayize(rule)))
 })
 
-const true$ = Observable.of(true);
 const observerize = <T>(args: T | Observable<T>) => args instanceof Observable ? args : Observable.of(args);
 
-export const runMessage = <S>(store: Store<S>, contexts: Context<S>[], message: Message) => {
-    const state = store.getState();
+export const runMessage = <S>(session: S, contexts: Context<S>[]) => {
     return Observable.from(contexts)
         .do(context => console.log("context", context))
-        .filter(context => context.query(state, getAddress(message)))
+        .filter(context => context.query(session))
         .switchMap(context => Observable.from(context.rules)
             .switchMap(rule => {
                 console.log(`running rule ${rule.name}`);
-                return observerize(rule.recognizer(message, state))
+                return observerize(rule.recognizer(session))
                 .do(_ => console.log(`rule ${rule.name} succeeded!`))
                 .filter(args => !!args)
                 .do(_ => console.log(`rule ${rule.name} calling handler`))
-                .flatMap(args => observerize(rule.handler(message, args, store))
+                .flatMap(args => observerize(rule.handler(session, args))
                     .take(1) // because handlers may emit more than one value
                 )
             })

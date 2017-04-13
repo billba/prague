@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Handler, Rule } from './Intent';
+import { TextSession, Handler, Rule } from './Intent';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -31,12 +31,12 @@ interface LuisModels {
     [name: string]: LuisModel
 }
 
-export interface LuisRule<S> {
+export interface LuisRule<S extends TextSession> {
     intent: string,
     handler: Handler<S>,
 }
 
-export class LUIS<S> {
+export class LUIS<S extends TextSession> {
     private models: LuisModels = {};
 
     constructor(... creds: LuisCredentials[]) {
@@ -127,16 +127,16 @@ export class LUIS<S> {
     // IMPORTANT: the order of rules is not important - the handler for the *highest-ranked intent* will be executed
     rule(modelName: string, luisRules: LuisRule<S>[], threshold = .50): Rule<S> {
         return {
-            recognizer: (message, state) =>
-                this.call(modelName, message.text)
+            recognizer: (session) =>
+                this.call(modelName, session.text)
                 .flatMap(luisResult =>
                     Observable.from(luisResult)
                     .filter(match => match.threshold >= threshold)
                     .filter(match => luisRules.some(luisRule => luisRule.intent === match.intent))
                     .take(1) // take the highest ranked intent in our rule list
                 ),
-            handler: (message, args: LuisMatch, store) => 
-                luisRules.find(luisRule => luisRule.intent === args.intent).handler(message, args.entities, store),
+            handler: (session, args: LuisMatch) => 
+                luisRules.find(luisRule => luisRule.intent === args.intent).handler(session, args.entities),
             name: `LUIS: ${modelName}/${luisRules.map(lr => lr.intent).join('+')}`
         };
     }

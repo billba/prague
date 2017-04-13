@@ -1,13 +1,13 @@
 import { UniversalChat, Message, CardAction, Address, getAddress } from './Chat';
 import { Store } from 'redux';
-import { Handler, Recognizer, Rule, Context } from './Intent';
+import { TextSession, Handler, Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
 
-export interface PromptRules<S> {
+export interface PromptRules<S extends TextSession> {
     [promptKey: string]: Rule<S>;
 }
 
-export interface PromptRulesMaker<S> {
+export interface PromptRulesMaker<S extends TextSession> {
     (prompt: Prompt<S>): PromptRules<S>;
 }
 
@@ -19,17 +19,14 @@ export interface ChoiceLists {
     [choiceKey: string]: ChoiceList;
 }
 
-export class Prompt<S> {
+export class Prompt<S extends TextSession> {
     private promptRules: PromptRules<S>;
 
     constructor(
-        private chat: UniversalChat,
-        private store: Store<S>,
         private choiceLists: ChoiceLists,
         private promptRulesMaker: PromptRulesMaker<S>,
-        private getPromptKey: (address: Address) => string,
-        private setPromptKey: (promptKey: string, address: Address) => void
-
+        private getPromptKey: (session: S) => string,
+        private setPromptKey: (session: S, promptKey?: string) => void
     ) {
         this.promptRules = promptRulesMaker(this);
     }
@@ -37,15 +34,15 @@ export class Prompt<S> {
     // Prompt Rule Creators
     text(handler: Handler<S>): Rule<S> {
         return {
-            recognizer: (message) => ({ text: message.text }),
+            recognizer: (session) => ({ text: session.text }),
             handler
         }
     }
 
     choice(choiceName: string, handler: Handler<S>) {
         return {
-            recognizer: (message) => {
-                const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === message.text.toLowerCase());
+            recognizer: (session) => {
+                const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === session.text.toLowerCase());
                 return choice && { choice };
             },
             handler
@@ -54,8 +51,8 @@ export class Prompt<S> {
 
     confirm(handler: Handler<S>) {
         return {
-            recognizer: (message) => {
-                const confirm = message.text.toLowerCase() === 'yes'; // TO DO we can do better than this
+            recognizer: (session) => {
+                const confirm = session.text.toLowerCase() === 'yes'; // TO DO we can do better than this
                 return confirm && { confirm };
             },
             handler
@@ -64,39 +61,35 @@ export class Prompt<S> {
 
     context(): Context<S> {
         return ({
-            query: (state, address) => {
-                console.log("address", address);
-                console.log("promptKey", this.getPromptKey(address));
-                return this.getPromptKey(address) !== undefined},
+            query: (session) => this.getPromptKey(session) !== undefined,
             rules: [{
-                recognizer: (message, state) => {
-                    const rule = this.promptRules[this.getPromptKey(getAddress(message))];
-                    return rule && rule.recognizer(message);
+                recognizer: (session) => {
+                    const rule = this.promptRules[this.getPromptKey(session)];
+                    return rule && rule.recognizer(session);
                 },
-                handler: (message, args, store) => {
-                    const address = getAddress(message);
-                    const rule = this.promptRules[this.getPromptKey(address)];
-                    this.setPromptKey(undefined, address);
-                    return rule.handler(message, args, store);
+                handler: (session, args) => {
+                    const rule = this.promptRules[this.getPromptKey(session)];
+                    this.setPromptKey(session);
+                    return rule.handler(session, args);
                 },
                 name: `PROMPT`
             }]
         });
     }
 
-    // Prompt Creators - eventually the Connectors will have to do some translation of these, somehow
+    // Prompt Message Creatgors -- feels like these maybe belong in the connectors?
 
-    textCreate(message: Message, promptKey: string, text: string) {
-        this.setPromptKey(promptKey, getAddress(message));
-        this.chat.reply(message, text);        
+    textCreate(session, promptKey: string, text: string) {
+        this.setPromptKey(session, promptKey);
+        session.chat.reply(session.message, text);
     }
 
-    choiceCreate(message: Message, promptKey: string, choiceName: string, text: string) {
+    choiceCreate(session, promptKey: string, choiceName: string, text: string) {
         const choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
-        this.setPromptKey(promptKey, getAddress(message));
-        this.chat.reply(message, {
+        this.setPromptKey(session, promptKey);
+        session.chat.reply(session.message, {
             type: 'message',
             from: { id: 'RecipeBot' },
             text,
@@ -110,9 +103,9 @@ export class Prompt<S> {
 
     private yorn: ChoiceList = ['Yes', 'No'];
 
-    confirmCreate(message: Message, promptKey: string, text: string) {
-        this.setPromptKey(promptKey, getAddress(message));
-        this.chat.reply(message, {
+    confirmCreate(session, promptKey: string, text: string) {
+        this.setPromptKey(session, promptKey);
+        session.chat.reply(session.message, {
             type: 'message',
             from: { id: 'RecipeBot' },
             text,

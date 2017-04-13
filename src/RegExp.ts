@@ -1,7 +1,11 @@
 import { Observable } from 'rxjs';
-import { Handler, Rule, arrayize } from './Intent';
+import { TextSession, Handler, Rule, arrayize } from './Intent';
 
-export class RE<S> {
+export interface REArgs {
+    groups: RegExpExecArray;
+}
+
+export class RE<S extends TextSession> {
     constructor() {
     }
 
@@ -11,10 +15,10 @@ export class RE<S> {
         handler: Handler<S>
     ): Rule<S> {
         return {
-            recognizer: (message, state) => 
+            recognizer: (session) => 
                 Observable.from(arrayize(intents))
-                    .map(regexp => regexp.exec(message.text))
-                    .filter(groups => groups && groups[0] === message.text)
+                    .map(regexp => regexp.exec(session.text))
+                    .filter(groups => groups && groups[0] === session.text)
                     .take(1)
                     .map(groups => ({ groups }))
                     .do(args => console.log("RegEx result", args)),

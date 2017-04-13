@@ -51,24 +51,36 @@ Why do we need epics at all?
 
 Current issue: Redux assumes everything is always initialized, but of course that's not true for new users because we don't know they exist. So we need a good place to "notice" that there's a new user so that we can call store.dispatch('new_user)).
 
-A thing I'm toying with: send botData to query and recognizer, because it's ever so convenient. But it really ties this engine to a very specific implementation of state. Sigh.
+BIG IDEA: Recognizers compose.
 
-New idea: a general-purpose helper for a given implementation.
+So instead a context being { query, [{recognizer, handler}]}
 
-something like 
+We should instead have just { query, rule: {recognizer, handler} }
 
-mySessionFn = <Session>(message) => Session;
+But we can introduce a new recognizer:
 
-interface Session<State> {
-    ...
-}
+rules(rule, rule, rule, ...)
 
-* runMessage(mySessionFn, message) => { session = mySessionFn(message) }
-* accesses the store
-* creates user if there isn't already one
-* aggregates useful stuff, like the current message, address, state, botdata, store dispatcher (but maybe not store?)
-* passed as **optional** param to query, recognizer, and helper
-* basically Steve's session idea, but extensible
-* you, the person writing helpers, define the type of session
+which returns a single rule, a new recognizer which loops through the others until one succeeds, then calls its handler.
 
-query(session) > recognizer(session) > handler(session, args)
+Similarly, we can now easily add:
+
+scorable(rule, rule, rule, ...) where each of the recognizers returns <Args extends Scorable>, which is to say that it one of its args is { score: number }. Scorable runs them all and then returns the highest one (or first past the post, or whatever).
+
+The idea is that anyone can write these.
+
+---
+
+BIG IDEA: There are operators on recognizers
+
+context(query, {recognizer, handler}) => {and(query, recognizer), handler}
+
+serial({recognize0, handler0}, {recognizer1, handler1}) => {serial(recognizer0, recognizer1), handler of the first recognizer that wins}
+
+best({recognize0, handler0}, {recognizer1, handler1}) => {best(recognizer0, recognizer1), handler of the recognizer that wins}
+
+parallel({recognize0, handler0}, {recognizer1, handler1}) => {parallel(recognizer0, recognizer1), handler of the first recognizer that responds & wins}
+
+The big idea here is that operators don't resolve the handler, which is good because an operator doesn't know if it's going to be called by others.
+
+So the engine runs recursively through operators, holding the resultant handlers until the "winning" recognizer is determined, at which point the handler is resolved.

@@ -2,7 +2,7 @@
 
 import { Observable } from 'rxjs';
 import { Activity, Message } from 'botframework-directlinejs';
-export { Message, CardAction } from 'botframework-directlinejs';
+export { Activity, Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
     channelId: string;
@@ -12,6 +12,12 @@ export interface ChatConnector {
 
 interface Chats {
     [channelId: string]: ChatConnector
+}
+
+export interface Address {
+    userId?: string,
+    conversationId?: string,
+    channelId?: string
 }
 
 export class UniversalChat implements ChatConnector {
@@ -27,23 +33,23 @@ export class UniversalChat implements ChatConnector {
 
     channelId = 'chat';
     
-    replyAsync(to: Activity, send: Activity | string) {
+    replyAsync(to: Address, send: Activity | string) {
         let activity: Activity = typeof send === "string"
             ? {
                 type: 'message',
                 from: { id: 'from' }, // TODO figure this out
                 text: send,
                 channelId: to.channelId,
-                conversation: to.conversation
+                conversation: { id: to.conversationId }
             } : {
                 ... send,
                 channelId: to.channelId,
-                conversation: to.conversation
+                conversation: { id: to.conversationId }
             };
         return this.postActivity(activity);
     }
 
-    reply(to: Activity, send: Activity | string) {
+    reply(to: Address, send: Activity | string) {
         this.replyAsync(to, send).subscribe();
     }
 
@@ -52,14 +58,15 @@ export class UniversalChat implements ChatConnector {
     }
 }
 
-export interface Address {
-    userId?: string,
-    conversationId?: string,
-    channelId?: string
-}
-
 export const getAddress = (message: Message): Address => ({
     userId: message.from.id,
     conversationId: message.conversation.id,
     channelId: message.channelId
 })
+
+export interface ChatSession {
+    text: string;
+    chat: UniversalChat;
+    message: Message;
+    address: Address;
+}
