@@ -2,7 +2,7 @@ import { Observable } from 'rxjs';
 import { ITextSession } from './Rules';
 import { UniversalChat, Message, Activity, Address, getAddress, IChatSession, IChat } from './Chat';
 import { Store } from 'redux';
-import { BotData, IStateSession } from './BotState';
+import { IStateSession } from './State';
 
 export interface ReduxSession<APP, BOTDATA> extends IStateSession<BOTDATA> {
     state: APP;

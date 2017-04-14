@@ -59,10 +59,10 @@ interface RecipeState {
     promptKey: string
 }
 
-import { BotData } from './BotState';
-import { ReduxChat, ReduxChatSession } from './ReduxBotState';
+import { ChatState } from './ChatState';
+import { ReduxChat, ReduxChatSession } from './ReduxChat';
 
-type RecipeBotData = BotData<undefined, undefined, undefined, undefined, RecipeState>;
+type RecipeBotData = ChatState<undefined, undefined, undefined, undefined, RecipeState>;
 
 interface AppState {
     bot: RecipeBotData;
