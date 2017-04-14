@@ -70,6 +70,7 @@ export interface IChatSession {
     message: Message;
     address: Address;
     reply(message: Activity | string): void; 
+    replyAsync(message: Activity | string): void; 
 }
 
 export interface IChat<S> {

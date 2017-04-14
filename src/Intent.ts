@@ -60,7 +60,7 @@ export const runSession = <S>(session: S, contexts: Context<S>[]) => {
             .switchMap(rule => {
                 console.log(`running rule ${rule.name}`);
                 return observerize(rule.recognizer(session))
-                .do(_ => console.log(`rule ${rule.name} succeeded!`))
+                .do(args => console.log(`rule ${rule.name} succeeded!`, args))
                 .filter(args => !!args)
                 .do(_ => console.log(`rule ${rule.name} calling handler`))
                 .flatMap(args => observerize(rule.handler(session, args))
@@ -70,6 +70,6 @@ export const runSession = <S>(session: S, contexts: Context<S>[]) => {
             })
             .take(1) // so that we don't keep going through rules
         )
-        .take(1) // so that we don't keep going through contexts
+        .take(1); // so that we don't keep going through contexts
 }
 

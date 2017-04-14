@@ -1,13 +1,12 @@
-import { UniversalChat, Message, CardAction, Address, getAddress } from './Chat';
-import { Store } from 'redux';
+import { CardAction, IChatSession } from './Chat';
 import { ITextSession, Handler, Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
 
-export interface PromptRules<S extends ITextSession> {
+export interface PromptRules<S extends ITextSession & IChatSession> {
     [promptKey: string]: Rule<S>;
 }
 
-export interface PromptRulesMaker<S extends ITextSession> {
+export interface PromptRulesMaker<S extends ITextSession & IChatSession> {
     (prompt: Prompt<S>): PromptRules<S>;
 }
 
@@ -19,7 +18,7 @@ export interface ChoiceLists {
     [choiceKey: string]: ChoiceList;
 }
 
-export class Prompt<S extends ITextSession> {
+export class Prompt<S extends ITextSession & IChatSession> {
     private promptRules: PromptRules<S>;
 
     constructor(
@@ -79,17 +78,17 @@ export class Prompt<S extends ITextSession> {
 
     // Prompt Message Creatgors -- feels like these maybe belong in the connectors?
 
-    textCreate(session, promptKey: string, text: string) {
+    textCreate(session: S, promptKey: string, text: string) {
         this.setPromptKey(session, promptKey);
-        session.chat.reply(session.message, text);
+        session.reply(text);
     }
 
-    choiceCreate(session, promptKey: string, choiceName: string, text: string) {
+    choiceCreate(session: S, promptKey: string, choiceName: string, text: string) {
         const choiceList = this.choiceLists[choiceName];
         if (!choiceList)
             return;
         this.setPromptKey(session, promptKey);
-        session.chat.reply(session.message, {
+        session.reply({
             type: 'message',
             from: { id: 'RecipeBot' },
             text,
@@ -103,9 +102,9 @@ export class Prompt<S extends ITextSession> {
 
     private yorn: ChoiceList = ['Yes', 'No'];
 
-    confirmCreate(session, promptKey: string, text: string) {
+    confirmCreate(session: S, promptKey: string, text: string) {
         this.setPromptKey(session, promptKey);
-        session.chat.reply(session.message, {
+        session.reply({
             type: 'message',
             from: { id: 'RecipeBot' },
             text,

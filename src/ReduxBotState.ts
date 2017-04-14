@@ -31,6 +31,10 @@ export class ReduxChatSession<APP, BOTDATA> implements ITextSession, IChatSessio
     reply(activity: Activity | string) {
         this.chat.send(this.address, activity);
     }
+
+    replyAsync(activity: Activity | string) {
+        return this.chat.sendAsync(this.address, activity);
+    }
 }   
 
 export class ReduxChat<APP, BOTDATA> implements IChat<ReduxChatSession<APP, BOTDATA>> {

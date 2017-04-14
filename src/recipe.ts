@@ -72,20 +72,14 @@ interface AppState {
 type RecipeBotSession = ReduxChatSession<AppState, RecipeBotData>;
 
 type RecipeAction = {
-    type: 'New_User',
-    botData: RecipeBotData,
-} | {
     type: 'Set_Recipe',
     recipe: PartialRecipe,
-    botData: RecipeBotData,
 } | {
     type: 'Set_Instruction',
     instruction: number,
-    botData: RecipeBotData,
 } | {
     type: 'Set_PromptKey',
     promptKey: string,
-    botData: RecipeBotData,
 }
 
 const recipebot: Reducer<RecipeBotData> = (
@@ -103,7 +97,7 @@ const recipebot: Reducer<RecipeBotData> = (
             return {
                 ... state, 
                 userInConversation: {
-                    ... action.botData.userInConversation,
+                    ... state.userInConversation,
                     recipe: action.recipe,
                     lastInstructionSent: undefined
                 }};
@@ -112,7 +106,7 @@ const recipebot: Reducer<RecipeBotData> = (
             return {
                 ... state, 
                 userInConversation: {
-                    ... action.botData.userInConversation,
+                    ... state.userInConversation,
                     lastInstructionSent: action.instruction
                 }};
         }
@@ -120,7 +114,7 @@ const recipebot: Reducer<RecipeBotData> = (
             return {
                 ... state, 
                 userInConversation: {
-                    ... action.botData.userInConversation,
+                    ... state.userInConversation,
                     promptKey: action.promptKey
                 }};
         }
@@ -163,18 +157,18 @@ const prompt = new Prompt<RecipeBotSession>(
     recipeChoiceLists,
     recipePromptRules,
     (session) => session.data.userInConversation.promptKey,
-    (session, promptKey) => session.store.dispatch<RecipeAction>({ type: 'Set_PromptKey', promptKey, botData: session.data })
+    (session, promptKey) => session.store.dispatch<RecipeAction>({ type: 'Set_PromptKey', promptKey })
 );
 
 // Intents
 
 // Message handlers
 
-const chooseRecipe: Handler<RecipeBotSession> = (session, args: REArgs) => {
+const chooseRecipe = (session: RecipeBotSession, args: REArgs) => {
     const name = args.groups[1];
     const recipe = recipeFromName(name);
     if (recipe) {
-        session.store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe, botData: session.data });
+        session.store.dispatch<RecipeAction>({ type: 'Set_Recipe', recipe });
 
         return Observable.from([
             `Great, let's make ${name} which ${recipe.recipeYield.toLowerCase()}!`,
@@ -186,7 +180,7 @@ const chooseRecipe: Handler<RecipeBotSession> = (session, args: REArgs) => {
         .do(ingredient => session.reply(ingredient))
         .count();
     } else {
-        return session.reply(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
+        return session.replyAsync(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
     }
 }
 
@@ -218,10 +212,10 @@ const previousInstruction: Handler<RecipeBotSession> = (session, args: REArgs) =
 }
 
 const sayInstruction: Handler<RecipeBotSession> = (session, args: { instruction: number }) => {
-    store.dispatch<RecipeAction>({ type: 'Set_Instruction', instruction: args.instruction, botData: session.data });
-    session.reply(session.data.userInConversation.recipe.recipeInstructions[session.data.userInConversation.lastInstructionSent]);
-    if (session.data.userInConversation.recipe.recipeInstructions.length === session.data.userInConversation.lastInstructionSent + 1)
+    session.reply(session.data.userInConversation.recipe.recipeInstructions[args.instruction]);
+    if (session.data.userInConversation.recipe.recipeInstructions.length === args.instruction + 1)
         session.reply("That's it!");
+    store.dispatch<RecipeAction>({ type: 'Set_Instruction', instruction: args.instruction });
 }
 
 const globalDefaultRule = defaultRule(reply("I can't understand you. It's you, not me. Get it together and try again."));
@@ -316,6 +310,9 @@ const contexts: Context<RecipeBotSession>[] = [
 recipeBotChat.session$
 .do(session => console.log("message", session.message))
 .do(session => console.log("state before", session.state))
-.switchMap(session => runSession(session, contexts))
-.do(session => console.log("state after", session.store.getState()))
+.flatMap(session => {
+    const result = runSession(session, contexts);
+    console.log("state after", session.store.getState());
+    return result;
+})
 .subscribe();
