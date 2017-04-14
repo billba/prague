@@ -40,9 +40,9 @@ interface NutritionInformation {
 }
 
 import { Observable } from 'rxjs';
-import { UniversalChat, Message, CardAction, Address, getAddress, ChatSession } from './Chat';
+import { UniversalChat, Message, CardAction, Address, getAddress, IChatSession } from './Chat';
 import { WebChatConnector } from './Connectors/WebChat';
-import { TextSession, runMessage, Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
+import { runSession, Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
 import { RE, REArgs } from './RegExp';
 
 const webChat = new WebChatConnector()
@@ -60,15 +60,16 @@ interface RecipeState {
     promptKey: string
 }
 
-import { BotState, BotData, ReduxChat, ReduxChatSession, updatedBotState } from './ReduxBotState';
+import { BotData } from './State';
+import { ReduxChat, ReduxChatSession } from './ReduxBotState';
 
-type RecipeBotState = BotState<undefined, undefined, undefined, undefined, RecipeState>;
 type RecipeBotData = BotData<undefined, undefined, undefined, undefined, RecipeState>;
-type RecipeBotSession = ReduxChatSession<AppState, undefined, undefined, undefined, undefined, RecipeState>;
 
 interface AppState {
-    bot: RecipeBotState;
+    bot: RecipeBotData;
 }
+
+type RecipeBotSession = ReduxChatSession<AppState, RecipeBotData>;
 
 type RecipeAction = {
     type: 'New_User',
@@ -87,40 +88,41 @@ type RecipeAction = {
     botData: RecipeBotData,
 }
 
-const recipebot: Reducer<RecipeBotState> = (
-    state: RecipeBotState = {} as RecipeBotState,
+const recipebot: Reducer<RecipeBotData> = (
+    state: RecipeBotData = {
+        userInConversation: {
+            recipe: undefined,
+            lastInstructionSent: undefined,
+            promptKey: undefined
+        }
+    },
     action: RecipeAction
 ) => {
     switch (action.type) {
-        case 'New_User': {
-            return updatedBotState(state, action.botData, {
-                userInConversation: {
-                    recipe: undefined,
-                    lastInstructionSent: undefined,
-                    promptKey: undefined
-                }});
-        }
         case 'Set_Recipe': {
-            return updatedBotState(state, action.botData, {
+            return {
+                ... state, 
                 userInConversation: {
                     ... action.botData.userInConversation,
                     recipe: action.recipe,
                     lastInstructionSent: undefined
-                }});
+                }};
         }
         case 'Set_Instruction': {
-            return updatedBotState(state, action.botData, {
+            return {
+                ... state, 
                 userInConversation: {
                     ... action.botData.userInConversation,
                     lastInstructionSent: action.instruction
-                }});
+                }};
         }
         case 'Set_PromptKey': {
-            return updatedBotState(state, action.botData, {
+            return {
+                ... state, 
                 userInConversation: {
                     ... action.botData.userInConversation,
                     promptKey: action.promptKey
-                }});
+                }};
         }
         default:
             return state;
@@ -134,7 +136,7 @@ const store = createStore(
 );
 
 const recipeBotChat = new ReduxChat(new UniversalChat(webChat.chatConnector), store, state => state.bot);
-const reply = (text: string): Handler<ChatSession> => (session) => session.chat.reply(session.message, text);
+const reply = (text: string): Handler<IChatSession> => (session) => session.reply(text);
 
 // Prompts
 
@@ -146,14 +148,14 @@ const recipeChoiceLists: ChoiceLists = {
 
 const recipePromptRules: PromptRulesMaker<RecipeBotSession> = prompt => ({
     'Favorite_Color': prompt.text((session, args) =>
-        session.send(args['text'] === "blue" ? "That is correct!" : "That is incorrect"),
+        session.reply(args['text'] === "blue" ? "That is correct!" : "That is incorrect"),
     ),
     'Favorite_Cheese': prompt.choice('Cheeses', (session, args) =>
-        session.send(args['choice'] === "Velveeta" ? "Ima let you finish but FYI that is not really cheese." : "Interesting.")
+        session.reply(args['choice'] === "Velveeta" ? "Ima let you finish but FYI that is not really cheese." : "Interesting.")
     ),
     'Like_Cheese': prompt.confirm((session, args) => {
         console.log("here");
-        session.send(args['confirm'] ? "That is correct." : "That is incorrect.")
+        session.reply(args['confirm'] ? "That is correct." : "That is incorrect.")
     }),
 });
 
@@ -181,10 +183,10 @@ const chooseRecipe: Handler<RecipeBotSession> = (session, args: REArgs) => {
             "Let me know when you're ready to go."
         ])
         // .zip(Observable.timer(0, 1000), x => x) // Right now we're having trouble introducing delays
-        .do(ingredient => session.send(ingredient))
+        .do(ingredient => session.reply(ingredient))
         .count();
     } else {
-        return session.send(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
+        return session.reply(`Sorry, I don't know how to make ${name}. Maybe one day you can teach me.`);
     }
 }
 
@@ -196,7 +198,7 @@ const queryQuantity: Handler<RecipeBotSession> = (session, args: REArgs) => {
         .reduce((prev, curr) => prev[1] > curr[1] ? prev : curr)
         [0];
 
-    session.send(ingredient);
+    session.reply(ingredient);
 }
 
 const nextInstruction: Handler<RecipeBotSession> = (session, args: REArgs) => {
@@ -204,7 +206,7 @@ const nextInstruction: Handler<RecipeBotSession> = (session, args: REArgs) => {
     if (nextInstruction < session.data.userInConversation.recipe.recipeInstructions.length)
         sayInstruction(session, { instruction: nextInstruction });
     else
-        session.send("That's it!");
+        session.reply("That's it!");
 }
 
 const previousInstruction: Handler<RecipeBotSession> = (session, args: REArgs) => {
@@ -212,14 +214,14 @@ const previousInstruction: Handler<RecipeBotSession> = (session, args: REArgs) =
     if (prevInstruction >= 0)
         sayInstruction(session, { instruction: prevInstruction });
     else
-        session.send("We're at the beginning.");
+        session.reply("We're at the beginning.");
 }
 
 const sayInstruction: Handler<RecipeBotSession> = (session, args: { instruction: number }) => {
     store.dispatch<RecipeAction>({ type: 'Set_Instruction', instruction: args.instruction, botData: session.data });
-    session.send(session.data.userInConversation.recipe.recipeInstructions[session.data.userInConversation.lastInstructionSent]);
+    session.reply(session.data.userInConversation.recipe.recipeInstructions[session.data.userInConversation.lastInstructionSent]);
     if (session.data.userInConversation.recipe.recipeInstructions.length === session.data.userInConversation.lastInstructionSent + 1)
-        session.send("That's it!");
+        session.reply("That's it!");
 }
 
 const globalDefaultRule = defaultRule(reply("I can't understand you. It's you, not me. Get it together and try again."));
@@ -279,8 +281,8 @@ const contexts: Context<RecipeBotSession>[] = [
 
     context(queries.always,
         luis.rule('testModel', [
-            luis.intent('singASong', (session, args) => session.send(`Let's sing ${args.song}`)),
-            luis.intent('findSomething', (session, args) => session.send(`Okay let's find a ${args.what} in ${args.where}`))
+            luis.intent('singASong', (session, args) => session.reply(`Let's sing ${args.song}`)),
+            luis.intent('findSomething', (session, args) => session.reply(`Okay let's find a ${args.what} in ${args.where}`))
         ])
     ),
 
@@ -314,6 +316,6 @@ const contexts: Context<RecipeBotSession>[] = [
 recipeBotChat.session$
 .do(session => console.log("message", session.message))
 .do(session => console.log("state before", session.state))
-.switchMap(session => runMessage(session, contexts))
+.switchMap(session => runSession(session, contexts))
 .do(session => console.log("state after", session.store.getState()))
 .subscribe();

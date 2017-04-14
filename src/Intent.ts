@@ -1,8 +1,6 @@
 import { Observable } from 'rxjs';
-import { Message, Address, getAddress } from './Chat';
-import { Store } from 'redux';
 
-export interface TextSession {
+export interface ITextSession {
     text: string; // plain text for recognizers that use such things
 }
 
@@ -54,7 +52,7 @@ export const context = <S>(query: Query<S>, ... rules: (Rule<S> | Rule<S>[])[]):
 
 const observerize = <T>(args: T | Observable<T>) => args instanceof Observable ? args : Observable.of(args);
 
-export const runMessage = <S>(session: S, contexts: Context<S>[]) => {
+export const runSession = <S>(session: S, contexts: Context<S>[]) => {
     return Observable.from(contexts)
         .do(context => console.log("context", context))
         .filter(context => context.query(session))
@@ -66,6 +64,7 @@ export const runMessage = <S>(session: S, contexts: Context<S>[]) => {
                 .filter(args => !!args)
                 .do(_ => console.log(`rule ${rule.name} calling handler`))
                 .flatMap(args => observerize(rule.handler(session, args))
+                    .do(result => console.log("handler result", result))
                     .take(1) // because handlers may emit more than one value
                 )
             })

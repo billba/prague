@@ -1,13 +1,13 @@
 import { UniversalChat, Message, CardAction, Address, getAddress } from './Chat';
 import { Store } from 'redux';
-import { TextSession, Handler, Recognizer, Rule, Context } from './Intent';
+import { ITextSession, Handler, Recognizer, Rule, Context } from './Intent';
 import { Observable } from 'rxjs';
 
-export interface PromptRules<S extends TextSession> {
+export interface PromptRules<S extends ITextSession> {
     [promptKey: string]: Rule<S>;
 }
 
-export interface PromptRulesMaker<S extends TextSession> {
+export interface PromptRulesMaker<S extends ITextSession> {
     (prompt: Prompt<S>): PromptRules<S>;
 }
 
@@ -19,7 +19,7 @@ export interface ChoiceLists {
     [choiceKey: string]: ChoiceList;
 }
 
-export class Prompt<S extends TextSession> {
+export class Prompt<S extends ITextSession> {
     private promptRules: PromptRules<S>;
 
     constructor(

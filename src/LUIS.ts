@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { TextSession, Handler, Rule } from './Intent';
+import { ITextSession, Handler, Rule } from './Intent';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -31,12 +31,12 @@ interface LuisModels {
     [name: string]: LuisModel
 }
 
-export interface LuisRule<S extends TextSession> {
+export interface LuisRule<S extends ITextSession> {
     intent: string,
     handler: Handler<S>,
 }
 
-export class LUIS<S extends TextSession> {
+export class LUIS<S extends ITextSession> {
     private models: LuisModels = {};
 
     constructor(... creds: LuisCredentials[]) {

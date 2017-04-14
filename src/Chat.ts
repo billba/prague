@@ -10,7 +10,7 @@ export interface ChatConnector {
     activity$: Observable<Activity>; // activities received from chat channel 
 }
 
-interface Chats {
+interface ChatConnectors {
     [channelId: string]: ChatConnector
 }
 
@@ -21,7 +21,7 @@ export interface Address {
 }
 
 export class UniversalChat implements ChatConnector {
-    private chats: Chats = {};
+    private chats: ChatConnectors = {};
     public activity$: Observable<Activity>;
 
     constructor (... chats: ChatConnector[]) {
@@ -32,29 +32,29 @@ export class UniversalChat implements ChatConnector {
     }
 
     channelId = 'chat';
-    
-    replyAsync(to: Address, send: Activity | string) {
-        let activity: Activity = typeof send === "string"
+
+    sendAsync(to: Address, what: Activity | string) {
+        let activity: Activity = typeof what === "string"
             ? {
                 type: 'message',
                 from: { id: 'from' }, // TODO figure this out
-                text: send,
+                text: what,
                 channelId: to.channelId,
                 conversation: { id: to.conversationId }
             } : {
-                ... send,
+                ... what,
                 channelId: to.channelId,
                 conversation: { id: to.conversationId }
             };
         return this.postActivity(activity);
     }
 
-    reply(to: Address, send: Activity | string) {
-        this.replyAsync(to, send).subscribe();
+    send(to: Address, what: Activity | string) {
+        this.sendAsync(to, what).subscribe();
     }
 
     postActivity(activity: Activity) {
-        return this.chats[activity.channelId].postActivity(activity).mapTo(null);
+        return this.chats[activity.channelId].postActivity(activity);
     }
 }
 
@@ -64,9 +64,14 @@ export const getAddress = (message: Message): Address => ({
     channelId: message.channelId
 })
 
-export interface ChatSession {
+export interface IChatSession {
     text: string;
     chat: UniversalChat;
     message: Message;
     address: Address;
+    reply(message: Activity | string): void; 
+}
+
+export interface IChat<S> {
+    session$: Observable<S>;
 }

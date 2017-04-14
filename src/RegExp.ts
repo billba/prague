@@ -1,11 +1,11 @@
 import { Observable } from 'rxjs';
-import { TextSession, Handler, Rule, arrayize } from './Intent';
+import { ITextSession, Handler, Rule, arrayize } from './Intent';
 
 export interface REArgs {
     groups: RegExpExecArray;
 }
 
-export class RE<S extends TextSession> {
+export class RE<S extends ITextSession> {
     constructor() {
     }
 
