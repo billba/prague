@@ -1,7 +1,7 @@
 {
-  "name": "rxbot",
+  "name": "prague",
   "version": "0.0.1",
-  "description": "bot running in a browser using Redux and RxJS",
+  "description": "experimental Rx-based bot technology",
   "main": "public/bot.js",
   "scripts": {
     "build": "webpack",

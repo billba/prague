@@ -42,7 +42,6 @@ interface NutritionInformation {
 import { Observable } from 'rxjs';
 import { UniversalChat, Message, CardAction, Address, getAddress, IChatSession } from './Chat';
 import { WebChatConnector } from './Connectors/WebChat';
-import { runSession, Handler, Context, defaultRule, context, always, rule, Queries } from './Intent';
 import { RE, REArgs } from './RegExp';
 
 const webChat = new WebChatConnector()
@@ -60,7 +59,7 @@ interface RecipeState {
     promptKey: string
 }
 
-import { BotData } from './State';
+import { BotData } from './BotState';
 import { ReduxChat, ReduxChatSession } from './ReduxBotState';
 
 type RecipeBotData = BotData<undefined, undefined, undefined, undefined, RecipeState>;
@@ -130,6 +129,9 @@ const store = createStore(
 );
 
 const recipeBotChat = new ReduxChat(new UniversalChat(webChat.chatConnector), store, state => state.bot);
+
+import { executeRule, Handler, defaultRule, always, rule, Queries, firstMatch, filter } from './Rules';
+
 const reply = (text: string): Handler<IChatSession> => (session) => session.reply(text);
 
 // Prompts
@@ -147,10 +149,9 @@ const recipePromptRules: PromptRulesMaker<RecipeBotSession> = prompt => ({
     'Favorite_Cheese': prompt.choice('Cheeses', (session, args) =>
         session.reply(args['choice'] === "Velveeta" ? "Ima let you finish but FYI that is not really cheese." : "Interesting.")
     ),
-    'Like_Cheese': prompt.confirm((session, args) => {
-        console.log("here");
+    'Like_Cheese': prompt.confirm((session, args) =>
         session.reply(args['confirm'] ? "That is correct." : "That is incorrect.")
-    }),
+    ),
 });
 
 const prompt = new Prompt<RecipeBotSession>(
@@ -259,60 +260,58 @@ const luis = new LUIS<RecipeBotSession>({
     key: 'key'
 });
 
-const contexts: Context<RecipeBotSession>[] = [
+const recipeRule = firstMatch(
 
     // Prompts
-    prompt.context(),
+    prompt.rule(),
 
     // For testing Prompts
-    context(queries.always,
+    filter(queries.always, firstMatch(
         re.rule(intents.askQuestion, (session) => prompt.textCreate(session, 'Favorite_Color', "What is your favorite color?")),
         re.rule(intents.askYorNQuestion, (session) => prompt.confirmCreate(session, 'Like_Cheese', "Do you like cheese?")),
         re.rule(intents.askChoiceQuestion, (session) => prompt.choiceCreate(session, 'Favorite_Cheese', 'Cheeses', "What is your favorite cheese?"))
-    ),
+    )),
 
     // For testing LUIS
 
-    context(queries.always,
-        luis.rule('testModel', [
-            luis.intent('singASong', (session, args) => session.reply(`Let's sing ${args.song}`)),
-            luis.intent('findSomething', (session, args) => session.reply(`Okay let's find a ${args.what} in ${args.where}`))
-        ])
-    ),
+    filter(queries.always, luis.rule('testModel', [
+        luis.intent('singASong', (session, args) => session.reply(`Let's sing ${args.song}`)),
+        luis.intent('findSomething', (session, args) => session.reply(`Okay let's find a ${args.what} in ${args.where}`))
+    ])),
 
     // If there is no recipe, we have to pick one
-    context(queries.noRecipe,
+    filter(queries.noRecipe, firstMatch(
         re.rule(intents.chooseRecipe, chooseRecipe),
         re.rule([intents.queryQuantity, intents.instructions.start, intents.instructions.restart], reply("First please choose a recipe")),
         re.rule(intents.all, chooseRecipe)
-    ),
+    )),
 
     // Now that we have a recipe, these can happen at any time
-    context(queries.always,
-        re.rule(intents.queryQuantity, queryQuantity), /* TODO: conversions go here */
+    filter(queries.always,
+        re.rule(intents.queryQuantity, queryQuantity), // TODO: conversions go here
     ),
 
     // If we haven't started listing instructions, wait for the user to tell us to start
-    context(queries.noInstructionsSent,
+    filter(queries.noInstructionsSent,
         re.rule([intents.instructions.start, intents.instructions.next], (session, args) => sayInstruction(session, { instruction: 0 }))
     ),
 
     // We are listing instructions. Let the user navigate among them.
-    context(queries.always,
+    filter(queries.always, firstMatch(
         re.rule(intents.instructions.next, nextInstruction),
         re.rule(intents.instructions.repeat, (session, args) => sayInstruction(session, { instruction: session.data.userInConversation.lastInstructionSent })),
         re.rule(intents.instructions.previous, previousInstruction),
         re.rule(intents.instructions.restart, (session, args) => sayInstruction(session, { instruction: 0 })),
         globalDefaultRule
-    )
-];
+    ))
+
+);
 
 recipeBotChat.session$
 .do(session => console.log("message", session.message))
 .do(session => console.log("state before", session.state))
-.flatMap(session => {
-    const result = runSession(session, contexts);
-    console.log("state after", session.store.getState());
-    return result;
-})
+.flatMap(session =>
+    executeRule(session, recipeRule)
+    .do(_ => console.log("state after", session.store.getState()))
+)
 .subscribe();

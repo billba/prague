@@ -1,5 +1,5 @@
 import { CardAction, IChatSession } from './Chat';
-import { ITextSession, Handler, Recognizer, Rule, Context } from './Intent';
+import { ITextSession, Handler, Recognizer, Rule, rule, filter, firstMatch } from './Rules';
 import { Observable } from 'rxjs';
 
 export interface PromptRules<S extends ITextSession & IChatSession> {
@@ -52,31 +52,29 @@ export class Prompt<S extends ITextSession & IChatSession> {
         return {
             recognizer: (session) => {
                 const confirm = session.text.toLowerCase() === 'yes'; // TO DO we can do better than this
-                return confirm && { confirm };
+                return { confirm };
             },
             handler
         }
     }
 
-    context(): Context<S> {
-        return ({
-            query: (session) => this.getPromptKey(session) !== undefined,
-            rules: [{
-                recognizer: (session) => {
-                    const rule = this.promptRules[this.getPromptKey(session)];
-                    return rule && rule.recognizer(session);
-                },
-                handler: (session, args) => {
-                    const rule = this.promptRules[this.getPromptKey(session)];
-                    this.setPromptKey(session);
-                    return rule.handler(session, args);
-                },
-                name: `PROMPT`
-            }]
+    rule(): Rule<S> {
+        return filter<S>((session) => this.getPromptKey(session) !== undefined, {
+            recognizer: (session) => {
+                console.log("prompt looking for", this.getPromptKey(session))
+                const rule = this.promptRules[this.getPromptKey(session)];
+                return rule && rule.recognizer(session);
+            },
+            handler: (session, args) => {
+                const rule = this.promptRules[this.getPromptKey(session)];
+                this.setPromptKey(session, undefined);
+                return rule.handler(session, args);
+            },
+            name: `PROMPT`
         });
     }
 
-    // Prompt Message Creatgors -- feels like these maybe belong in the connectors?
+    // Prompt Message Creators -- feels like these maybe belong in the connectors?
 
     textCreate(session: S, promptKey: string, text: string) {
         this.setPromptKey(session, promptKey);

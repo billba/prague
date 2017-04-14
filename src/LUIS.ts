@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { ITextSession, Handler, Rule } from './Intent';
+import { ITextSession, Handler, Rule } from './Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 

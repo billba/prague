@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { ITextSession, Handler, Rule, arrayize } from './Intent';
+import { ITextSession, Handler, Rule, arrayize } from './Rules';
 
 export interface REArgs {
     groups: RegExpExecArray;
