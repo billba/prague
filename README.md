@@ -1,6 +1,6 @@
 # Prague
 
-An experimental Rx-based framework for adding conversational features to apps. I thought of it as I walked around Prague on a sunny Spring day.
+An experimental Rx-based framework for adding conversational features to apps. I thought of it as I walked around Prague on a sunny Spring day. **This is just an experiment and not an official Microsoft project.**
 
 Major features of Prague:
 * strongly-typed rules engine for interpreting ambiguous human inputs
@@ -56,6 +56,33 @@ executeRule({ text: "I'm mad as heck and I'm not going to take it anymore" }, mo
 
 The input to both Recognizers and Handlers is called a *Session*, which can take on different forms depending on the application and input source.
 
+### Built-in recognizers
+
+Prague provides built-in recognizers for *LUIS* models and Regular Expressions. Here is myNameRule rewritten to use the built-in recognizer:
+
+```typescript
+
+const re = new RE<ITextSession>();
+
+const myNameRule = re.rule(
+    /My name is (.*)/,
+    (session, args) => `Hello, ${args[1]}`
+)
+
+And here it is using a hypothetical LUIS model:
+
+const luis = new LUIS<ITextSession>({
+    name: 'nameForMyModel',
+    id: 'myID',
+    key: 'myKey'
+})
+
+const myNameRule = luis.rule('nameForMyModel', [
+    luis.intent('myName', (session, args: { name: string }) => `Hello, ${args.name}`)
+])
+
+```
+
 ### Multiple rules
 
 You could write a single rule to respond to every possible input, but a more typical approach is to break the problem down into a series of rules. Here is one that uses Regular Expressions to identify and extract out the user's name.
@@ -97,32 +124,11 @@ This actually produces the same results, so it's not a particularly useful examp
 
 (Another approach to a list of rules would be to run through all the rules, calling each recognizer, and only calling the handler for the recognizer which returns the *best* match. This approach requires recognizers which return an agreed-upon format (and scale) for scoring matches.)
 
-### Built-in recognizers
-
-Prague provides built-in recognizers for *LUIS* models and Regular Expressions. Here is myNameRule rewritten to use the built-in recognizer:
-
-```typescript
-
-const re = new RE<ITextSession>();
-
-const myNameRule = re.rule(
-    /My name is (.*)/,
-    (session, args) => `Hello, ${args[1]}`
-)
-
-And here it is using a hypothetical LUIS model:
-
-const luis = new LUIS<ITextSession>({
-    name: 'nameForMyModel',
-    id: 'myID',
-    key: 'myKey'
-})
-
-const myNameRule = luis.rule('nameForMyModel', [
-    luis.intent('myName', (session, args: { name: string }) => `Hello, ${args.name}`)
-])
-
-```
+### State and Rules
 
 ### Application state vs. Conversation state
+
+### Prompts
+
+### Async
 
