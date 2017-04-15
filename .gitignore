@@ -2,8 +2,5 @@ node_modules
 
 npm-debug.log
 
-public/bot.js.map
-public/bot.js
-
 notes.md
 dist
