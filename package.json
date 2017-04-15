@@ -2,7 +2,8 @@
   "name": "prague",
   "version": "0.1.0",
   "description": "experimental Rx-based bot technology",
-  "main": "dist/Rules.js",
+  "main": "dist/prague.js",
+  "types": "dist/prague.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
