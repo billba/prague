@@ -1,29 +1,21 @@
 {
   "name": "prague",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "experimental Rx-based bot technology",
-  "main": "public/bot.js",
+  "main": "dist/Rules.js",
   "scripts": {
-    "build": "webpack",
-    "watch": "webpack --progress --watch",
-    "start": "http-server -p 8000",
+    "build": "tsc",
+    "watch": "tsc -w",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
-    "awesome-typescript-loader": "^3.1.2",
     "botframework-directlinejs": "^0.9.6",
-    "http-server": "^0.9.0",
-    "source-map-loader": "^0.2.1",
-    "typescript": "^2.2.2",
-    "webpack": "^2.3.2"
+    "typescript": "^2.2.2"
   },
   "dependencies": {
-    "convert-units": "^2.1.0",
-    "longest-common-substring": "0.0.1",
     "redux": "^3.6.0",
-    "redux-observable": "^0.14.1",
     "rxjs": "^5.3.0"
   }
 }

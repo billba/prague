@@ -17,7 +17,7 @@ interface LuisCache {
     [message: string]: LuisMatch[];
 }
 
-interface LuisCredentials {
+export interface LuisCredentials {
     name: string,
     id: string,
     key: string,
