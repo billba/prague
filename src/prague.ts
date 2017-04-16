@@ -4,7 +4,7 @@
 // Rules
 export * from './Rules';
 
-// Recognizers
+// Matchers
 export * from './LUIS';
 export * from './RegExp';
 export * from './Prompt';
@@ -14,9 +14,9 @@ export * from './Chat';
 export * from './Connectors/WebChat';
 export * from './Connectors/DirectLine';
 
-// Session Interfaces
+// Input Interfaces
 export * from './State';
 export * from './ChatState';
 
-// Session Providers
+// Input Providers
 export * from './ReduxChat';

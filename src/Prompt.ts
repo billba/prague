@@ -1,19 +1,19 @@
-import { CardAction, IChatSession, Activity } from './Chat';
-import { ITextSession, Handler, Recognizer, Result, Rule, rule, filter, firstMatch } from './Rules';
+import { CardAction, IChatInput, Activity } from './Chat';
+import { ITextInput, Action, Matcher, Result, Rule, rule, filter, firstMatcher } from './Rules';
 
 type PromptTextArgs = string;
 
 interface PromptText<S> {
     type: 'text';
     text: string;
-    handler: (session: S, args: PromptTextArgs) => Result<any>;
+    action: (input: S, args: PromptTextArgs) => Result<any>;
 }
 
 type PromptConfirmArgs = boolean;
 
 interface PromptConfirm<S> {
     type: 'confirm';
-    handler: (session: S, args: PromptConfirmArgs) => Result<any>;
+    action: (input: S, args: PromptConfirmArgs) => Result<any>;
 }
 
 type PromptChoiceArgs = string;
@@ -21,27 +21,27 @@ type PromptChoiceArgs = string;
 interface PromptChoice<S> {
     type: 'choice';
     choices: string[]; // TODO: eventually this will become more complex
-    handler: (session: S, args: PromptChoiceArgs) => Result<any>;
+    action: (input: S, args: PromptChoiceArgs) => Result<any>;
 }
 
 type PromptTypes<S> = PromptText<S> | PromptChoice<S> | PromptConfirm<S>;
 
 export interface PromptStuff<S> {
-    recognizer: Recognizer<S>,
-    handler: Handler<S>,
-    creator: (session: S) => Result<any>;
+    matcher: Matcher<S>,
+    action: Action<S>,
+    creator: (input: S) => Result<any>;
 }
 
-interface Prompts<S extends ITextSession & IChatSession> {
+interface Prompts<S extends ITextInput & IChatInput> {
     [promptKey: string]: PromptStuff<S>;
 }
 
-export class Prompt<S extends ITextSession & IChatSession> {
+export class Prompt<S extends ITextInput & IChatInput> {
     private prompts: Prompts<S> = {};
 
     constructor(
-        private getPromptKey: (session: S) => string,
-        private setPromptKey: (session: S, promptKey?: string) => void
+        private getPromptKey: (input: S) => string,
+        private setPromptKey: (input: S, promptKey?: string) => void
     ) {
     }
 
@@ -54,24 +54,24 @@ export class Prompt<S extends ITextSession & IChatSession> {
     }
 
     // Prompt Rule Creators
-    text(promptKey: string, text: string, handler: Handler<S>) {
+    text(promptKey: string, text: string, action: Action<S>) {
         this.add(promptKey, {
-            recognizer: (session) => session.text,
-            handler,
-            creator: (session) => {
-                this.setPromptKey(session, promptKey);
-                session.reply(text);
+            matcher: (input) => input.text,
+            action,
+            creator: (input) => {
+                this.setPromptKey(input, promptKey);
+                input.reply(text);
             }
         });
     }
 
-    choice(promptKey: string, text: string, choices: string[], handler: Handler<S>) {
+    choice(promptKey: string, text: string, choices: string[], action: Action<S>) {
         this.add(promptKey, {
-            recognizer: (session) => choices.find(choice => choice.toLowerCase() === session.text.toLowerCase()),
-            handler,
-            creator: (session) => {
-                this.setPromptKey(session, promptKey);
-                session.reply({
+            matcher: (input) => choices.find(choice => choice.toLowerCase() === input.text.toLowerCase()),
+            action,
+            creator: (input) => {
+                this.setPromptKey(input, promptKey);
+                input.reply({
                     type: 'message',
                     from: { id: 'MyBot' },
                     text,
@@ -85,13 +85,13 @@ export class Prompt<S extends ITextSession & IChatSession> {
         });
     }
 
-    confirm(promptKey: string, text: string, handler: Handler<S>) {
+    confirm(promptKey: string, text: string, action: Action<S>) {
         this.add(promptKey, {
-            recognizer: (session) => session.text.toLowerCase() === 'yes', // TO DO we can do better than this
-            handler, 
-            creator: (session) => {
-                this.setPromptKey(session, promptKey);
-                session.reply({
+            matcher: (input) => input.text.toLowerCase() === 'yes', // TO DO we can do better than this
+            action, 
+            creator: (input) => {
+                this.setPromptKey(input, promptKey);
+                input.reply({
                     type: 'message',
                     from: { id: 'MyBot' },
                     text,
@@ -106,16 +106,16 @@ export class Prompt<S extends ITextSession & IChatSession> {
     }
 
     rule(): Rule<S> {
-        return filter<S>((session) => this.getPromptKey(session) !== undefined, {
-            recognizer: (session) => {
-                console.log("prompt looking for", this.getPromptKey(session))
-                const rule = this.prompts[this.getPromptKey(session)];
-                return rule && rule.recognizer(session);
+        return filter<S>((input) => this.getPromptKey(input) !== undefined, {
+            matcher: (input) => {
+                console.log("prompt looking for", this.getPromptKey(input))
+                const rule = this.prompts[this.getPromptKey(input)];
+                return rule && rule.matcher(input);
             },
-            handler: (session, args) => {
-                const handler = this.prompts[this.getPromptKey(session)].handler;
-                this.setPromptKey(session, undefined);
-                return handler(session, args);
+            action: (input, args) => {
+                const action = this.prompts[this.getPromptKey(input)].action;
+                this.setPromptKey(input, undefined);
+                return action(input, args);
             },
             name: `PROMPT`
         });

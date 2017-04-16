@@ -1,3 +1,3 @@
-export interface IStateSession<BOTDATA> {
+export interface IStateInput<BOTDATA> {
     data: BOTDATA;
 }

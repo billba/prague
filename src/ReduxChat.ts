@@ -1,16 +1,16 @@
 import { Observable } from 'rxjs';
-import { ITextSession } from './Rules';
-import { UniversalChat, Message, Activity, Address, getAddress, IChatSession, IChat } from './Chat';
+import { ITextInput } from './Rules';
+import { UniversalChat, Message, Activity, Address, getAddress, IChatInput, IChat } from './Chat';
 import { Store } from 'redux';
-import { IStateSession } from './State';
+import { IStateInput } from './State';
 
-export interface ReduxSession<APP, BOTDATA> extends IStateSession<BOTDATA> {
+export interface ReduxInput<APP, BOTDATA> extends IStateInput<BOTDATA> {
     state: APP;
     store: Store<APP>;
     getBotData: (state: APP) => BOTDATA;
 }
 
-export class ReduxChatSession<APP, BOTDATA> implements ITextSession, IChatSession, ReduxSession<APP, BOTDATA> {
+export class ReduxChatInput<APP, BOTDATA> implements ITextInput, IChatInput, ReduxInput<APP, BOTDATA> {
     text: string;
     address: Address;
     data: BOTDATA;
@@ -37,16 +37,16 @@ export class ReduxChatSession<APP, BOTDATA> implements ITextSession, IChatSessio
     }
 }   
 
-export class ReduxChat<APP, BOTDATA> implements IChat<ReduxChatSession<APP, BOTDATA>> {
-    session$: Observable<ReduxChatSession<APP, BOTDATA>>;
+export class ReduxChat<APP, BOTDATA> implements IChat<ReduxChatInput<APP, BOTDATA>> {
+    input$: Observable<ReduxChatInput<APP, BOTDATA>>;
 
     constructor(
         private chat: UniversalChat,
         private store: Store<APP>,
         private getBotData: (state: APP) => BOTDATA
     ) {
-        this.session$ = chat.activity$
+        this.input$ = chat.activity$
             .filter(activity => activity.type === 'message')
-            .map((message: Message) => new ReduxChatSession(message, this.chat, this.store, this.getBotData));
+            .map((message: Message) => new ReduxChatInput(message, this.chat, this.store, this.getBotData));
     }
 }

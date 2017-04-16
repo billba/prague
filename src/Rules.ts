@@ -1,34 +1,34 @@
 import { Observable } from 'rxjs';
 
-export interface ITextSession {
-    text: string; // plain text for recognizers that use such things
+export interface ITextInput {
+    text: string; // plain text for matchers that use such things
 }
 
 export type Result<T> = T | Observable<T> | Promise<T>
 
-export interface Recognizer<S> {
-    (session: S): Result<any>; // When we have default generics the result will be typed
+export interface Matcher<S> {
+    (input: S): Result<any>; // When we have default generics the result will be typed
 }
 
-export const always = <S>(session: S) => Observable.of(true);
+export const always = <S>(input: S) => Observable.of(true);
 
-export interface Handler<S> {
-    (session: S, args?: any): Result<any>; // When we have default generics the result will be typed
+export interface Action<S> {
+    (input: S, args?: any): Result<any>; // When we have default generics the result will be typed
 }
 
 export interface Rule<S> {
-    recognizer: Recognizer<S>;
-    handler: Handler<S>;
+    matcher: Matcher<S>;
+    action: Action<S>;
     name?: string;
 }
 
-export const rule = <S>(recognizer: Recognizer<S>, handler: Handler<S>, name?: string): Rule<S> => ({
-    recognizer,
-    handler,
+export const rule = <S>(matcher: Matcher<S>, action: Action<S>, name?: string): Rule<S> => ({
+    matcher,
+    action,
     name
 });
 
-export const defaultRule = <S>(handler: Handler<S>): Rule<S> => rule(always, handler);
+export const defaultRule = <S>(action: Action<S>): Rule<S> => rule(always, action);
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
@@ -40,44 +40,44 @@ const observize = <T>(t: Result<T>) => {
     return Observable.of(t)
 }
 
-export const runRecognizer = <S>(session: S, recognizer: Recognizer<S>) => 
-    observize(recognizer(session))
+export const doMatcher = <S>(input: S, matcher: Matcher<S>) => 
+    observize(matcher(input))
     .filter(result => !!result)
-    .do(args => console.log("recognizer result", args));
+    .do(args => console.log("matcher result", args));
 
-export const runHandler = <S>(session: S, args: Observable<any>, handler: Handler<S>) =>  {
-    console.log(`resolving handler`);
+export const doAction = <S>(input: S, args: Observable<any>, action: Action<S>) =>  {
+    console.log(`resolving action`);
 
-    return observize(handler(session, args))
-    .do(result => console.log("handler result", result))
-    .take(1); // because handlers may emit more than one value
+    return observize(action(input, args))
+    .do(result => console.log("action result", result))
+    .take(1); // because actions may emit more than one value
 }
 
-export const executeRule = <S>(session: S, rule: Rule<S>) =>
-    runRecognizer(session, rule.recognizer)
+export const executeRule = <S>(input: S, rule: Rule<S>) =>
+    doMatcher(input, rule.matcher)
     .do(args => console.log(`rule ${rule.name} succeeded!`, args))
-    .flatMap(args => runHandler(session, args, rule.handler));
+    .flatMap(args => doAction(input, args, rule.action));
 
-export const firstMatch = <S>(... rules: Rule<S>[]): Rule<S> => ({
-    recognizer: (session) => 
+export const firstMatcher = <S>(... rules: Rule<S>[]): Rule<S> => ({
+    matcher: (input) => 
         Observable.from(rules)
         .switchMap((rule, index) => {
             console.log(`evaluating ${rule.name}`);
 
-            return runRecognizer(session, rule.recognizer)
+            return doMatcher(input, rule.matcher)
             .map(args => ({index, args}));
         })
         .take(1), // so that we don't keep going through rules
-    handler: (session, args: { index: number, args: any }) => rules[args.index].handler(session, args.args),
-    name: `firstMatch of ${rules.length} rules`
+    action: (input, args: { index: number, args: any }) => rules[args.index].action(input, args.args),
+    name: `firstMatcher of ${rules.length} rules`
 });
 
-export const bestMatch = <S>(... rules: Rule<S>[]) => {
+export const bestMatcher = <S>(... rules: Rule<S>[]) => {
     // This will require the ability to score individual rules
 }
 
 export interface Query<S> {
-    (session: S): Result<boolean>;
+    (input: S): Result<boolean>;
 }
 
 export interface Queries<S> {
@@ -85,11 +85,11 @@ export interface Queries<S> {
 }
 
 export const filter = <S>(query: Query<S>, rule: Rule<S>): Rule<S> => ({
-    recognizer: (session) =>
-        observize(query(session))
+    matcher: (input) =>
+        observize(query(input))
         .filter(result => !!result)
         .do(_ => console.log(""))
-        .flatMap(_ => runRecognizer(session, rule.recognizer)),
-    handler: rule.handler,
+        .flatMap(_ => doMatcher(input, rule.matcher)),
+    action: rule.action,
     name: `filter rule ${rule.name}`
 });

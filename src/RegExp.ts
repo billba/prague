@@ -1,28 +1,28 @@
 import { Observable } from 'rxjs';
-import { ITextSession, Handler, Rule, arrayize } from './Rules';
+import { ITextInput, Action, Rule, arrayize } from './Rules';
 
 export interface REArgs {
     groups: RegExpExecArray;
 }
 
-export class RE<S extends ITextSession> {
+export class RE<S extends ITextInput> {
     constructor() {
     }
 
-    // Either call as re(intent, handler) or test([intent, intent, ...], handler)
+    // Either call as re(intent, action) or test([intent, intent, ...], action)
     rule(
         intents: RegExp | RegExp[],
-        handler: Handler<S>
+        action: Action<S>
     ): Rule<S> {
         return {
-            recognizer: (session) => 
+            matcher: (input) => 
                 Observable.from(arrayize(intents))
-                    .map(regexp => regexp.exec(session.text))
-                    .filter(groups => groups && groups[0] === session.text)
+                    .map(regexp => regexp.exec(input.text))
+                    .filter(groups => groups && groups[0] === input.text)
                     .take(1)
                     .map(groups => ({ groups }))
                     .do(args => console.log("RegEx result", args)),
-            handler,
+            action,
             name: `REGEXP`
         };
     }

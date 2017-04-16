@@ -64,7 +64,7 @@ export const getAddress = (message: Message): Address => ({
     channelId: message.channelId
 })
 
-export interface IChatSession {
+export interface IChatInput {
     text: string;
     chat: UniversalChat;
     message: Message;
@@ -74,5 +74,5 @@ export interface IChatSession {
 }
 
 export interface IChat<S> {
-    session$: Observable<S>;
+    input$: Observable<S>;
 }

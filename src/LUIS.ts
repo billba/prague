@@ -1,20 +1,20 @@
 import { Observable } from 'rxjs';
-import { ITextSession, Handler, Rule } from './Rules';
+import { ITextInput, Action, Rule } from './Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
-interface LuisMatch {
+interface LuisMatcher {
     intent: string,
     entities: any,
     threshold: number,
 }
 
 interface LuisResponse {
-    matches: LuisMatch[];
+    matchers: LuisMatcher[];
 }
 
 interface LuisCache {
-    [message: string]: LuisMatch[];
+    [message: string]: LuisMatcher[];
 }
 
 export interface LuisCredentials {
@@ -31,12 +31,12 @@ interface LuisModels {
     [name: string]: LuisModel
 }
 
-export interface LuisRule<S extends ITextSession> {
+export interface LuisRule<S extends ITextInput> {
     intent: string,
-    handler: Handler<S>,
+    action: Action<S>,
 }
 
-export class LUIS<S extends ITextSession> {
+export class LUIS<S extends ITextInput> {
     private models: LuisModels = {};
 
     constructor(... creds: LuisCredentials[]) {
@@ -98,7 +98,7 @@ export class LUIS<S extends ITextSession> {
     }
 
     // a mock because I don't really care about really calling LUIS yet
-    private call(modelName: string, utterance: string): Observable<LuisMatch[]> {
+    private call(modelName: string, utterance: string): Observable<LuisMatcher[]> {
         const model = this.models[modelName];
         if (!model) {
             console.error(`no LUIS model with name ${modelName} - provide with constructor or call addModel`)
@@ -116,27 +116,27 @@ export class LUIS<S extends ITextSession> {
         return Observable.of(result);
     }
 
-    intent(intent: string, handler: Handler<S>): LuisRule<S> {
+    intent(intent: string, action: Action<S>): LuisRule<S> {
         return {
             intent,
-            handler
+            action
         }
     }
 
     // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
-    // IMPORTANT: the order of rules is not important - the handler for the *highest-ranked intent* will be executed
+    // IMPORTANT: the order of rules is not important - the action for the *highest-ranked intent* will be executed
     rule(modelName: string, luisRules: LuisRule<S>[], threshold = .50): Rule<S> {
         return {
-            recognizer: (session) =>
-                this.call(modelName, session.text)
+            matcher: (input) =>
+                this.call(modelName, input.text)
                 .flatMap(luisResult =>
                     Observable.from(luisResult)
-                    .filter(match => match.threshold >= threshold)
-                    .filter(match => luisRules.some(luisRule => luisRule.intent === match.intent))
+                    .filter(matcher => matcher.threshold >= threshold)
+                    .filter(matcher => luisRules.some(luisRule => luisRule.intent === matcher.intent))
                     .take(1) // take the highest ranked intent in our rule list
                 ),
-            handler: (session, args: LuisMatch) => 
-                luisRules.find(luisRule => luisRule.intent === args.intent).handler(session, args.entities),
+            action: (input, args: LuisMatcher) => 
+                luisRules.find(luisRule => luisRule.intent === args.intent).action(input, args.entities),
             name: `LUIS: ${modelName}/${luisRules.map(lr => lr.intent).join('+')}`
         };
     }
