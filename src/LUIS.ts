@@ -125,7 +125,7 @@ export class LUIS<S extends ITextInput> {
 
     // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
     // IMPORTANT: the order of rules is not important - the action for the *highest-ranked intent* will be executed
-    rule(modelName: string, luisRules: LuisRule<S>[], threshold = .50): Rule<S> {
+    bestMatch(modelName: string, luisRules: LuisRule<S>[], threshold = .50): Rule<S> {
         return {
             matcher: (input) =>
                 this.call(modelName, input.text)
