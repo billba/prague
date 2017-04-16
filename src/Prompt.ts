@@ -1,116 +1,127 @@
-import { CardAction, IChatSession } from './Chat';
-import { ITextSession, Handler, Recognizer, Rule, rule, filter, firstMatch } from './Rules';
-import { Observable } from 'rxjs';
+import { CardAction, IChatSession, Activity } from './Chat';
+import { ITextSession, Handler, Recognizer, Result, Rule, rule, filter, firstMatch } from './Rules';
 
-export interface PromptRules<S extends ITextSession & IChatSession> {
-    [promptKey: string]: Rule<S>;
+type PromptTextArgs = string;
+
+interface PromptText<S> {
+    type: 'text';
+    text: string;
+    handler: (session: S, args: PromptTextArgs) => Result<any>;
 }
 
-export interface PromptRulesMaker<S extends ITextSession & IChatSession> {
-    (prompt: Prompt<S>): PromptRules<S>;
+type PromptConfirmArgs = boolean;
+
+interface PromptConfirm<S> {
+    type: 'confirm';
+    handler: (session: S, args: PromptConfirmArgs) => Result<any>;
 }
 
-export type Choice = string; // TODO: eventually this will be something more complex
+type PromptChoiceArgs = string;
 
-export type ChoiceList = Choice[];
+interface PromptChoice<S> {
+    type: 'choice';
+    choices: string[]; // TODO: eventually this will become more complex
+    handler: (session: S, args: PromptChoiceArgs) => Result<any>;
+}
 
-export interface ChoiceLists {
-    [choiceKey: string]: ChoiceList;
+type PromptTypes<S> = PromptText<S> | PromptChoice<S> | PromptConfirm<S>;
+
+export interface PromptStuff<S> {
+    recognizer: Recognizer<S>,
+    handler: Handler<S>,
+    creator: (session: S) => Result<any>;
+}
+
+interface Prompts<S extends ITextSession & IChatSession> {
+    [promptKey: string]: PromptStuff<S>;
 }
 
 export class Prompt<S extends ITextSession & IChatSession> {
-    private promptRules: PromptRules<S>;
+    private prompts: Prompts<S> = {};
 
     constructor(
-        private choiceLists: ChoiceLists,
-        private promptRulesMaker: PromptRulesMaker<S>,
         private getPromptKey: (session: S) => string,
         private setPromptKey: (session: S, promptKey?: string) => void
     ) {
-        this.promptRules = promptRulesMaker(this);
+    }
+
+    add(promptKey: string, promptStuff: PromptStuff<S>) {
+        if (this.prompts[promptKey]) {
+            console.warn(`Prompt key ${promptKey} already exists. Plese use a different key.`);
+            return;
+        }
+        this.prompts[promptKey] = promptStuff;
     }
 
     // Prompt Rule Creators
-    text(handler: Handler<S>): Rule<S> {
-        return {
-            recognizer: (session) => ({ text: session.text }),
-            handler
-        }
+    text(promptKey: string, text: string, handler: Handler<S>) {
+        this.add(promptKey, {
+            recognizer: (session) => session.text,
+            handler,
+            creator: (session) => {
+                this.setPromptKey(session, promptKey);
+                session.reply(text);
+            }
+        });
     }
 
-    choice(choiceName: string, handler: Handler<S>) {
-        return {
-            recognizer: (session) => {
-                const choice = this.choiceLists[choiceName].find(choice => choice.toLowerCase() === session.text.toLowerCase());
-                return choice && { choice };
-            },
-            handler
-        }
+    choice(promptKey: string, text: string, choices: string[], handler: Handler<S>) {
+        this.add(promptKey, {
+            recognizer: (session) => choices.find(choice => choice.toLowerCase() === session.text.toLowerCase()),
+            handler,
+            creator: (session) => {
+                this.setPromptKey(session, promptKey);
+                session.reply({
+                    type: 'message',
+                    from: { id: 'MyBot' },
+                    text,
+                    suggestedActions: { actions: choices.map<CardAction>(choice => ({
+                        type: 'postBack',
+                        title: choice,
+                        value: choice
+                    })) }
+                });
+            }
+        });
     }
 
-    confirm(handler: Handler<S>) {
-        return {
-            recognizer: (session) => {
-                const confirm = session.text.toLowerCase() === 'yes'; // TO DO we can do better than this
-                return { confirm };
-            },
-            handler
-        }
+    confirm(promptKey: string, text: string, handler: Handler<S>) {
+        this.add(promptKey, {
+            recognizer: (session) => session.text.toLowerCase() === 'yes', // TO DO we can do better than this
+            handler, 
+            creator: (session) => {
+                this.setPromptKey(session, promptKey);
+                session.reply({
+                    type: 'message',
+                    from: { id: 'MyBot' },
+                    text,
+                    suggestedActions: { actions: ['Yes', 'No'].map<CardAction>(choice => ({
+                        type: 'postBack',
+                        title: choice,
+                        value: choice
+                    })) }
+                });
+            }
+        });
     }
 
     rule(): Rule<S> {
         return filter<S>((session) => this.getPromptKey(session) !== undefined, {
             recognizer: (session) => {
                 console.log("prompt looking for", this.getPromptKey(session))
-                const rule = this.promptRules[this.getPromptKey(session)];
+                const rule = this.prompts[this.getPromptKey(session)];
                 return rule && rule.recognizer(session);
             },
             handler: (session, args) => {
-                const rule = this.promptRules[this.getPromptKey(session)];
+                const handler = this.prompts[this.getPromptKey(session)].handler;
                 this.setPromptKey(session, undefined);
-                return rule.handler(session, args);
+                return handler(session, args);
             },
             name: `PROMPT`
         });
     }
 
-    // Prompt Message Creators -- feels like these maybe belong in the connectors?
-
-    textCreate(session: S, promptKey: string, text: string) {
-        this.setPromptKey(session, promptKey);
-        session.reply(text);
-    }
-
-    choiceCreate(session: S, promptKey: string, choiceName: string, text: string) {
-        const choiceList = this.choiceLists[choiceName];
-        if (!choiceList)
-            return;
-        this.setPromptKey(session, promptKey);
-        session.reply({
-            type: 'message',
-            from: { id: 'RecipeBot' },
-            text,
-            suggestedActions: { actions: choiceList.map<CardAction>(choice => ({
-                type: 'postBack',
-                title: choice,
-                value: choice
-            })) }
-        });
-    }
-
-    private yorn: ChoiceList = ['Yes', 'No'];
-
-    confirmCreate(session: S, promptKey: string, text: string) {
-        this.setPromptKey(session, promptKey);
-        session.reply({
-            type: 'message',
-            from: { id: 'RecipeBot' },
-            text,
-            suggestedActions: { actions: this.yorn.map<CardAction>(choice => ({
-                type: 'postBack',
-                title: choice,
-                value: choice
-            })) }
-        });
+    reply(promptKey: string) {
+         return this.prompts[promptKey].creator;
     }
 }
