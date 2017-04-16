@@ -1,5 +1,5 @@
 import { CardAction, IChatInput, Activity } from './Chat';
-import { ITextInput, Action, Matcher, Result, Rule, rule, filter, firstMatcher } from './Rules';
+import { ITextInput, Action, Matcher, Result, Rule, rule, filter, firstMatch } from './Rules';
 
 type PromptTextArgs = string;
 
@@ -65,8 +65,8 @@ export class Prompt<S extends ITextInput & IChatInput> {
         });
     }
 
-    choice(promptKey: string, text: string, choices: string[], action: Action<S>) {
-        this.add(promptKey, {
+    choicePrompt(promptKey: string, text: string, choices: string[], action: Action<S>): PromptStuff<S> {
+        return {
             matcher: (input) => choices.find(choice => choice.toLowerCase() === input.text.toLowerCase()),
             action,
             creator: (input) => {
@@ -82,25 +82,20 @@ export class Prompt<S extends ITextInput & IChatInput> {
                     })) }
                 });
             }
-        });
+        };
     }
 
-    confirm(promptKey: string, text: string, action: Action<S>) {
+    choice(promptKey: string, text: string, choices: string[], action: Action<S>) {
+        this.add(promptKey, this.choicePrompt(promptKey, text, choices, action));
+    }
+
+    confirm(promptKey: string, text: string, action: Action<S>) { 
+        const choice = this.choicePrompt(promptKey, text, ['Yes', 'No'], action);
         this.add(promptKey, {
-            matcher: (input) => input.text.toLowerCase() === 'yes', // TO DO we can do better than this
-            action, 
-            creator: (input) => {
-                this.setPromptKey(input, promptKey);
-                input.reply({
-                    type: 'message',
-                    from: { id: 'MyBot' },
-                    text,
-                    suggestedActions: { actions: ['Yes', 'No'].map<CardAction>(choice => ({
-                        type: 'postBack',
-                        title: choice,
-                        value: choice
-                    })) }
-                });
+            ... choice,
+            matcher: (input) => {
+                const args: string = choice.matcher(input);
+                return args !== undefined && args === 'Yes';
             }
         });
     }

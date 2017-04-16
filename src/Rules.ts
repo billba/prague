@@ -42,7 +42,7 @@ const observize = <T>(t: Result<T>) => {
 
 export const doMatcher = <S>(input: S, matcher: Matcher<S>) => 
     observize(matcher(input))
-    .filter(result => !!result)
+    .filter(result => result !== undefined && result !== null)
     .do(args => console.log("matcher result", args));
 
 export const doAction = <S>(input: S, args: Observable<any>, action: Action<S>) =>  {
@@ -58,7 +58,7 @@ export const executeRule = <S>(input: S, rule: Rule<S>) =>
     .do(args => console.log(`rule ${rule.name} succeeded!`, args))
     .flatMap(args => doAction(input, args, rule.action));
 
-export const firstMatcher = <S>(... rules: Rule<S>[]): Rule<S> => ({
+export const firstMatch = <S>(... rules: Rule<S>[]): Rule<S> => ({
     matcher: (input) => 
         Observable.from(rules)
         .switchMap((rule, index) => {
@@ -72,7 +72,7 @@ export const firstMatcher = <S>(... rules: Rule<S>[]): Rule<S> => ({
     name: `firstMatcher of ${rules.length} rules`
 });
 
-export const bestMatcher = <S>(... rules: Rule<S>[]) => {
+export const bestMatch = <S>(... rules: Rule<S>[]) => {
     // This will require the ability to score individual rules
 }
 
