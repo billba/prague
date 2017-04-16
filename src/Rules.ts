@@ -4,14 +4,16 @@ export interface ITextSession {
     text: string; // plain text for recognizers that use such things
 }
 
+export type Result<T> = T | Observable<T> | Promise<T>
+
 export interface Recognizer<S> {
-    (session: S): any | Observable<any>;
+    (session: S): Result<any>; // When we have default generics the result will be typed
 }
 
 export const always = <S>(session: S) => Observable.of(true);
 
 export interface Handler<S> {
-    (session: S, args?: any): any | Observable<any>;
+    (session: S, args?: any): Result<any>; // When we have default generics the result will be typed
 }
 
 export interface Rule<S> {
@@ -30,9 +32,7 @@ export const defaultRule = <S>(handler: Handler<S>): Rule<S> => rule(always, han
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
-const observize = <T>(
-    t: T | Observable<T>
-) => {
+const observize = <T>(t: Result<T>) => {
     if (t instanceof Observable)
         return t;
     if (t instanceof Promise)
@@ -77,7 +77,7 @@ export const bestMatch = <S>(... rules: Rule<S>[]) => {
 }
 
 export interface Query<S> {
-    (session: S): boolean | Observable<boolean>;
+    (session: S): Result<boolean>;
 }
 
 export interface Queries<S> {
