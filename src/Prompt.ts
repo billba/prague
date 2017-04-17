@@ -2,30 +2,22 @@ import { CardAction, IChatInput, Activity } from './Chat';
 import { ITextInput, Action, Matcher, Observizeable, Rule, filter, firstMatch, observize } from './Rules';
 import { Observable } from 'rxjs';
 
-type PromptTextArgs = string;
-
 interface PromptText<S> {
     type: 'text';
     text: string;
-    action: (input: S, args: PromptTextArgs) => Observizeable<any>;
+    action: (input: S, args: string) => Observizeable<any>;
 }
-
-type PromptConfirmArgs = boolean;
 
 interface PromptConfirm<S> {
     type: 'confirm';
-    action: (input: S, args: PromptConfirmArgs) => Observizeable<any>;
+    action: (input: S, args: boolean) => Observizeable<any>;
 }
-
-type PromptChoiceArgs = string;
 
 interface PromptChoice<S> {
     type: 'choice';
     choices: string[]; // TODO: eventually this will become more complex
-    action: (input: S, args: PromptChoiceArgs) => Observizeable<any>;
+    action: (input: S, args: string) => Observizeable<any>;
 }
-
-type PromptTypes<S> = PromptText<S> | PromptChoice<S> | PromptConfirm<S>;
 
 export interface PromptStuff<S> {
     matcher: Matcher<S>,
@@ -55,7 +47,7 @@ export class Prompt<S extends ITextInput & IChatInput> {
     }
 
     // Prompt Rule Creators
-    text(promptKey: string, text: string, action: Action<S>) {
+    text(promptKey: string, text: string, action: (input: S, args: string) => Observizeable<void>) {
         this.add(promptKey, {
             matcher: (input) => ({
                 score: 1,
@@ -69,7 +61,7 @@ export class Prompt<S extends ITextInput & IChatInput> {
         });
     }
 
-    choicePrompt(promptKey: string, text: string, choices: string[], action: Action<S>): PromptStuff<S> {
+    choicePrompt(promptKey: string, text: string, choices: string[], action: (input: S, args: string) => Observizeable<void>): PromptStuff<S> {
         return {
             matcher: (input) => {
                 const choice = choices.find(choice => choice.toLowerCase() === input.text.toLowerCase());
@@ -95,14 +87,15 @@ export class Prompt<S extends ITextInput & IChatInput> {
         };
     }
 
-    choice(promptKey: string, text: string, choices: string[], action: Action<S>) {
+    choice(promptKey: string, text: string, choices: string[], action: (input: S, args: string) => Observizeable<void>) {
         this.add(promptKey, this.choicePrompt(promptKey, text, choices, action));
     }
 
-    confirm(promptKey: string, text: string, action: Action<S>) { 
-        const choice = this.choicePrompt(promptKey, text, ['Yes', 'No'], action);
+    confirm(promptKey: string, text: string, action: (input: S, args: boolean) => Observizeable<void>) { 
+        const choice = this.choicePrompt(promptKey, text, ['Yes', 'No'], null);
         this.add(promptKey, {
-            ... choice,
+            creator: choice.creator,
+            action,
             matcher: (input) =>
                 observize(choice.matcher(input))
                 .filter(args => args !== undefined && args !== null)
