@@ -1,22 +1,22 @@
 // Eventually this libary might be factored into multiple libraries/plugins. Until then, this
 // file exists as an entry point to the entire thing.
 
-// Rules
+// Core
 export * from './Rules';
 
-// Matchers
-export * from './LUIS';
-export * from './RegExp';
-export * from './Prompt';
+// Rules
+export * from './rules/LUIS';
+export * from './rules/RegExp';
+export * from './rules/Prompt';
 
 // Chat Connectors
-export * from './Chat';
-export * from './Connectors/WebChat';
-export * from './Connectors/DirectLine';
+export * from './recipes/Connectors/WebChat';
+export * from './recipes/Connectors/DirectLine';
 
-// Input Interfaces
-export * from './State';
-export * from './ChatState';
-
-// Input Providers
-export * from './ReduxChat';
+// Input Recipes
+export * from './recipes/Text';
+export * from './recipes/Chat';
+export * from './recipes/State';
+export * from './recipes/ChatState';
+export * from './recipes/Redux';
+export * from './recipes/ReduxChat';

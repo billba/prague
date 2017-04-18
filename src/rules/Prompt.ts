@@ -1,5 +1,6 @@
-import { CardAction, IChatInput, Activity } from './Chat';
-import { ITextInput, Action, Matcher, Observizeable, Rule, filter, firstMatch, observize } from './Rules';
+import { CardAction, IChatInput, Activity } from '../recipes/Chat';
+import { ITextInput } from '../recipes/Text';
+import { Action, Matcher, Observizeable, Rule, filter, firstMatch, observize } from '../Rules';
 import { Observable } from 'rxjs';
 
 interface PromptText<S> {

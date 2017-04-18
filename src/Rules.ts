@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 
-export interface ITextInput {
-    text: string; // plain text for matchers that use such things
+export interface IInputSource<S> {
+    input$: Observable<S>;
 }
 
 export type Observizeable<T> = T | Observable<T> | Promise<T>
@@ -37,13 +37,14 @@ export const observize = <T>(t: Observizeable<T>) => {
         return t;
     if (t instanceof Promise)
         return Observable.fromPromise<T>(t)
+    if (t === undefined || t === null)
+        return Observable.empty();
     return Observable.of(t)
 }
 
 export const rule = <S>(matcher: Matcher<S>, action: Action<S>): Rule<S> => (input) => 
     observize(matcher(input))
     .do(result => console.log("matcher result", result))
-    .filter(result => result !== undefined && result !== null)
     .map(args => ({
         score: args.score,
         action: () => {

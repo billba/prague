@@ -65,14 +65,9 @@ export const getAddress = (message: Message): Address => ({
 })
 
 export interface IChatInput {
-    text: string;
     chat: UniversalChat;
     message: Message;
     address: Address;
     reply(message: Activity | string): void; 
-    replyAsync(message: Activity | string): void; 
 }
 
-export interface IChat<S> {
-    input$: Observable<S>;
-}
