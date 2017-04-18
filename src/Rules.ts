@@ -7,7 +7,7 @@ export interface ITextInput {
 export type Observizeable<T> = T | Observable<T> | Promise<T>
 
 export interface MatchResult<T> {
-    score: number;
+    score?: number;
     args: T;
 }
 
@@ -20,7 +20,7 @@ export interface Action<S> {
 }
 
 export interface Match {
-    score: number,
+    score?: number,
     action: () => Observizeable<any>;
 }
 
@@ -72,9 +72,9 @@ export const bestMatch$ = <S>(rule$: Observable<Rule<S>>) => (input) =>
     rule$
     .do(_ => console.log("bestMatch$: trying rule"))
     .flatMap(rule => observize(rule(input)))
-    .takeWhile(match => match.score !== 1)
-    .reduce<Match>((prev, current) => prev && prev.score > current.score ? prev : current);
-    // TODO: don't call reduce if current.score === 1
+    .takeWhile(match => match.score < 1)
+    .reduce<Match>((prev, current) => prev && Math.max(prev.score || 1, 1) > Math.max(current.score || 1, 1) ? prev : current);
+    // TODO: don't call reduce if current.score >= 1
 
 export const bestMatch = <S>(... rules: Rule<S>[]) => (input) => 
     bestMatch$(Observable.from(rules))(input);

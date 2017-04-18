@@ -50,7 +50,6 @@ export class Prompt<S extends ITextInput & IChatInput> {
     text(promptKey: string, text: string, action: (input: S, args: string) => Observizeable<void>) {
         this.add(promptKey, {
             matcher: (input) => ({
-                score: 1,
                 args: input.text
             }),
             action,
@@ -66,7 +65,6 @@ export class Prompt<S extends ITextInput & IChatInput> {
             matcher: (input) => {
                 const choice = choices.find(choice => choice.toLowerCase() === input.text.toLowerCase());
                 return choice && {
-                    score: 1,
                     args: choice
                 };
             },
@@ -100,7 +98,6 @@ export class Prompt<S extends ITextInput & IChatInput> {
                 observize(choice.matcher(input))
                 .filter(args => args !== undefined && args !== null)
                 .map(args => ({
-                    score: 1,
                     args: args.args === 'Yes',
                 }))
         });
