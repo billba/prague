@@ -20,17 +20,17 @@ interface PromptChoice<S> {
     action: (input: S, args: string) => Observizeable<any>;
 }
 
-export interface PromptStuff<S> {
+export interface Prompt<S> {
     rule: Rule<S>,
     creator: (input: S) => Observizeable<any>;
 }
 
-interface Prompts<S extends ITextInput & IChatInput> {
-    [promptKey: string]: PromptStuff<S>;
+interface PromptMap<S extends ITextInput & IChatInput> {
+    [promptKey: string]: Prompt<S>;
 }
 
-export class Prompt<S extends ITextInput & IChatInput> {
-    private prompts: Prompts<S> = {};
+export class Prompts<S extends ITextInput & IChatInput> {
+    private prompts: PromptMap<S> = {};
 
     constructor(
         private getPromptKey: (input: S) => string,
@@ -38,37 +38,34 @@ export class Prompt<S extends ITextInput & IChatInput> {
     ) {
     }
 
-    add(promptKey: string, promptStuff: PromptStuff<S>) {
+    add(promptKey: string, prompt: Prompt<S>) {
         if (this.prompts[promptKey]) {
             console.warn(`Prompt key ${promptKey} already exists. Plese use a different key.`);
             return;
         }
-        this.prompts[promptKey] = promptStuff;
+        this.prompts[promptKey] = prompt;
     }
 
-    // Prompt Rule Creators
-    text(promptKey: string, text: string, action: (input: S, text: string) => Observizeable<void>) {
-        this.add(promptKey, {
+    // Prompt Creators
+    text(text: string, action: (input: S, text: string) => Observizeable<void>) {
+        return {
             rule: (input) => ({
                 action: () => action(input, input.text)
             }),
-            creator: (input) => {
-                this.setPromptKey(input, promptKey);
-                input.reply(text);
-            }
-        });
+            creator: (input) =>
+                input.reply(text),
+        };
     }
 
-    choicePrompt(promptKey: string, text: string, choices: string[], action: (input: S, choice: string) => Observizeable<any>): PromptStuff<S> {
+    choice(text: string, choices: string[], action: (input: S, choice: string) => Observizeable<any>): Prompt<S> {
         return {
             rule: (input) =>
                 Observable.of(choices.find(choice => choice.toLowerCase() === input.text.toLowerCase()))
-                .filter(choice => choice !== undefined && choice != null)
+                .filter(choice => !!choice !== undefined && choice != null)
                 .map(choice => ({
                     action: () => action(input, choice)
                 })),
-            creator: (input) => {
-                this.setPromptKey(input, promptKey);
+            creator: (input) =>
                 input.reply({
                     type: 'message',
                     from: { id: 'MyBot' },
@@ -78,25 +75,20 @@ export class Prompt<S extends ITextInput & IChatInput> {
                         title: choice,
                         value: choice
                     })) }
-                });
-            }
+                }),
         };
     }
 
-    choice(promptKey: string, text: string, choices: string[], action: (input: S, choice: string) => Observizeable<any>) {
-        this.add(promptKey, this.choicePrompt(promptKey, text, choices, action));
-    }
-
-    confirm(promptKey: string, text: string, action: (input: S, confirm: boolean) => Observizeable<any>) { 
-        const choice = this.choicePrompt(promptKey, text, ['Yes', 'No'], (input: S, choice: string) =>
+    confirm(text: string, action: (input: S, confirm: boolean) => Observizeable<any>) {
+        const prompt = this.choice(text, ['Yes', 'No'], (input: S, choice: string) =>
             Observable.of(choice)
             .map(choice => ({
                 action: () => action(input, choice === 'Yes')
             })));
-        this.add(promptKey, {
-            creator: choice.creator,
-            rule: composeRule(choice.rule)
-        });
+        return {
+            rule: composeRule(prompt.rule),
+            creator: prompt.creator,
+        };
     }
 
     rule(): Rule<S> {
@@ -119,6 +111,9 @@ export class Prompt<S extends ITextInput & IChatInput> {
     }
 
     reply(promptKey: string) {
-         return this.prompts[promptKey].creator;
+        return (input: S) => {
+            this.setPromptKey(input, promptKey);
+            return this.prompts[promptKey].creator(input);
+        }
     }
 }

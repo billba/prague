@@ -35,13 +35,12 @@ export const observize = <T>(t: Observizeable<T>) => {
     return Observable.of(t)
 }
 
-export const composeRule = <S>(rule: Rule<S>): Rule<S> => (input) =>
-    observize(rule(input))
-    .flatMap(match => observize(match.action()));
-
 export const doRule = <S>(input: S, rule: Rule<S>) =>
     observize(rule(input))
     .flatMap(match => observize(match.action()));
+
+export const composeRule = <S>(rule: Rule<S>): Rule<S> => (input) =>
+    doRule(input, rule);
 
 export const firstMatch$ = <S>(rule$: Observable<Rule<S>>): Rule<S> => (input) => 
     rule$

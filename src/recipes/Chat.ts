@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable } from 'rxjs';
-import { Activity, Message } from 'botframework-directlinejs';
+import { Activity, Typing, EventActivity, Message } from 'botframework-directlinejs';
 export { Activity, Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
@@ -62,13 +62,14 @@ export const getAddress = (message: Message): Address => ({
     userId: message.from.id,
     conversationId: message.conversation.id,
     channelId: message.channelId
-})
+});
 
 export interface IChatInput {
     chat: UniversalChat;
     message: Message;
     address: Address;
-    reply(message: Activity | string): void;
+    reply(message: Activity | string);
     replyAsync(message: Activity | string): Observable<Activity>;
 }
 
+export const reply = <S extends IChatInput>(message: Activity | string) => (input: S) => input.reply(message);
