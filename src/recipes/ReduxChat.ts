@@ -31,6 +31,7 @@ export class ReduxChat<APP, BOTDATA> implements IInputSource<IReduxChatInput<APP
                     message,
                     address,
                     reply: (activity: Activity | string) => chat.send(address, activity),
+                    replyAsync: (activity: Activity | string) => chat.sendAsync(address, activity),
 
                     // IStateInput
                     data: getBotData(state),

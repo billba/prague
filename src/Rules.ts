@@ -6,17 +6,8 @@ export interface IInputSource<S> {
 
 export type Observizeable<T> = T | Observable<T> | Promise<T>
 
-export interface MatchResult<T> {
-    score?: number;
-    args: T;
-}
-
-export interface Matcher<S> {
-    (input: S): Observizeable<MatchResult<any>>; // When we have default generics the result will be typed
-}
-
 export interface Action<S> {
-    (input: S, args?: any): Observizeable<any>; // When we have default generics the args & result will be typed
+    (input: S, args?: any): Observizeable<any>; // When we have default generics the args & result will be typed too
 }
 
 export interface Match {
@@ -28,7 +19,9 @@ export interface Rule<S> {
     (input: S): Observizeable<Match>;
 }
 
-// export const defaultRule = <S>(action: Action<S>): Rule<S> => (input: S) => action(input);
+export const defaultRule = <S>(action: Action<S>): Rule<S> => (input: S) => ({
+    action: () => action(input)
+});
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
@@ -42,19 +35,9 @@ export const observize = <T>(t: Observizeable<T>) => {
     return Observable.of(t)
 }
 
-export const rule = <S>(matcher: Matcher<S>, action: Action<S>): Rule<S> => (input) => 
-    observize(matcher(input))
-    .do(result => console.log("matcher result", result))
-    .map(args => ({
-        score: args.score,
-        action: () => {
-            console.log(`resolving action`);
-
-            return observize(action(input, args))
-            .do(result => console.log("action result", result))
-            .take(1) // because actions may emit more than one value
-        }
-    } as Match));
+export const composeRule = <S>(rule: Rule<S>): Rule<S> => (input) =>
+    observize(rule(input))
+    .flatMap(match => observize(match.action()));
 
 export const doRule = <S>(input: S, rule: Rule<S>) =>
     observize(rule(input))

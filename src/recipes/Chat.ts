@@ -68,6 +68,7 @@ export interface IChatInput {
     chat: UniversalChat;
     message: Message;
     address: Address;
-    reply(message: Activity | string): void; 
+    reply(message: Activity | string): void;
+    replyAsync(message: Activity | string): Observable<Activity>;
 }
 

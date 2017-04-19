@@ -1,5 +1,6 @@
 import { Observable } from 'rxjs';
-import { ITextInput, Action, Rule, Match, arrayize } from './Rules';
+import { ITextInput } from '../recipes/Text';
+import { Action, Rule, Match, arrayize, Observizeable } from '../Rules';
 
 export interface REArgs {
     groups: RegExpExecArray;
@@ -12,7 +13,7 @@ export class RE<S extends ITextInput> {
     // Either call as re(intent, action) or test([intent, intent, ...], action)
     rule(
         intents: RegExp | RegExp[],
-        action: Action<S>
+        action: (input: S, args: { groups: RegExpExecArray }) => Observizeable<any>
     ): Rule<S> {
         return (input) => 
             Observable.from(arrayize(intents))

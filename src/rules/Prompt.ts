@@ -1,6 +1,6 @@
 import { CardAction, IChatInput, Activity } from '../recipes/Chat';
 import { ITextInput } from '../recipes/Text';
-import { Action, Matcher, Observizeable, Rule, filter, firstMatch, observize } from '../Rules';
+import { Action, composeRule, Observizeable, Rule, filter, firstMatch, observize } from '../Rules';
 import { Observable } from 'rxjs';
 
 interface PromptText<S> {
@@ -21,8 +21,7 @@ interface PromptChoice<S> {
 }
 
 export interface PromptStuff<S> {
-    matcher: Matcher<S>,
-    action: Action<S>,
+    rule: Rule<S>,
     creator: (input: S) => Observizeable<any>;
 }
 
@@ -48,12 +47,11 @@ export class Prompt<S extends ITextInput & IChatInput> {
     }
 
     // Prompt Rule Creators
-    text(promptKey: string, text: string, action: (input: S, args: string) => Observizeable<void>) {
+    text(promptKey: string, text: string, action: (input: S, text: string) => Observizeable<void>) {
         this.add(promptKey, {
-            matcher: (input) => ({
-                args: input.text
+            rule: (input) => ({
+                action: () => action(input, input.text)
             }),
-            action,
             creator: (input) => {
                 this.setPromptKey(input, promptKey);
                 input.reply(text);
@@ -61,15 +59,14 @@ export class Prompt<S extends ITextInput & IChatInput> {
         });
     }
 
-    choicePrompt(promptKey: string, text: string, choices: string[], action: (input: S, args: string) => Observizeable<void>): PromptStuff<S> {
+    choicePrompt(promptKey: string, text: string, choices: string[], action: (input: S, choice: string) => Observizeable<any>): PromptStuff<S> {
         return {
-            matcher: (input) => {
-                const choice = choices.find(choice => choice.toLowerCase() === input.text.toLowerCase());
-                return choice && {
-                    args: choice
-                };
-            },
-            action,
+            rule: (input) =>
+                Observable.of(choices.find(choice => choice.toLowerCase() === input.text.toLowerCase()))
+                .filter(choice => choice !== undefined && choice != null)
+                .map(choice => ({
+                    action: () => action(input, choice)
+                })),
             creator: (input) => {
                 this.setPromptKey(input, promptKey);
                 input.reply({
@@ -86,21 +83,19 @@ export class Prompt<S extends ITextInput & IChatInput> {
         };
     }
 
-    choice(promptKey: string, text: string, choices: string[], action: (input: S, args: string) => Observizeable<void>) {
+    choice(promptKey: string, text: string, choices: string[], action: (input: S, choice: string) => Observizeable<any>) {
         this.add(promptKey, this.choicePrompt(promptKey, text, choices, action));
     }
 
-    confirm(promptKey: string, text: string, action: (input: S, args: boolean) => Observizeable<void>) { 
-        const choice = this.choicePrompt(promptKey, text, ['Yes', 'No'], null);
+    confirm(promptKey: string, text: string, action: (input: S, confirm: boolean) => Observizeable<any>) { 
+        const choice = this.choicePrompt(promptKey, text, ['Yes', 'No'], (input: S, choice: string) =>
+            Observable.of(choice)
+            .map(choice => ({
+                action: () => action(input, choice === 'Yes')
+            })));
         this.add(promptKey, {
             creator: choice.creator,
-            action,
-            matcher: (input) =>
-                observize(choice.matcher(input))
-                .filter(args => args !== undefined && args !== null)
-                .map(args => ({
-                    args: args.args === 'Yes',
-                }))
+            rule: composeRule(choice.rule)
         });
     }
 
@@ -110,15 +105,13 @@ export class Prompt<S extends ITextInput & IChatInput> {
             return Observable.of(this.getPromptKey(input))
                 .filter(promptKey => promptKey !== undefined)
                 .map(promptKey => this.prompts[promptKey])
-                .filter(rule => rule !== undefined)
-                .flatMap(rule =>
-                    observize(rule.matcher(input))
-                    .filter(result => result !== undefined && result !== null)
-                    .map(result => ({
-                        score: 1,
+                .filter(ps => ps !== undefined)
+                .flatMap(ps =>
+                    observize(ps.rule(input))
+                    .map(match => ({
                         action: () => {
                             this.setPromptKey(input, undefined);
-                            return rule.action(input, result.args);
+                            return match.action();
                         }
                     }))
                 );

@@ -1,5 +1,6 @@
 import { Observable } from 'rxjs';
-import { ITextInput, Action, Rule, bestMatch$, Match, observize, Observizeable } from './Rules';
+import { ITextInput } from '../recipes/Text';
+import { Action, Rule, bestMatch$, Match, observize, Observizeable, composeRule } from '../Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -29,7 +30,7 @@ interface LuisCache {
 
 export interface LuisRule<S extends ITextInput> {
     intent: string;
-    action: Action<S>;
+    action: (input: S, args: LuisEntity[]) => Observizeable<any>;
 }
 
 export class LUIS<S extends ITextInput> {
@@ -39,50 +40,79 @@ export class LUIS<S extends ITextInput> {
     }
 
     private testData = {
-        "Wagon Wheel": [{
+        "Wagon Wheel": {
+            query: "Wagon Wheel",
+            topScoringIntent: {
                 intent: 'singASong',
-                entities: {
-                    song: 'Wagon Wheel',
-                    genre: undefined,
-                },
+                score: .95,
+            },
+            intents: [{
+                intent: 'singASong',
                 score: .95,
             }, {
                 intent: 'findSomething',
-                entities: {
-                    what: 'pub',
-                    where: 'London',
-                },
                 score: .30,
             }, {
                 intent: 'bestPerson',
-                entities: {
-                    name: 'Bill Barnes',
-                },
-                score: .05,
-            }
-        ],
-        "Pubs in London": [{
+                score: .05
+            }],
+            entities: [{
+                entity: 'Wagon Wheel',
+                type: "song",
+                startIndex: 0,
+                endIndex: 11,
+                score: .95
+            }, {
+                entity: 'Pub',
+                type: "what",
+                startIndex: 0,
+                endIndex: 3,
+                score: .89
+            }, {
+                entity: 'London',
+                type: "where",
+                startIndex: 0,
+                endIndex: 6,
+                score: .72
+            }]
+        },
+
+        "Pubs in London": {
+            query: "Pubs in London",
+            topScoringIntent: {
                 intent: 'findSomething',
-                entities: {
-                    what: 'pub',
-                    where: 'London',
-                },
-                score: .75,
+                score: .30,
+            },
+            intents: [{
+                intent: 'findSomething',
+                score: .90,
             }, {
                 intent: 'singASong',
-                entities: {
-                    song: 'Wagon Wheel',
-                    genre: undefined,
-                },
-                score: .60,
+                score: .51,
             }, {
                 intent: 'bestPerson',
-                entities: {
-                    name: 'Bill Barnes',
-                },
-                score: .05,
-            }
-        ]
+                score: .05
+            }],
+            entities: [{
+                entity: 'Pub',
+                type: "what",
+                startIndex: 0,
+                endIndex: 3,
+                score: .89
+            }, {
+                entity: 'London',
+                type: "where",
+                startIndex: 0,
+                endIndex: 6,
+                score: .72
+            }, {
+                entity: 'Wagon Wheel',
+                type: "song",
+                startIndex: 0,
+                endIndex: 11,
+                score: .35
+            }]
+        }
     }
 
     // a mock because I don't really care about really calling LUIS yet
@@ -98,26 +128,27 @@ export class LUIS<S extends ITextInput> {
         return Observable.of(response);
     }
 
-    intent(intent: string, action: Action<S>): LuisRule<S> {
+    intent(intent: string, action: (input: S, args: LuisEntity[]) => Observizeable<any>): LuisRule<S> {
         return {
             intent,
             action
         }
     }
 
-    raw(action: (input: S, luisResponse: LuisResponse) => Observizeable<any>): Rule<S> {
+    rule(action: (input: S, luisResponse: LuisResponse) => Observizeable<any>): Rule<S> {
         return (input) =>
             this.call(input.text)
-            .map(luisResponse => {
+            .map(luisResponse => ({
+                score: luisResponse.topScoringIntent.score,
                 action: () => action(input, luisResponse)
-            });
+            } as Match));
     }
 
     // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
     // IMPORTANT: the order of rules is not important - the action for the *highest-ranked intent* will be executed
-    bestMatch(luisRules: LuisRule<S>[]): Rule<S> {
-        return this.raw((input: S, args: LuisResponse) =>
-            Observable.from(luisResult.intents)
+    bestMatch(... luisRules: LuisRule<S>[]): Rule<S> {
+        return composeRule(this.rule((input, luisResponse) =>
+            Observable.from(luisResponse.intents)
             .do(intent => console.log("intent", intent))
             .filter(intent => intent.score >= this.scoreThreshold)
             .flatMap(intent =>
@@ -126,36 +157,21 @@ export class LUIS<S extends ITextInput> {
                 .do(_ => console.log("filtered intent", intent))
                 .map(luisRule => ({
                     score: intent.score,
-                    action: () => luisRule.action(input, luisResult.entities)
+                    action: () => luisRule.action(input, luisResponse.entities)
                 } as Match))
             )
             .take(1) // LUIS returns results ordered by best match, we return the first in our list over our threshold
-        );
+        ));
     }
 
+    findEntity(entities: LuisEntity[], type: string) {
+        return entities.find(entity => entity.type === type);
+    }
 
-
-    azureCheckValue = (action: (input: S, args: any) => any) => (input: S) =>
-        luis.raw((input: S, args: LuisResponse) => )
-    // customMatch(modelName: string, matcher: (input: S, luisMatches: LuisMatch[]) => Observizeable<Match>): Rule<S> {
-    //     return (input) =>
-    //         this.call(modelName, input.text)
-    //         .flatMap(luisResult => observize(action(input, luisResult))
-    //             Observable.from(luisResult)
-    //             .do(luisMatch => console.log("luisMatch", luisMatch))
-    //             .filter(luisMatch => luisMatch.score >= threshold)
-    //             .flatMap(luisMatch =>
-    //                 Observable.of(luisRules.find(luisRule => luisRule.intent === luisMatch.intent))
-    //                 .filter(luisRule => !!luisRule)
-    //                 .do(_ => console.log("filtered luisMatch", luisMatch))
-    //                 .map(luisRule => ({
-    //                     score: luisMatch.score,
-    //                     action: () => luisRule.action(input, luisMatch.entities)
-    //                 } as Match))
-    //             )
-    //             .take(1) // LUIS returns results ordered by best match, we return the first in our list over our threshold
-    //         );
-    // }
+    entityValue(entities: LuisEntity[], type: string) {
+        const entity = this.findEntity(entities, type);
+        return entity && entity.entity;
+    }
 
 }
 
