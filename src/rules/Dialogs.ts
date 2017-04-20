@@ -1,4 +1,4 @@
-import { Rule } from './Rules';
+import { Rule } from '../Rules';
 
 interface Handler<S> {
     (session: S, args: any, next: Function): void;
@@ -11,15 +11,16 @@ interface Waterfalls<S> {
 class DialogBot<S> {
     private waterfalls: Waterfalls<S> = {};
 
-    constructor() {
+    constructor(
+        private getDialogPath: (input: S) => string,
+        private setDialogPath: (input: S, dialogPath?: string) => void        
+    ) {
     }
 
     rule(): Rule<S> {
-        return {
-            matcher: (input) => {},
-            action: (input, args) => {},
-            name: 'Dialog'
-        }
+        return (input) => ({
+            action: () => {}
+        })
     }
 
     next() {
