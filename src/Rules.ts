@@ -32,7 +32,7 @@ export const observize = <T>(t: Observizeable<T>) => {
         return Observable.fromPromise<T>(t)
     if (t === undefined || t === null)
         return Observable.empty();
-    return Observable.of(t)
+    return Observable.of(t);
 }
 
 export const doRule = <S>(input: S, rule: Rule<S>) =>
@@ -45,7 +45,7 @@ export const composeRule = <S>(rule: Rule<S>): Rule<S> => (input) =>
 export const firstMatch$ = <S>(rule$: Observable<Rule<S>>): Rule<S> => (input) => 
     rule$
     .do(_ => console.log("firstMatch: trying rule"))
-    .switchMap(rule => observize(rule(input)))
+    .flatMap(rule => observize(rule(input)), 1)
     .take(1); // so that we don't keep going through rules
 
 export const firstMatch = <S>(... rules: Rule<S>[]): Rule<S> => (input) =>

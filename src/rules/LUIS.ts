@@ -30,13 +30,15 @@ interface LuisCache {
 
 export interface LuisRule<S extends ITextInput> {
     intent: string;
-    action: (input: S, args: LuisEntity[]) => Observizeable<any>;
+    action: (input: S, entities: LuisEntity[]) => Observizeable<any>;
 }
 
 export class LUIS<S extends ITextInput> {
     private cache: LuisCache = {};
+    private url: string;
 
-    constructor(private id: string, private key: string, private scoreThreshold = 0.5) {
+    constructor(id: string, key: string, private scoreThreshold = 0.5) {
+        this.url = `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${id}?subscription-key=${key}&q=`;
     }
 
     private testData = {
@@ -115,20 +117,19 @@ export class LUIS<S extends ITextInput> {
         }
     }
 
-    // a mock because I don't really care about really calling LUIS yet
-    private call(utterance: string): Observable<LuisResponse> {
-        let response = this.cache[utterance];
-        if (!response) {
-            response = this.testData[utterance]; // this emulates the call
-            if (!response)
-                return Observable.empty();
-            this.cache[utterance] = response;
-        }
-
-        return Observable.of(response);
+    public call(utterance: string): Observable<LuisResponse> {
+        return Observable.of(this.cache[utterance])
+        .do(_ => console.log("calling LUIS"))
+        .flatMap(response => response
+            ? Observable.of(response).do(_ => console.log("from cache!!"))
+            : Observable.ajax.get(this.url + utterance)
+            .do(ajaxResponse => console.log("LUIS response!", ajaxResponse))
+            .map(ajaxResponse => ajaxResponse.response as LuisResponse)
+            .do(luisResponse => this.cache[utterance] = luisResponse)
+        )
     }
 
-    intent(intent: string, action: (input: S, args: LuisEntity[]) => Observizeable<any>): LuisRule<S> {
+    intent(intent: string, action: (input: S, entities: LuisEntity[]) => Observizeable<any>): LuisRule<S> {
         return {
             intent,
             action
@@ -139,7 +140,7 @@ export class LUIS<S extends ITextInput> {
         return (input) =>
             this.call(input.text)
             .map(luisResponse => ({
-                score: luisResponse.topScoringIntent.score,
+                score: luisResponse.topScoringIntent && luisResponse.topScoringIntent.score,
                 action: () => action(input, luisResponse)
             } as Match));
     }
@@ -148,29 +149,28 @@ export class LUIS<S extends ITextInput> {
     // IMPORTANT: the order of rules is not important - the action for the *highest-ranked intent* will be executed
     bestMatch(... luisRules: LuisRule<S>[]): Rule<S> {
         return composeRule(this.rule((input, luisResponse) =>
-            Observable.from(luisResponse.intents)
-            .do(intent => console.log("intent", intent))
+            Observable.from(luisResponse.intents || luisResponse.topScoringIntent && [luisResponse.topScoringIntent])
             .filter(intent => intent.score >= this.scoreThreshold)
             .flatMap(intent =>
                 Observable.of(luisRules.find(luisRule => luisRule.intent === intent.intent))
                 .filter(luisRule => !!luisRule)
-                .do(_ => console.log("filtered intent", intent))
                 .map(luisRule => ({
                     score: intent.score,
                     action: () => luisRule.action(input, luisResponse.entities)
                 } as Match))
             )
-            .take(1) // LUIS returns results ordered by best match, we return the first in our list over our threshold
+            .take(1) // match the first intent from LUIS for which we supplied rule
         ));
     }
 
     findEntity(entities: LuisEntity[], type: string) {
-        return entities.find(entity => entity.type === type);
+        return entities
+        .filter(entity => entity.type === type);
     }
 
-    entityValue(entities: LuisEntity[], type: string) {
-        const entity = this.findEntity(entities, type);
-        return entity && entity.entity;
+    entityValues(entities: LuisEntity[], type: string) {
+        return this.findEntity(entities, type)
+        .map(entity => entity.entity);
     }
 
 }
