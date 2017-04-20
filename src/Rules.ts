@@ -31,7 +31,7 @@ export const observize = <T>(t: Observizeable<T>) => {
     if (t instanceof Promise)
         return Observable.fromPromise<T>(t)
     if (t === undefined || t === null)
-        return Observable.empty();
+        return Observable.empty<T>();
     return Observable.of(t);
 }
 
@@ -56,7 +56,7 @@ export const bestMatch$ = <S>(rule$: Observable<Rule<S>>) => (input) =>
     .do(_ => console.log("bestMatch$: trying rule"))
     .flatMap(rule => observize(rule(input)))
     .takeWhile(match => match.score < 1)
-    .reduce<Match>((prev, current) => prev && Math.max(prev.score || 1, 1) > Math.max(current.score || 1, 1) ? prev : current);
+    .reduce((prev, current) => prev && Math.max(prev.score || 1, 1) > Math.max(current.score || 1, 1) ? prev : current);
     // TODO: don't call reduce if current.score >= 1
 
 export const bestMatch = <S>(... rules: Rule<S>[]) => (input) => 
