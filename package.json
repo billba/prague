@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "experimental Rx-based bot technology",
   "main": "dist/prague.js",
   "types": "dist/prague.d.ts",
