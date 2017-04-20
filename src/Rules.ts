@@ -62,6 +62,17 @@ export const bestMatch$ = <S>(rule$: Observable<Rule<S>>) => (input) =>
 export const bestMatch = <S>(... rules: Rule<S>[]) => (input) => 
     bestMatch$(Observable.from(rules))(input);
 
+export const everyMatch$ = <S>(rule$: Observable<Rule<S>>, scoreThreshold = 0) => (input) =>
+    rule$
+    .do(_ => console.log("everyMatch$: trying rule"))
+    .flatMap(rule => observize(rule(input)))
+    .reduce((prev, current) => (current.score || 1) < scoreThreshold ? prev : {
+        action: () => {
+            prev && prev.action();
+            current.action();
+        }
+    });
+
 export interface Query<S> {
     (input: S): Observizeable<boolean>;
 }
