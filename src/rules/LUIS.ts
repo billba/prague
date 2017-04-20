@@ -11,7 +11,7 @@ export interface LuisIntent {
 
 export interface LuisEntity {
     entity: string;
-    type: "accountName";
+    type: string;
     startIndex: number;
     endIndex: number;
     score: number;
@@ -19,9 +19,9 @@ export interface LuisEntity {
 
 export interface LuisResponse {
     query: string;
-    topScoringIntent: LuisIntent;
-    intents: LuisIntent[];
-    entities: LuisEntity[];
+    topScoringIntent?: LuisIntent;
+    intents?: LuisIntent[];
+    entities?: LuisEntity[];
 }
 
 interface LuisCache {
@@ -33,15 +33,21 @@ export interface LuisRule<S extends ITextInput> {
     action: (input: S, entities: LuisEntity[]) => Observizeable<any>;
 }
 
+interface TestData {
+    [utterance: string]: LuisResponse;
+}
+
 export class LUIS<S extends ITextInput> {
     private cache: LuisCache = {};
     private url: string;
 
     constructor(id: string, key: string, private scoreThreshold = 0.5) {
-        this.url = `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${id}?subscription-key=${key}&q=`;
+        this.url = 
+            id === 'id' && key === 'key' ? 'testData' :
+            `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${id}?subscription-key=${key}&q=`;
     }
 
-    private testData = {
+    private testData: TestData = {
         "Wagon Wheel": {
             query: "Wagon Wheel",
             topScoringIntent: {
@@ -122,9 +128,12 @@ export class LUIS<S extends ITextInput> {
         .do(_ => console.log("calling LUIS"))
         .flatMap(response => response
             ? Observable.of(response).do(_ => console.log("from cache!!"))
-            : Observable.ajax.get(this.url + utterance)
-            .do(ajaxResponse => console.log("LUIS response!", ajaxResponse))
-            .map(ajaxResponse => ajaxResponse.response as LuisResponse)
+            : (this.url === 'testData'
+                ? Observable.of(this.testData[utterance])
+                : Observable.ajax.get(this.url + utterance)
+                    .do(ajaxResponse => console.log("LUIS response!", ajaxResponse))
+                    .map(ajaxResponse => ajaxResponse.response as LuisResponse)
+                )
             .do(luisResponse => this.cache[utterance] = luisResponse)
         )
     }
