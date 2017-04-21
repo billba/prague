@@ -67,11 +67,11 @@ export const everyMatch$ = <S>(rule$: Observable<Rule<S>>, scoreThreshold = 0) =
     .do(_ => console.log("everyMatch$: trying rule"))
     .flatMap(rule => observize(rule(input)))
     .reduce((prev, current) => (current.score || 1) < scoreThreshold ? prev : {
-        action: () => {
-            prev && prev.action();
-            current.action();
+        action: prev
+            ? () => observize(prev.action()).flatMap(_ => observize(current.action()))
+            : () => current.action()
         }
-    });
+    );
 
 export interface Query<S> {
     (input: S): Observizeable<boolean>;
