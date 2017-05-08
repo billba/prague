@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
-import { IRule, RuleResult, BaseRule, SimpleRule, Recognizer, Handler, Match, Observizeable, observize } from '../Rules';
+import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize } from '../Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -155,7 +155,7 @@ export class LuisModel<M extends ITextMatch> {
             .do(luisResponse => this.cache[utterance] = luisResponse);
     }
 
-    public match: Recognizer<M, M & { luisResponse: LuisResponse }> =
+    public match: Matcher<M, M & { luisResponse: LuisResponse }> =
         (match) =>
             this.call(match.text)
             .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
@@ -168,7 +168,7 @@ export class LuisModel<M extends ITextMatch> {
                 }
             } as M & { luisResponse: LuisResponse}));
 
-    public matchIntent(intent: string): Recognizer<M & { luisResponse: LuisResponse }, M & ILuisMatch> {
+    public matchIntent(intent: string): Matcher<M & { luisResponse: LuisResponse }, M & ILuisMatch> {
         return (match) => 
             Observable.from(match.luisResponse.intents)
             .filter(luisIntent => luisIntent.intent === intent)
@@ -231,12 +231,12 @@ export class LuisModel<M extends ITextMatch> {
 class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
     luisRules: LuisRule<M>[];
 
-    constructor(private matchModel: Recognizer<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
+    constructor(private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
         super();
         this.luisRules = luisRules;
     }
 
-    recognize(match: M): Observable<RuleResult> {
+    tryMatch(match: M): Observable<RuleResult> {
         return observize(this.matchModel(match))
             .flatMap(m =>
                 Observable.from(m.luisResponse.intents)

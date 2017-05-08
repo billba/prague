@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { Store } from 'redux';
-import { IRule, Recognizer, observize, first, filter, prepend, run } from '../Rules';
+import { IRule, Matcher, observize, first, filter, prepend, run } from '../Rules';
 import { ITextMatch } from './Text';
 import { IStateMatch } from './State';
 import { IReduxMatch } from './Redux';
@@ -28,9 +28,9 @@ export class ReduxChat<APP, BOTDATA> {
     ) {
     }
 
-    // Recognizers
+    // Matchers
 
-    activities<M extends IActivityMatch>(): Recognizer<M, M & IReduxActivityMatch<APP, BOTDATA>> {
+    activities<M extends IActivityMatch>(): Matcher<M, M & IReduxActivityMatch<APP, BOTDATA>> {
         return (match) => {
             console.log("activities");
             const address = getAddress(match.activity);
@@ -55,7 +55,7 @@ export class ReduxChat<APP, BOTDATA> {
         };
     }
 
-    messages<M extends IReduxActivityMatch<APP, BOTDATA>>(): Recognizer<M, M & IReduxMessageMatch<APP, BOTDATA>> {
+    messages<M extends IReduxActivityMatch<APP, BOTDATA>>(): Matcher<M, M & IReduxMessageMatch<APP, BOTDATA>> {
         return (match) =>  {
             console.log("messages");
             return Observable.of(match.activity)
@@ -72,7 +72,7 @@ export class ReduxChat<APP, BOTDATA> {
         }
     }
 
-    events<M extends IReduxActivityMatch<APP, BOTDATA>>(): Recognizer<M, M & IReduxEventMatch<APP, BOTDATA>> {
+    events<M extends IReduxActivityMatch<APP, BOTDATA>>(): Matcher<M, M & IReduxEventMatch<APP, BOTDATA>> {
         return (match) => 
             Observable.of(match.activity)
             .filter(activity => activity.type === 'event')
@@ -84,7 +84,7 @@ export class ReduxChat<APP, BOTDATA> {
             } as M & IReduxEventMatch<APP, BOTDATA>));
     }
 
-    typing<M extends IReduxActivityMatch<APP, BOTDATA>>(): Recognizer<M, M & IReduxTypingMatch<APP, BOTDATA>> {
+    typing<M extends IReduxActivityMatch<APP, BOTDATA>>(): Matcher<M, M & IReduxTypingMatch<APP, BOTDATA>> {
         return (match) => 
             Observable.of(match.activity)
             .filter(activity => activity.type === 'typing')
@@ -122,7 +122,7 @@ export class ReduxChat<APP, BOTDATA> {
         .map(activity => ({ activity }))
         .do(match => console.log("activity", match.activity))
         .flatMap(
-            match => rule.handle(match),
+            match => rule.callActionIfMatch(match),
             1
         )
         .subscribe(

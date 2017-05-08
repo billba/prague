@@ -1,6 +1,6 @@
 import { CardAction, IChatMessageMatch, Activity } from '../recipes/Chat';
 import { ITextMatch } from '../recipes/Text';
-import { Observizeable, IRule, RuleResult, BaseRule, Recognizer, Handler, matchAll, Match, observize, combineRecognizers } from '../Rules';
+import { Observizeable, IRule, RuleResult, BaseRule, Matcher, Handler, matchAll, Match, observize, combineMatchers } from '../Rules';
 import { Observable } from 'rxjs';
 
 export interface IPromptTextMatch extends ITextMatch {
@@ -15,7 +15,7 @@ export interface IPromptChoiceMatch {
 }
 
 export interface Prompt<M> {
-    recognizer: Recognizer<M, any>,
+    matcher: Matcher<M, any>,
     handler: Handler<any>
     creator: (match: M) => Observizeable<any>;
 }
@@ -46,14 +46,14 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<
     // Prompt Creators
     text(text: string, handler: Handler<M & IPromptTextMatch>) {
         return {
-            recognizer: matchAll,
+            matcher: matchAll,
             handler,
             creator: (match) =>
                 match.reply(text),
         };
     }
 
-    matchChoice(choices: string[]): Recognizer<M, M & IPromptChoiceMatch> {
+    matchChoice(choices: string[]): Matcher<M, M & IPromptChoiceMatch> {
         return (match) =>
             Observable.of(choices.find(choice => choice.toLowerCase() === match.text.toLowerCase()))
             .filter(choice => !!choice)
@@ -80,13 +80,13 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<
 
     choice(text: string, choices: string[], handler: Handler<M & IPromptChoiceMatch>): Prompt<M> {
         return {
-            recognizer: this.matchChoice(choices),
+            matcher: this.matchChoice(choices),
             handler,
             creator: this.createChoice(text, choices)
         };
     }
 
-    matchConfirm(): Recognizer<M & IPromptChoiceMatch, M & IPromptConfirmMatch> {
+    matchConfirm(): Matcher<M & IPromptChoiceMatch, M & IPromptConfirmMatch> {
         return (match) => ({
             ... match as any, // remove "as any" when TypeScript fixes this bug
             confirm: match.choice === 'Yes' 
@@ -96,7 +96,7 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<
     confirm(text: string, handler: Handler<M & IPromptConfirmMatch>): Prompt<M> {
         const choices = ['Yes', 'No'];
         return {
-            recognizer: combineRecognizers(
+            matcher: combineMatchers(
                 this.matchChoice(choices),
                 this.matchConfirm()
             ),
@@ -105,14 +105,14 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<
         };
     }
 
-    recognize(match: M): Observable<RuleResult> {
+    tryMatch(match: M): Observable<RuleResult> {
         return Observable.of(this.getPromptKey(match))
             .do(promptKey => console.log("promptKey", promptKey))
             .filter(promptKey => promptKey !== undefined)
             .map(promptKey => this.prompts[promptKey])
             .filter(prompt => prompt !== undefined)
             .flatMap(prompt =>
-                observize(prompt.recognizer(match))
+                observize(prompt.matcher(match))
                 .map(m => ({
                     action: () => {
                         this.setPromptKey(match, undefined);
