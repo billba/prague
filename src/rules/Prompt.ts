@@ -1,6 +1,6 @@
 import { CardAction, IChatMessageMatch, Activity } from '../recipes/Chat';
 import { ITextMatch } from '../recipes/Text';
-import { Observizeable, Rule, Recognizer, Handler, GenericHandler, observize } from '../Rules';
+import { Observizeable, IRule, RuleResult, BaseRule, Recognizer, Handler, GenericHandler, matchAll, Match, observize, combineRecognizers } from '../Rules';
 import { Observable } from 'rxjs';
 
 export interface IPromptTextMatch extends ITextMatch {
@@ -14,25 +14,9 @@ export interface IPromptChoiceMatch {
     choice: string,
 }
 
-interface PromptText<M> {
-    type: 'text';
-    text: string;
-    handler: Handler<M & IPromptTextMatch>;
-}
-
-interface PromptConfirm<M> {
-    type: 'confirm';
-    handler: Handler<M & IPromptConfirmMatch>;
-}
-
-interface PromptChoice<M> {
-    type: 'choice';
-    choices: string[]; // TODO: eventually this will become more complex
-    handler: Handler<M & IPromptChoiceMatch>;
-}
-
 export interface Prompt<M> {
-    rule: Rule<M>,
+    recognizer: Recognizer<M, any>,
+    handler: Handler<any>
     creator: (match: M) => Observizeable<any>;
 }
 
@@ -40,13 +24,14 @@ interface PromptMap<M extends ITextMatch & IChatMessageMatch> {
     [promptKey: string]: Prompt<M>;
 }
 
-export class Prompts<M extends ITextMatch & IChatMessageMatch> {
+export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<M> {
     private prompts: PromptMap<M> = {};
 
     constructor(
         private getPromptKey: (match: M) => string,
         private setPromptKey: (match: M, promptKey?: string) => void
     ) {
+        super();
     }
 
     add(promptKey: string, prompt: Prompt<M>) {
@@ -61,7 +46,8 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> {
     // Prompt Creators
     text(text: string, handler: Handler<M & IPromptTextMatch>) {
         return {
-            rule: new Rule<M>(handler),
+            recognizer: matchAll,
+            handler,
             creator: (match) =>
                 match.reply(text),
         };
@@ -94,10 +80,8 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> {
 
     choice(text: string, choices: string[], handler: Handler<M & IPromptChoiceMatch>): Prompt<M> {
         return {
-            rule: new Rule<M>(
-                this.matchChoice(choices),
-                handler
-            ),
+            recognizer: this.matchChoice(choices),
+            handler,
             creator: this.createChoice(text, choices)
         };
     }
@@ -112,41 +96,35 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> {
     confirm(text: string, handler: Handler<M & IPromptConfirmMatch>): Prompt<M> {
         const choices = ['Yes', 'No'];
         return {
-            rule: new Rule<M>(
+            recognizer: combineRecognizers(
                 this.matchChoice(choices),
-                this.matchConfirm(),
-                handler
+                this.matchConfirm()
             ),
+            handler,
             creator: this.createChoice(text, choices)
         };
     }
 
-    rule(): Rule<M> {
-        console.log("creating Prompt.rule");
-        return new Rule<M>(
-            (match: M) => {
-                return Observable.of(this.getPromptKey(match))
-                    .do(promptKey => console.log("promptKey", promptKey))
-                    .filter(promptKey => promptKey !== undefined)
-                    .map(promptKey => this.prompts[promptKey])
-                    .filter(ps => ps !== undefined)
-                    .flatMap(ps =>
-                        ps.rule.recognize(match)
-                        .map(match2 => ({
-                            ... match2 as any, // remove "as any" when TypeScript fixes this bug    
-                            handler: ps.rule.handler
-                        }))
-                    )
-            },
-            (match: M & { handler: GenericHandler }) => {
-                this.setPromptKey(match, undefined);
-                return match.handler(match);
-            }
-        );
+    recognize(match: M): Observable<RuleResult> {
+        return Observable.of(this.getPromptKey(match))
+            .do(promptKey => console.log("promptKey", promptKey))
+            .filter(promptKey => promptKey !== undefined)
+            .map(promptKey => this.prompts[promptKey])
+            .filter(prompt => prompt !== undefined)
+            .flatMap(prompt =>
+                observize(prompt.recognizer(match))
+                .map(m => ({
+                    action: () => {
+                        this.setPromptKey(match, undefined);
+                        return prompt.handler(m);
+                    }
+                }))
+            );
     }
 
     reply(promptKey: string) {
         return (match: M) => {
+            console.log("prompts.reply", match);
             this.setPromptKey(match, promptKey);
             return this.prompts[promptKey].creator(match);
         }

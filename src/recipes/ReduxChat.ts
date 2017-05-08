@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { Store } from 'redux';
-import { Rule, Recognizer, observize } from '../Rules';
+import { IRule, Recognizer, observize } from '../Rules';
 import { ITextMatch } from './Text';
 import { IStateMatch } from './State';
 import { IReduxMatch } from './Redux';
@@ -97,10 +97,10 @@ export class ReduxChat<APP, BOTDATA> {
     }
 
     run<I extends IActivityMatch, A extends IReduxActivityMatch<APP, BOTDATA>, M extends IReduxMessageMatch<APP, BOTDATA>, E extends IReduxEventMatch<APP, BOTDATA>, T extends IReduxTypingMatch<APP, BOTDATA>>(rules: {
-        messages?: Rule<M>,
-        events?: Rule<E>,
-        typing?: Rule<T>,
-        other?: Rule<A>
+        messages?: IRule<M>,
+        events?: IRule<E>,
+        typing?: IRule<T>,
+        other?: IRule<A>
     }) {
         const rule = rules.messages
             .prepend<A>(this.messages())

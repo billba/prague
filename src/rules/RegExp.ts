@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
-import { Rule, Recognizer, Handler, arrayize, Observizeable } from '../Rules';
+import { IRule, SimpleRule, Recognizer, Handler, arrayize, Observizeable } from '../Rules';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;
@@ -26,8 +26,8 @@ export class RE<M extends ITextMatch> {
     }
 
     // Either call as rule(intent, action) or rule([intent, intent, ...], action)
-    rule(intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>): Rule<M> {
-        return new Rule(
+    rule(intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>): IRule<M> {
+        return new SimpleRule(
             this.match(intents),
             handler
         );

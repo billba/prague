@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
-import { Rule, Recognizer, Handler, GenericHandler, Match, observize, Observizeable } from '../Rules';
+import { IRule, RuleResult, BaseRule, SimpleRule, Recognizer, Handler, GenericHandler, Match, Observizeable, observize } from '../Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -46,11 +46,11 @@ interface TestData {
 
 const entityFields = (entities: LuisEntity[]): ILuisMatch => ({
     entities: entities,
-    findEntity: (type: string) => LUIS.findEntity(entities, type),
-    entityValues: (type: string) => LUIS.entityValues(entities, type),
+    findEntity: (type: string) => LuisModel.findEntity(entities, type),
+    entityValues: (type: string) => LuisModel.entityValues(entities, type),
 })                
 
-export class LUIS<M extends ITextMatch> {
+export class LuisModel<M extends ITextMatch> {
     private cache: LuisCache = {};
     private url: string;
 
@@ -151,8 +151,8 @@ export class LUIS<M extends ITextMatch> {
         )
     }
 
-    public matchModel(): Recognizer<M, M & { luisResponse: LuisResponse }> {
-        return (match) =>
+    public match: Recognizer<M, M & { luisResponse: LuisResponse }> =
+        (match) =>
             this.call(match.text)
             .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
             .map(luisResponse => ({
@@ -163,7 +163,6 @@ export class LUIS<M extends ITextMatch> {
                         .filter(luisIntent => luisIntent.score >= this.scoreThreshold)
                 }
             } as M & { luisResponse: LuisResponse}));
-    }
 
     public matchIntent(intent: string): Recognizer<M & { luisResponse: LuisResponse }, M & ILuisMatch> {
         return (match) => 
@@ -177,9 +176,9 @@ export class LUIS<M extends ITextMatch> {
             }));
     }
 
-    intentRule(intent: string, handler: Handler<M & ILuisMatch>): Rule<M> {
-        return new Rule<M>(
-            this.matchModel(),
+    intentRule(intent: string, handler: Handler<M & ILuisMatch>): IRule<M> {
+        return new SimpleRule<M>(
+            this.match,
             this.matchIntent(intent),
             handler
         );
@@ -210,28 +209,9 @@ export class LUIS<M extends ITextMatch> {
     //          luis.rule('intent2', handler2)
     //      ).prepend(luis.model())
 
-    best(... luisRules: LuisRule<M>[]): Rule<M> {
-        return new Rule<M>(
-            this.matchModel(),
-            (match: M & { luisResponse : LuisResponse }) => 
-                Observable.from(match.luisResponse.intents)
-                .flatMap(
-                    luisIntent =>
-                        Observable.of(luisRules.find(luisRule => luisRule.intent === luisIntent.intent))
-                        .filter(luisRule => !!luisRule)
-                        .map(luisRule => ({
-                            ... match as any, // remove "as any" when TypeScript fixes this bug
-                            ... entityFields(match.luisResponse.entities),
-                            handler: luisRule.handler
-                        } as M & ILuisMatch & { handler: GenericHandler })),
-                    1
-                )
-                .take(1),
-            (match: M & { handler: GenericHandler }) =>
-                match.handler(match)
-        )
+    best(... luisRules: LuisRule<M>[]): IRule<M> {
+        return new BestMatchingLuisRule((match) => this.match(match), ... luisRules);
     }
-
     static findEntity(entities: LuisEntity[], type: string) {
         return entities
         .filter(entity => entity.type === type);
@@ -244,3 +224,32 @@ export class LUIS<M extends ITextMatch> {
 
 }
 
+class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
+    luisRules: LuisRule<M>[];
+
+    constructor(private matchModel: Recognizer<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
+        super();
+        this.luisRules = luisRules;
+    }
+
+    recognize(match: M): Observable<RuleResult> {
+        return observize(this.matchModel(match))
+            .flatMap(m =>
+                Observable.from(m.luisResponse.intents)
+                .flatMap(
+                    luisIntent =>
+                        Observable.of(this.luisRules.find(luisRule => luisRule.intent === luisIntent.intent))
+                        .filter(luisRule => !!luisRule)
+                        .map(luisRule => ({
+                            score: luisIntent.score,
+                            action: () => luisRule.handler({
+                                ... m as any, // remove "as any" when TypeScript fixes this bug
+                                ... entityFields(m.luisResponse.entities),
+                            })
+                        })),
+                    1
+                )
+                .take(1) // stop with first intent that appears in the rules
+            )
+    }
+}
