@@ -21,19 +21,15 @@ const minMatch = {
     score: Number.MIN_VALUE
 }
 
-export interface Recognizer<A extends Match, Z extends Match> {
+export interface Recognizer<A extends Match = Match, Z extends Match = Match> {
     (match: A): Observizeable<Z>;
 }
 
-export type GenericRecognizer = Recognizer<Match, Match>;
-
-export interface Handler<Z extends Match> {
+export interface Handler<Z extends Match = Match> {
     (match: Z): Observizeable<any>;
 }
 
-export type GenericHandler = Handler<Match>;
-
-export type RecognizerOrHandler = GenericRecognizer | GenericHandler;
+export type RecognizerOrHandler = Recognizer | Handler;
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
@@ -53,7 +49,7 @@ export abstract class BaseRule<M extends Match> implements IRule<M> {
     handle(match: M): Observable<any> {
         return this.recognize(match)
             .do(result => console.log("handle: got a recognized rule", result))
-            .flatMap(result => result.action())
+            .flatMap(result => observize(result.action()))
             .do(_ => console.log("handle: called action"));
     }
 
@@ -62,10 +58,10 @@ export abstract class BaseRule<M extends Match> implements IRule<M> {
     }
 }
 
-export function combineRecognizers<M extends Match>(... recognizers: GenericRecognizer[]): Recognizer<M, any> {
+export function combineRecognizers<M extends Match>(... recognizers: Recognizer[]): Recognizer<M, any> {
     return (match) =>
         Observable.from(recognizers)
-        .reduce<GenericRecognizer, Observable<Match>>(
+        .reduce<Recognizer, Observable<Match>>(
             (prevObservable, currentRecognizer, i) =>
                 prevObservable
                 .flatMap(prevMatch => {
@@ -78,8 +74,8 @@ export function combineRecognizers<M extends Match>(... recognizers: GenericReco
 }
 
 export class SimpleRule<M extends Match> extends BaseRule<M> {
-    private recognizers: GenericRecognizer[];
-    private handler: GenericHandler;
+    private recognizers: Recognizer[];
+    private handler: Handler;
 
     constructor(... args: RecognizerOrHandler[]) {
         super();
@@ -87,8 +83,8 @@ export class SimpleRule<M extends Match> extends BaseRule<M> {
             console.error("rules must at least have a handler");
             return;
         }
-        this.recognizers = args.slice(0, args.length - 1) as GenericRecognizer[];
-        this.handler = args[args.length - 1] as GenericHandler;
+        this.recognizers = args.slice(0, args.length - 1) as Recognizer[];
+        this.handler = args[args.length - 1] as Handler;
     }
 
     recognize(match: M): Observable<RuleResult> {
@@ -194,39 +190,39 @@ export function run<M extends Match>(handler: Handler<M>): IRule<M> {
     )
 }
 
-// These are left over from the previous API and need to be updated to the latest hotness
+// These are left over from previous versions of the API and need to be updated to the latest hotness
 
-    // static best$<M extends Match>(rule$: Observable<Rule<M>>): Rule<M> {
-    //     return new Rule<M>(
-    //         (match: M) =>
-    //             rule$
-    //             .do(_ => console.log("Rule.best: trying rule"))
-    //             .flatMap(rule =>
-    //                 rule.recognize(match)
-    //                 .map(match => ({
-    //                     ... match,
-    //                     handler: rule.handler
-    //                 }))
-    //             )
-    //             .reduce<Match>((prev, current) => Math.min(prev.score || 1, 1) > Math.min(current.score || 1, 1) ? prev : current, minMatch)
-    //             .takeWhile(match => match.score && match.score < 1),
-    //         (match: M & { handler: GenericHandler }) =>
-    //             match.handler(match)
-    //     );
-    // }
+// static best$<M extends Match>(rule$: Observable<Rule<M>>): Rule<M> {
+//     return new Rule<M>(
+//         (match: M) =>
+//             rule$
+//             .do(_ => console.log("Rule.best: trying rule"))
+//             .flatMap(rule =>
+//                 rule.recognize(match)
+//                 .map(match => ({
+//                     ... match,
+//                     handler: rule.handler
+//                 }))
+//             )
+//             .reduce<Match>((prev, current) => Math.min(prev.score || 1, 1) > Math.min(current.score || 1, 1) ? prev : current, minMatch)
+//             .takeWhile(match => match.score && match.score < 1),
+//         (match: M & { handler: GenericHandler }) =>
+//             match.handler(match)
+//     );
+// }
 
-    // static best<M extends Match>(... rules: Rule<M>[]): Rule<M> {
-    //     return Rule.first$(Observable.from(rules).filter(rule => !!rule));
-    // }
+// static best<M extends Match>(... rules: Rule<M>[]): Rule<M> {
+//     return Rule.first$(Observable.from(rules).filter(rule => !!rule));
+// }
 
-    // export const everyMatch$ = <S>(rule$: Observable<Rule<S>>, scoreThreshold = 0) => (input) =>
-    //     rule$
-    //     .do(_ => console.log("everyMatch$: trying rule"))
-    //     .flatMap(rule => observize(rule(input)))
-    //     .reduce((prev, current) => (current.score || 1) < scoreThreshold ? prev : {
-    //         action: prev
-    //             ? () => observize(prev.action()).flatMap(_ => observize(current.action()))
-    //             : () => current.action()
-    //         }
-    //     );
+// export const everyMatch$ = <S>(rule$: Observable<Rule<S>>, scoreThreshold = 0) => (input) =>
+//     rule$
+//     .do(_ => console.log("everyMatch$: trying rule"))
+//     .flatMap(rule => observize(rule(input)))
+//     .reduce((prev, current) => (current.score || 1) < scoreThreshold ? prev : {
+//         action: prev
+//             ? () => observize(prev.action()).flatMap(_ => observize(current.action()))
+//             : () => current.action()
+//         }
+//     );
 

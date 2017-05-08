@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { Store } from 'redux';
-import { IRule, Recognizer, observize } from '../Rules';
+import { IRule, Recognizer, observize, first, filter, prepend, run } from '../Rules';
 import { ITextMatch } from './Text';
 import { IStateMatch } from './State';
 import { IReduxMatch } from './Redux';
@@ -102,21 +102,21 @@ export class ReduxChat<APP, BOTDATA> {
         typing?: IRule<T>,
         other?: IRule<A>
     }) {
-        const rule = rules.messages
-            .prepend<A>(this.messages())
-            .prepend<I>(this.activities());
+        // const rule = rules.messages
+        //     .prepend<A>(this.messages())
+        //     .prepend<I>(this.activities());
 
-        // const rule = Rule.first(
-        //     Rule.do<I>(match => console.log("IActivityMatch", match)),
-        //     Rule.prepend(this.activities(), Rule.first(
-        //         Rule.do<A>(match => console.log("IReduxActivityMatch", match)),
-        //         Rule.do<A>(match => console.log("state before", match.state)),
-        //         rules.messages  && Rule.prepend(this.messages(),  rules.messages),
-        //         rules.events    && Rule.prepend(this.events(),    rules.events),
-        //         rules.typing    && Rule.prepend(this.typing(),    rules.typing),
-        //         rules.other
-        //     ))
-        // );
+        const rule = first(
+            run<I>(match => console.log("IActivityMatch", match)),
+            prepend(this.activities(), first(
+                run<A>(match => console.log("IReduxActivityMatch", match)),
+                run<A>(match => console.log("state before", match.state)),
+                rules.messages  && prepend(this.messages(),  rules.messages),
+                rules.events    && prepend(this.events(),    rules.events),
+                rules.typing    && prepend(this.typing(),    rules.typing),
+                rules.other
+            ))
+        );
 
         this.chat.activity$
         .map(activity => ({ activity }))

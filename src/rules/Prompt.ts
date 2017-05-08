@@ -1,6 +1,6 @@
 import { CardAction, IChatMessageMatch, Activity } from '../recipes/Chat';
 import { ITextMatch } from '../recipes/Text';
-import { Observizeable, IRule, RuleResult, BaseRule, Recognizer, Handler, GenericHandler, matchAll, Match, observize, combineRecognizers } from '../Rules';
+import { Observizeable, IRule, RuleResult, BaseRule, Recognizer, Handler, matchAll, Match, observize, combineRecognizers } from '../Rules';
 import { Observable } from 'rxjs';
 
 export interface IPromptTextMatch extends ITextMatch {

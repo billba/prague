@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
-import { IRule, RuleResult, BaseRule, SimpleRule, Recognizer, Handler, GenericHandler, Match, Observizeable, observize } from '../Rules';
+import { IRule, RuleResult, BaseRule, SimpleRule, Recognizer, Handler, Match, Observizeable, observize } from '../Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -102,7 +102,7 @@ export class LuisModel<M extends ITextMatch> {
             query: "Pubs in London",
             topScoringIntent: {
                 intent: 'findSomething',
-                score: .30,
+                score: .90,
             },
             intents: [{
                 intent: 'findSomething',
@@ -137,18 +137,22 @@ export class LuisModel<M extends ITextMatch> {
     }
 
     public call(utterance: string): Observable<LuisResponse> {
-        return Observable.of(this.cache[utterance])
-        .do(_ => console.log("calling LUIS"))
-        .flatMap(response => response
-            ? Observable.of(response).do(_ => console.log("from cache!!"))
-            : (this.url === 'testData'
-                ? Observable.of(this.testData[utterance])
-                : Observable.ajax.get(this.url + utterance)
-                    .do(ajaxResponse => console.log("LUIS response!", ajaxResponse))
-                    .map(ajaxResponse => ajaxResponse.response as LuisResponse)
-                )
-            .do(luisResponse => this.cache[utterance] = luisResponse)
-        )
+        console.log("calling LUIS");
+        const response = this.cache[utterance];
+        if (response)
+            return Observable.of(response).do(_ => console.log("from cache!!"));
+        if (this.url === 'testData') {
+            const luisResponse = this.testData[utterance];
+            if (!luisResponse)
+                return Observable.empty();
+            return Observable.of(luisResponse)
+                .do(luisResponse => console.log("LUIS test data!", luisResponse))
+                .do(luisResponse => this.cache[utterance] = luisResponse);
+        }
+        return Observable.ajax.get(this.url + utterance)
+            .do(ajaxResponse => console.log("LUIS response!", ajaxResponse))
+            .map(ajaxResponse => ajaxResponse.response as LuisResponse)
+            .do(luisResponse => this.cache[utterance] = luisResponse);
     }
 
     public match: Recognizer<M, M & { luisResponse: LuisResponse }> =
