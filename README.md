@@ -1,6 +1,6 @@
 # Prague
 
-An experimental Rx-based framework for adding conversational features to apps. I thought of it as I walked around Prague on a sunny Spring day. **This is just an experiment and not an official Microsoft project.**
+An experimental Rx-based rule system handy for adding conversational features to apps. I thought of it as I walked around Prague on a sunny Spring day. **This is just an experiment and not an official Microsoft project.**
 
 Major features of Prague:
 * strongly-typed rules engine for interpreting ambiguous input
@@ -15,21 +15,23 @@ Some types of applications you could build with Prague:
 * Multi-platform Chat bot
 * Server-rendered Website w/pop-up chat
 
-## Getting up and Running
+# Getting up and Running
 
-### Building Prague
+## Building Prague
 
 * clone or fork this repo
 * `npm install`
 * `npm run build` (or `npm run watch` to build on file changes)
 
-### Using Prague in your app
+## Using Prague in your app
 
 * `npm install prague -S`
 * or, if you're building your own, `npm install file:../path/to/your/repo`
 * `import { the, stuff, you, want } from 'prague'` or `import * as Prague from 'prague'`
 
-## Prague 101
+# Prague 101
+
+**EVERYTHING AFTER THIS POINT IS NOW OUT OF DATE - I'LL UPDATE IT AS SOON AS I CAN**
 
 Prague is a strongly-typed rules engine for interpreting ambiguous input.
 
@@ -107,10 +109,12 @@ interface ITextInput {
 }
 ```
 
-A few notes:
+Notes:
 
-* We no longer need to supply a type annotation for `input`. It is inferred automatically from the overall type of `moody`. This convention is used commonly in Prague applications.
-* We use the `extends` syntax. The input object might satsify other interfaces too, but this rule doesn't make use of them. This convention allows the application to create a single input that satisfies multiple interfaces and supply it to multiple rules, each rule mandating only the interfaces it requires.
+* we no longer need to supply a type annotation for `input`. It is inferred automatically from the overall type of `moody`. This convention is used commonly in Prague applications.
+* we use the `extends` syntax. The input object might satsify other interfaces too, but this rule doesn't make use of them. This convention allows the application to create a single input that satisfies multiple interfaces and supply it to multiple rules, each rule mandating only the interfaces it requires.
+
+A given app might have multiple input sources, each with its own input types. Each one of these is called a *recipe*. A given rule should require the minimum interface necessary to accomplish its goals. A given recipe will implement the superset of all the interfaces required by its rules.
 
 ### Rule builders
 
@@ -224,6 +228,8 @@ doRule({ text: "My name is Bill" }, billster);
 >> Hello, Bill!    
 ```
 
+Here's how rule composition works: most rule builders transform the input, and pass the result to a handler function via the optional second argument. In rule composition instead of a handler you provide a *transformer*, which takes the result from the first rule and transforms it additionally, passing *that* result to a handler function via the second argument, thus forming a new rule. A given rule has no idea if its handler is the end of the road or another transformer.
+
 ### Application state vs. Conversation state
 
 Just as our understanding of the world influences how we interpret the things people say to us, and how we then respond, each input should be evaluated in the context of the entire application state.
@@ -239,9 +245,13 @@ Rules and handlers can return any of the following:
 
 Internally all are converted to observables using the `observize` function.
 
-## Prague Recipes
+## Recipes
 
-## Prague Patterns
+As noted above, a given app might have multiple input sources, each with its own input type. These are called *recipes*. Right now there is one recipe: ReduxChat, for Redux-based browser applications embedding [WebChat](https://github.com/Microsoft/BotFramework-WebChat/). Add your own!
+
+## Patterns
+
+Once you have mastered the fundamentals of Prague you will realize it doesn't do much for you. It is, after all, just a low-level rules engine. 
 
 ### Prompts
 

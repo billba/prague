@@ -1,7 +1,7 @@
 import { Store } from 'redux';
-import { IStateInput } from './State';
+import { IStateMatch } from './State';
 
-export interface IReduxInput<APP, BOTDATA> extends IStateInput<BOTDATA> {
+export interface IReduxMatch<APP, BOTDATA> extends IStateMatch<BOTDATA> {
     state: APP;
     store: Store<APP>;
     getBotData: (state: APP) => BOTDATA;

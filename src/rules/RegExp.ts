@@ -1,27 +1,35 @@
 import { Observable } from 'rxjs';
-import { ITextInput } from '../recipes/Text';
-import { Action, Rule, Match, arrayize, Observizeable } from '../Rules';
+import { ITextMatch } from '../recipes/Text';
+import { Rule, Recognizer, Handler, arrayize, Observizeable } from '../Rules';
 
-export interface REArgs {
+export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
-export class RE<S extends ITextInput> {
+export class RE<M extends ITextMatch> {
     constructor() {
     }
 
-    // Either call as re(intent, action) or test([intent, intent, ...], action)
-    rule(
-        intents: RegExp | RegExp[],
-        action: (input: S, args: { groups: RegExpExecArray }) => Observizeable<any>
-    ): Rule<S> {
-        return (input) => 
+    match(intents: RegExp | RegExp[]): Recognizer<M, M & IRegExpMatch> {
+        return (match) => 
             Observable.from(arrayize(intents))
-            .map(regexp => regexp.exec(input.text))
-            .filter(groups => groups && groups[0] === input.text)
+            .do(_ => console.log("RegExp matching", match))
+            .map(regexp => regexp.exec(match.text))
+            .do(groups => console.log("RegExp result", groups))
+            .filter(groups => groups && groups[0] === match.text)
             .take(1)
+            .do(groups => console.log("RegExp match!", groups))
             .map(groups => ({
-                action: () => action(input, { groups })
-            } as Match));
+                ... match as any, // remove "as any" when TypeScript fixes this bug,
+                groups
+            }));
+    }
+
+    // Either call as rule(intent, action) or rule([intent, intent, ...], action)
+    rule(intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>): Rule<M> {
+        return new Rule(
+            this.match(intents),
+            handler
+        );
     }
 }

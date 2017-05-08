@@ -1,3 +1,3 @@
-export interface IStateInput<BOTDATA> {
+export interface IStateMatch<BOTDATA> {
     data: BOTDATA;
 }

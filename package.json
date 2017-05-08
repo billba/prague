@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "experimental Rx-based bot technology",
   "main": "dist/prague.js",
   "types": "dist/prague.d.ts",
@@ -13,7 +13,7 @@
   "license": "MIT",
   "devDependencies": {
     "botframework-directlinejs": "^0.9.6",
-    "typescript": "^2.2.2"
+    "typescript": "^2.3.2"
   },
   "dependencies": {
     "redux": "^3.6.0",

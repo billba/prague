@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
-import { ITextInput } from '../recipes/Text';
-import { Action, Rule, bestMatch$, Match, observize, Observizeable, composeRule } from '../Rules';
+import { ITextMatch } from '../recipes/Text';
+import { Rule, Recognizer, Handler, GenericHandler, Match, observize, Observizeable } from '../Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -28,16 +28,29 @@ interface LuisCache {
     [utterance: string]: LuisResponse;
 }
 
-export interface LuisRule<S extends ITextInput> {
+export interface ILuisMatch {
+    entities: LuisEntity[],
+    findEntity: (type: string) => LuisEntity[],
+    entityValues: (type: string) => string[]    
+}
+
+export interface LuisRule<M extends ITextMatch> {
     intent: string;
-    action: (input: S, entities: LuisEntity[]) => Observizeable<any>;
+    handler: Handler<M & ILuisMatch>;
 }
 
 interface TestData {
     [utterance: string]: LuisResponse;
 }
 
-export class LUIS<S extends ITextInput> {
+
+const entityFields = (entities: LuisEntity[]): ILuisMatch => ({
+    entities: entities,
+    findEntity: (type: string) => LUIS.findEntity(entities, type),
+    entityValues: (type: string) => LUIS.entityValues(entities, type),
+})                
+
+export class LUIS<M extends ITextMatch> {
     private cache: LuisCache = {};
     private url: string;
 
@@ -138,46 +151,93 @@ export class LUIS<S extends ITextInput> {
         )
     }
 
-    intent(intent: string, action: (input: S, entities: LuisEntity[]) => Observizeable<any>): LuisRule<S> {
-        return {
-            intent,
-            action
-        }
+    public matchModel(): Recognizer<M, M & { luisResponse: LuisResponse }> {
+        return (match) =>
+            this.call(match.text)
+            .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
+            .map(luisResponse => ({
+                ... match as any, // remove "as any" when TypeScript fixes this bug
+                luisResponse: {
+                    ... luisResponse,
+                    intents: (luisResponse.intents || luisResponse.topScoringIntent && [luisResponse.topScoringIntent])
+                        .filter(luisIntent => luisIntent.score >= this.scoreThreshold)
+                }
+            } as M & { luisResponse: LuisResponse}));
     }
 
-    rule(action: (input: S, luisResponse: LuisResponse) => Observizeable<any>): Rule<S> {
-        return (input) =>
-            this.call(input.text)
-            .map(luisResponse => ({
-                score: luisResponse.topScoringIntent && luisResponse.topScoringIntent.score,
-                action: () => action(input, luisResponse)
-            } as Match));
+    public matchIntent(intent: string): Recognizer<M & { luisResponse: LuisResponse }, M & ILuisMatch> {
+        return (match) => 
+            Observable.from(match.luisResponse.intents)
+            .filter(luisIntent => luisIntent.intent === intent)
+            .take(1)
+            .filter(luisIntent => luisIntent.score >= this.scoreThreshold)
+            .map(luisIntent => ({
+                ... match as any, // remove "as any" when TypeScript fixes this bug
+                ... entityFields(match.luisResponse.entities),
+            }));
+    }
+
+    intentRule(intent: string, handler: Handler<M & ILuisMatch>): Rule<M> {
+        return new Rule<M>(
+            this.matchModel(),
+            this.matchIntent(intent),
+            handler
+        );
+    }
+
+    rule(intent: string, handler: Handler<M & ILuisMatch>): LuisRule<M> {
+        return ({
+            intent,
+            handler
+        });
     }
 
     // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
-    // IMPORTANT: the order of rules is not important - the action for the *highest-ranked intent* will be executed
-    bestMatch(... luisRules: LuisRule<S>[]): Rule<S> {
-        return composeRule(this.rule((input, luisResponse) =>
-            Observable.from(luisResponse.intents || luisResponse.topScoringIntent && [luisResponse.topScoringIntent])
-            .filter(intent => intent.score >= this.scoreThreshold)
-            .flatMap(intent =>
-                Observable.of(luisRules.find(luisRule => luisRule.intent === intent.intent))
-                .filter(luisRule => !!luisRule)
-                .map(luisRule => ({
-                    score: intent.score,
-                    action: () => luisRule.action(input, luisResponse.entities)
-                } as Match))
-            )
-            .take(1) // match the first intent from LUIS for which we supplied rule
-        ));
+    // IMPORTANT: the order of rules is not important - the rule matching the *highest-ranked intent* will be executed
+    // Note that:
+    //      luis.best(
+    //          luis.rule('intent1', handler1),
+    //          luis.rule('intent2', handler2)
+    //      )
+    // is just a more efficient (and concise) version of:
+    //      Rule.first(
+    //          new Rule(luis.model(), luis.intent('intent1'), handler1)),
+    //          new Rule(luis.model(), luis.intent('intent2'), handler2))
+    //      )
+    // or:
+    //      Rule.first(
+    //          luis.rule('intent1', handler1),
+    //          luis.rule('intent2', handler2)
+    //      ).prepend(luis.model())
+
+    best(... luisRules: LuisRule<M>[]): Rule<M> {
+        return new Rule<M>(
+            this.matchModel(),
+            (match: M & { luisResponse : LuisResponse }) => 
+                Observable.from(match.luisResponse.intents)
+                .flatMap(
+                    luisIntent =>
+                        Observable.of(luisRules.find(luisRule => luisRule.intent === luisIntent.intent))
+                        .filter(luisRule => !!luisRule)
+                        .map(luisRule => ({
+                            ... match as any, // remove "as any" when TypeScript fixes this bug
+                            ... entityFields(match.luisResponse.entities),
+                            handler: luisRule.handler
+                        } as M & ILuisMatch & { handler: GenericHandler })),
+                    1
+                )
+                .take(1),
+            (match: M & { handler: GenericHandler }) =>
+                match.handler(match)
+        )
     }
 
-    findEntity(entities: LuisEntity[], type: string) {
+    static findEntity(entities: LuisEntity[], type: string) {
         return entities
         .filter(entity => entity.type === type);
     }
 
-    entityValues(entities: LuisEntity[], type: string) {
+    static entityValues(entities: LuisEntity[], type: string) {
         return this.findEntity(entities, type)
         .map(entity => entity.entity);
     }

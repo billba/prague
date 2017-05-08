@@ -1,8 +1,10 @@
 // Generic Chat support
 
 import { Observable } from 'rxjs';
+import { Match } from '../Rules';
+import { ITextMatch } from './Text';
 import { Activity, Typing, EventActivity, Message } from 'botframework-directlinejs';
-export { Activity, Message, CardAction } from 'botframework-directlinejs';
+export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
     channelId: string;
@@ -58,18 +60,32 @@ export class UniversalChat implements ChatConnector {
     }
 }
 
-export const getAddress = (message: Message): Address => ({
-    userId: message.from.id,
-    conversationId: message.conversation.id,
-    channelId: message.channelId
+export const getAddress = (activity: Activity): Address => ({
+    userId: activity.from.id,
+    conversationId: activity.conversation.id,
+    channelId: activity.channelId
 });
 
-export interface IChatInput {
+export interface IActivityMatch extends Match {
+    activity: Activity;
+}
+
+export interface IChatActivityMatch extends IActivityMatch {
     chat: UniversalChat;
-    message: Message;
     address: Address;
     reply(message: Activity | string);
     replyAsync(message: Activity | string): Observable<Activity>;
 }
 
-export const reply = <S extends IChatInput>(message: Activity | string) => (input: S) => input.reply(message);
+export interface IChatMessageMatch extends ITextMatch, IChatActivityMatch {
+    message: Message;
+}
+
+export interface IChatEventMatch extends IChatActivityMatch {
+    event: EventActivity;
+}
+
+export interface IChatTypingMatch extends IChatActivityMatch {
+}
+
+export const reply = <M extends IChatActivityMatch>(message: Activity | string) => (match: M) => match.reply(message);

@@ -1,119 +1,154 @@
-import { CardAction, IChatInput, Activity } from '../recipes/Chat';
-import { ITextInput } from '../recipes/Text';
-import { Action, composeRule, Observizeable, Rule, filter, firstMatch, observize } from '../Rules';
+import { CardAction, IChatMessageMatch, Activity } from '../recipes/Chat';
+import { ITextMatch } from '../recipes/Text';
+import { Observizeable, Rule, Recognizer, Handler, GenericHandler, observize } from '../Rules';
 import { Observable } from 'rxjs';
 
-interface PromptText<S> {
+export interface IPromptTextMatch extends ITextMatch {
+}
+
+export interface IPromptConfirmMatch {
+    confirm: boolean,
+}
+
+export interface IPromptChoiceMatch {
+    choice: string,
+}
+
+interface PromptText<M> {
     type: 'text';
     text: string;
-    action: (input: S, args: string) => Observizeable<any>;
+    handler: Handler<M & IPromptTextMatch>;
 }
 
-interface PromptConfirm<S> {
+interface PromptConfirm<M> {
     type: 'confirm';
-    action: (input: S, args: boolean) => Observizeable<any>;
+    handler: Handler<M & IPromptConfirmMatch>;
 }
 
-interface PromptChoice<S> {
+interface PromptChoice<M> {
     type: 'choice';
     choices: string[]; // TODO: eventually this will become more complex
-    action: (input: S, args: string) => Observizeable<any>;
+    handler: Handler<M & IPromptChoiceMatch>;
 }
 
-export interface Prompt<S> {
-    rule: Rule<S>,
-    creator: (input: S) => Observizeable<any>;
+export interface Prompt<M> {
+    rule: Rule<M>,
+    creator: (match: M) => Observizeable<any>;
 }
 
-interface PromptMap<S extends ITextInput & IChatInput> {
-    [promptKey: string]: Prompt<S>;
+interface PromptMap<M extends ITextMatch & IChatMessageMatch> {
+    [promptKey: string]: Prompt<M>;
 }
 
-export class Prompts<S extends ITextInput & IChatInput> {
-    private prompts: PromptMap<S> = {};
+export class Prompts<M extends ITextMatch & IChatMessageMatch> {
+    private prompts: PromptMap<M> = {};
 
     constructor(
-        private getPromptKey: (input: S) => string,
-        private setPromptKey: (input: S, promptKey?: string) => void
+        private getPromptKey: (match: M) => string,
+        private setPromptKey: (match: M, promptKey?: string) => void
     ) {
     }
 
-    add(promptKey: string, prompt: Prompt<S>) {
+    add(promptKey: string, prompt: Prompt<M>) {
         if (this.prompts[promptKey]) {
             console.warn(`Prompt key ${promptKey} already exists. Plese use a different key.`);
             return;
         }
+        console.log("creating Prompt", promptKey);
         this.prompts[promptKey] = prompt;
     }
 
     // Prompt Creators
-    text(text: string, action: (input: S, text: string) => Observizeable<void>) {
+    text(text: string, handler: Handler<M & IPromptTextMatch>) {
         return {
-            rule: (input) => ({
-                action: () => action(input, input.text)
-            }),
-            creator: (input) =>
-                input.reply(text),
+            rule: new Rule<M>(handler),
+            creator: (match) =>
+                match.reply(text),
         };
     }
 
-    choice(text: string, choices: string[], action: (input: S, choice: string) => Observizeable<any>): Prompt<S> {
-        return {
-            rule: (input) =>
-                Observable.of(choices.find(choice => choice.toLowerCase() === input.text.toLowerCase()))
-                .filter(choice => !!choice !== undefined && choice != null)
-                .map(choice => ({
-                    action: () => action(input, choice)
-                })),
-            creator: (input) =>
-                input.reply({
-                    type: 'message',
-                    from: { id: 'MyBot' },
-                    text,
-                    suggestedActions: { actions: choices.map<CardAction>(choice => ({
-                        type: 'postBack',
-                        title: choice,
-                        value: choice
-                    })) }
-                }),
-        };
-    }
-
-    confirm(text: string, action: (input: S, confirm: boolean) => Observizeable<any>) {
-        const prompt = this.choice(text, ['Yes', 'No'], (input: S, choice: string) =>
-            Observable.of(choice)
+    matchChoice(choices: string[]): Recognizer<M, M & IPromptChoiceMatch> {
+        return (match) =>
+            Observable.of(choices.find(choice => choice.toLowerCase() === match.text.toLowerCase()))
+            .filter(choice => !!choice)
             .map(choice => ({
-                action: () => action(input, choice === 'Yes')
-            })));
-        return {
-            rule: composeRule(prompt.rule),
-            creator: prompt.creator,
-        };
+                ... match as any, // remove "as any" when TypeScript fixes this bug
+                choice
+            }));
     }
 
-    rule(): Rule<S> {
-        return (input) => {
-            console.log("prompt looking for", this.getPromptKey(input))
-            return Observable.of(this.getPromptKey(input))
-                .filter(promptKey => promptKey !== undefined)
-                .map(promptKey => this.prompts[promptKey])
-                .filter(ps => ps !== undefined)
-                .flatMap(ps =>
-                    observize(ps.rule(input))
-                    .map(match => ({
-                        action: () => {
-                            this.setPromptKey(input, undefined);
-                            return match.action();
-                        }
-                    }))
-                );
+    private createChoice(text: string, choices: string[]) {
+        return (match: M) => {
+            match.reply({
+                type: 'message',
+                from: { id: 'MyBot' },
+                text,
+                suggestedActions: { actions: choices.map<CardAction>(choice => ({
+                    type: 'postBack',
+                    title: choice,
+                    value: choice
+                })) }
+            });
         }
     }
 
+    choice(text: string, choices: string[], handler: Handler<M & IPromptChoiceMatch>): Prompt<M> {
+        return {
+            rule: new Rule<M>(
+                this.matchChoice(choices),
+                handler
+            ),
+            creator: this.createChoice(text, choices)
+        };
+    }
+
+    matchConfirm(): Recognizer<M & IPromptChoiceMatch, M & IPromptConfirmMatch> {
+        return (match) => ({
+            ... match as any, // remove "as any" when TypeScript fixes this bug
+            confirm: match.choice === 'Yes' 
+        });
+    }
+
+    confirm(text: string, handler: Handler<M & IPromptConfirmMatch>): Prompt<M> {
+        const choices = ['Yes', 'No'];
+        return {
+            rule: new Rule<M>(
+                this.matchChoice(choices),
+                this.matchConfirm(),
+                handler
+            ),
+            creator: this.createChoice(text, choices)
+        };
+    }
+
+    rule(): Rule<M> {
+        console.log("creating Prompt.rule");
+        return new Rule<M>(
+            (match: M) => {
+                return Observable.of(this.getPromptKey(match))
+                    .do(promptKey => console.log("promptKey", promptKey))
+                    .filter(promptKey => promptKey !== undefined)
+                    .map(promptKey => this.prompts[promptKey])
+                    .filter(ps => ps !== undefined)
+                    .flatMap(ps =>
+                        ps.rule.recognize(match)
+                        .map(match2 => ({
+                            ... match2 as any, // remove "as any" when TypeScript fixes this bug    
+                            handler: ps.rule.handler
+                        }))
+                    )
+            },
+            (match: M & { handler: GenericHandler }) => {
+                this.setPromptKey(match, undefined);
+                return match.handler(match);
+            }
+        );
+    }
+
     reply(promptKey: string) {
-        return (input: S) => {
-            this.setPromptKey(input, promptKey);
-            return this.prompts[promptKey].creator(input);
+        return (match: M) => {
+            this.setPromptKey(match, promptKey);
+            return this.prompts[promptKey].creator(match);
         }
     }
 }
