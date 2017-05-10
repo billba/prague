@@ -1,9 +1,9 @@
 # Prague
 
-An experimental Rx-based rule system handy for adding conversational features to apps. I thought of it as I walked around Prague on a sunny Spring day. **This is just an experiment and not an official Microsoft project.**
+An experimental rule system handy for intepreting user input, great for adding conversational features to apps, using lessons learned from the [message router](http://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageRoutingIntro.html) pattern. I thought of it as I walked around Prague on a sunny Spring day. **This is just an experiment and not an official Microsoft project.**
 
 Major features of Prague:
-* strongly-typed rules engine for interpreting ambiguous input
+* strongly-typed rules engine for interpreting ambiguous input of all kinds
 * support for different types of applications through fine-grained interfaces rather than high-level abstraction
 * deeply asynchronous via RxJS
 
@@ -31,227 +31,246 @@ Some types of applications you could build with Prague:
 
 # Prague 101
 
-**EVERYTHING AFTER THIS POINT IS NOW OUT OF DATE - I'LL UPDATE IT AS SOON AS I CAN**
+Here is high-level description of every piece of software:
 
-Prague is a strongly-typed rules engine for interpreting ambiguous input.
+    Event -> Action
 
-### Rules
+Maybe 'Event' is a timer that goes off every minute, or a POST to a REST API, or a message from a WebSocket, or a user action of some kind. How each event is interpreted and handled depends on the context of the overall state of the system in question, including (but not limited to) each user's interaction history to date. For big, complex apps, coding up 'Action' could be quite complex indeed. In life we tend to solve big complex problems by breaking them down. Prague is one way to do that.
 
-A unit of human input, taken by itself, frequently ranges from ambiguous to downright meaningless. It acquires specific meaning based on the context of the overall state of the system in question, including (but not limited to) the interaction history to date.
+Prague can be applied to any kind of event handling, but for now let's focus on the problem of interpreting text input. Specifically let's code up a chatbot that handles this simple conversation:
 
-The core concept, then, is the `Rule`, which is a function that attempts to interpret a given input in the context of the overall state of the system. It returns a `Match`, an object containing an `action`, which is a closure to be invoked should this Rule's intepretation be accepted. That action might include updating the system state, communicating with the user, communicating with other users, or any of the other infinite number of possibilities afforded by a finite state machine. If a Rule returns null, it could not interpret the input.
+    User: I am Brandon
+    App: Hi there, Brandon! Welcome to CafeBot.
+
+We're going to break this problem down by creating a **Rule**:
+
+1. If user says their name, welcome them by name.
+
+Note that this rule is of the form *if this then that*, and we'll further break it down into a **Matcher** (*if this*) and a **Handler** (*then that*).
+
+## Handlers
+
+Let's look at the handler first:
+
+```typescript
+const greetGuest = (match) => {
+    match.reply(`Hi there, ${match.name}! Welcome to CafeBot.`);
+}
+
+greetGuest({ name: "Brandon", reply: console.log });
+>> "Hi there, Brandon! Welcome to CafeBot."
+```
+
+By convention, a Handler has one parameter, an object called `match` because it is the output of a Matcher. Also by convention, `match` includes the common tools (like `reply`) that a handler might need. By including those tools in `match` we can easily use dependency injection to replace `console.log` with a function that sends a reply to a chat app, or a function that returns text to a testing harness, allowing us to validate our business logic.
+
+It already sounds like this approach might be a little error-prone. What if we pass the wrong kind of object? Let's use TypeScript to help protect ourselves from simple coding errors by adding type annotations.
+
+We could do it this way:
+
+```typescript
+const greetGuest = (match: { name: string, reply: (text: string) => void }) => {
+    match.reply(`Hi there, ${match.name}! Welcome to CafeBot.`);
+}
+```
+
+But let's use a [constrained generic](https://www.typescriptlang.org/docs/handbook/generics.html#generic-constraints) instead:
+
+```typescript
+const greetGuest = <M extends { name: string, reply: (text: string) => void }>(match: M) => {
+    match.reply(`Hi there, ${match.name}! Welcome to CafeBot.`);
+}
+```
+
+Now TypeScript will complain if we try calling `greetGuest` with missing or incorrect fields:
+
+```typescript
+greetGuest({ name: "Brandon" }); // missing "reply" -- will give error
+```
+
+But because we used a constrained generic, TypeScript will not complain if we have *extra* fields:
+
+```typescript
+greetGuest({ name: "Brandon", reply: console.log, cafe });
+>> "Hi there, Brandon! Welcome to CafeBot."
+```
+
+No harm, no foul. We'll see the utility of this shortly.
+
+This user input might have originated from a chat app, or a voice-operating kiosk, or a command line, or a test case, or even another bot. From the point of the Handlers, so long as `match` includes the right fields, it doesn't know or care. This loose coupling is an important concept in Prague.
+
+The way we connect application events (like user input) to Rules is via a **Recipe**.
+
+## Recipes
+
+Let's make a Recipe for a simple Node console application:
+
+```typescript
+import readline = require('readline');
+
+const runNodeConsole = (rule) => {
+    const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+    });
+
+    rl.on('line', (text: string) => rule.callActionIfMatch({
+        text,
+        reply: console.log
+    }));
+}
+```
+
+Every time the user types a line of text, it is put into an object along with a `reply` method (so that's where it comes from!) and sent to something called `rule.callActionIfMatch`, which we'll come around to.
+
+The object coming out of this recipe contains the text the user typed. Now we need to see if that text matches the pattern "I am [name]" and, if so, extract the `name` from it. This is the job of the Matcher.
+
+## Matchers
+
+```typescript
+const matchName = <M extends { text: string }>(match: M) => {
+    const regExpResult = /I am (.*)/.exec(match.text);
+    return regExpResult && {
+        ... match,
+        name: regExpResult[1]
+    }
+}
+```
+
+A Matcher *filters* and/or *transforms* its input. This one use a Regular Expression to test the user's input against the pattern we're looking for. If there's no match it return `null`, indicating no match. If it succeeds, it returns a new object containing all of the fields of the input object plus a new one, containing the name.
+
+## Rules
+
+Now let's create a Rule for this scenario, and pass it to our recipe:
+
+```typescript
+import { rule } from 'prague';
+const nameRule = rule(matchName, greetGuest);
+
+runNodeConsole(nameRule);
+>> "I am Brandon"
+>> "Hi there, Brandon! Welcome to CafeBot."
+```
+
+We've made our first Prague app!
+
+## Helpers
+
+This seems like a little more code than should be necessary for such a simple app. Prague supplies helper functions and classes to simplify things. Here's the same code using the built in Regular Expression helper.
+
+```typescript
+import { RE, INodeConsoleMatch, runNodeConsole } from 'prague';
+
+const re = new RE<INodeConsoleMatch>();
+
+const nameRule = re.rule(/I am (.*)/, match => match.reply(`Hi there, ${match.groups[1]}! Welcome to CafeBot.`));
+
+runNodeConsole(nameRule);
+```
+
+Using the interface `INodeConsoleMatch` when creating the `re` object gives us some typing magic - we don't need to explicitly define the type of `match` in the helper we passed to `re.rule`. If you moused over `match` in the above code in your editor, you would see that the type of `match` is known to be `INodeConsoleMatch & IRegExpArray`, the latter being the retur type of calling `RegExp.exec`. Using interfaces like this allow us to write very concise, type-safe code.
+
+Prague also provides helpers for using LUIS NLP models.
+
+## Multiple rules
+
+Let's add a little empathy to our chatbot:
+
+    User: I'm feeling a little sad.
+    App: I hear you are feeling sad.
 
 Here is a simple rule which does some extremely limited sentiment analysis and responds accordingly:
 
 ```typescript
-const moody = (input: { text: string }) => {
-    const moods = ['sad', 'mad', 'happy'].filter(mood => input.text.indexOf(mood) != -1);
-    if (moods.length > 0)
-        return () => moods.forEach(mood => console.log(`I hear you are feeling ${mood}`));
-    else
-        return null;
+const moodyRule = re.rule(/.*(sad|mad|happy).*/, match => match.reply(`I hear you are feeling ${match.groups[1]}`));
+```
+
+Now we have two rules. But we can only pass one rule to `runNodeConsole`. We can create one rule out of two using the `first` helper:
+
+```typescript
+import { first } from 'prague';
+
+const appRule = first(nameRule, moodyRule);
+
+runNodeConsole(appRule);
+>> "I am Brandon"
+>> "Hi there, Brandon! Welcome to CafeBot."
+>> "I'm feeling a little sad."
+>> "I hear you are feeling sad."
+```
+
+What's happening here is that `first` tries the rules in order. If the matcher in `nameRule` succeeds, it calls its helper. Otherwise it tries `moodyRule`. If that doesn't match, nothing happens. The important concept is that `first` returns a rule. That means you can use it anywhere you expect a rule, including as a parameter to a different call to `first`.
+
+Let's try one more input with `appRule`:
+
+```typescript
+>> "I am sad"
+>> "Hi there, sad! Welcome to CafeBot."
+```
+
+Oops. We could resolve this particular problem by swapping the order of the rules in the call to `first`, or by coding the Regular Expression in `moody` more tightly. Welcome to the wonderful world of ambiguous human input!
+
+## Adding Matchers to the pipeline
+
+The owner of our favorite cafe has seen our chatbot. She liked it so much she wants to make it available to her customers. Of course, she'd like to add some functionality:
+
+    User: I want coffee.
+    App: Great choice! I've placed your order for coffee.
+
+Let's assume the cafe already has an ordering system in place via a `cafe` object of class `Cafe`. Now we need to make that object available to our helper. We do that with a new Matcher.
+
+```typescript
+const matchCafe = <M>(match: M) => ({
+    ... match,
+    cafe
+});
+```
+
+Now we can build a rule that takes advantage of this new capability. We'll also add a type definition and use it when creating `re`.
+
+```typescript
+interface ICafeMatch{
+    cafe: Cafe;
 }
+
+const re = new RE<ICafeChatBotMatch & ICafeMatch>();
+
+const placeOrder = re.rule(/I want (.*)/, match => {
+    match.cafe.placeOrder(order);
+    match.reply(`Great choice! I've placed your order for ${match.order}.`);
+})
 ```
 
-Let's try calling this rule:
+If we hadn't added that type definition, TypeScript would have complained when we called `match.cafe.placeOrder` in our helper.
+
+Now you can see why it's helpful to define input types narrowly using constrained generics. It allows us to separate concerns by writing functions that only require the fields they need. The matcher in `RE.rule`, for example, requires only that its input have a field `text` of type `string`. So we can use it, untouched, with any Recipe that includes such a field.
+
+All that's left now is to update `appRule`. We use a new helper called `prepend` which takes a Matcher and a Rule and only runs the Rule if the Matcher succeeds. Like `first`, `prepend` itself returns a Rule.
 
 ```typescript
-moody({ text: "I'm feeling sad" })
->> { action: [function] }
-
-moody({ text: "My name is Bill" })
->> null;
-```
-
-If the rule is successful you can invoke the resultant closure:
-
-```typescript
-const match = moody({ text: "I'm feeling sad" });
-if (match)
-    match.action();
-
->> I hear you are feeling sad
-```
-
-For simple rules calling the rule and its resultant closure like this is fine, but rules and/or their resultant closures can be asynchronous, where things get complicated fast. As a result, Prague supplies a helper function called `doRule` which calls a rule (asynchronously if appropriate) and, if it is successful, invokes the closure (asynchronously if appropriate).
-
-```typescript
-doRule({ text: "I'm feeling sad" }, moody);
-
->> I hear you are feeling sad
-```
-
-### Input types
-
-You may have noticed that `moody` takes an object *containing* an input string. Why not just directly pass the string?
-* Other metadata may be relevant - a text message may be accompanied by the GPS location of the sender.
-* Some rules may not operate on text. Instead, they may intepret images, or sound, or both.
-* A given set of rules might use a derived selection of the overall state, e.g. the profile of the user providing the input. As an efficiency and convenience, the application might derive that selection once and provide it to each rule.
-* Some inputs have natural actions that can be taken, e.g. responding to a message. As a convenience, some applications might supply these methods to a rule for use in constructing its closure.
-
-As a result, Rules are *typed*. Let's rewrite `moody` slightly:
-
-```typescript
-const moody: Rule<I extends ITextInput> = (input) => {
-    const moods = ['sad', 'mad', 'happy'].filter(mood => input.text.indexOf(mood) != -1);
-    if (moods.length > 0)
-        return () => moods.forEach(mood => console.log(`I hear you are feeling ${mood}`));
-    else
-        return null;
-}
-```
-
-ITextInput is an interface that comes with Prague. It is defined as follows:
-
-```typescript
-interface ITextInput {
-    text: string
-}
-```
-
-Notes:
-
-* we no longer need to supply a type annotation for `input`. It is inferred automatically from the overall type of `moody`. This convention is used commonly in Prague applications.
-* we use the `extends` syntax. The input object might satsify other interfaces too, but this rule doesn't make use of them. This convention allows the application to create a single input that satisfies multiple interfaces and supply it to multiple rules, each rule mandating only the interfaces it requires.
-
-A given app might have multiple input sources, each with its own input types. Each one of these is called a *recipe*. A given rule should require the minimum interface necessary to accomplish its goals. A given recipe will implement the superset of all the interfaces required by its rules.
-
-### Rule builders
-
-Prague provides rule builders. Here is a new rule called `namer` using Regular Expressions:
-
-```typescript
-
-const re = new RE<ITextInput>();
-
-const namer = re.rule(/My name is (.*)/, (input, args) =>
-    console.log(`Hello, ${args[1]}!`)
+const appRule = prepend(
+    matchCafe,
+    first(
+        moodyRule,
+        nameRule,
+        placeOrder
+    )
 );
-
-doRule({ text: "My name is Bill"}, namer);
->> Hello, Bill!
 ```
 
-Note that re.rele returns a `Rule`. So it is a function which takes a function as input and returns a function as output. Phew! In practice, re.rule runs an input through the supplied regular expression. If it succeeds, it creates a closure which passes the results, plus the original input, to a *handler* function. Handler functions of this form are used extensively throughout Prague.
+This code is extremely expressive and declarative in nature. It's easy to visualize the data flowing through the system:
 
-Here is the same rule implemented using a hypothetical LUIS model:
+1. runNodeConsole receives the user input and adds the `reply` function.
+2. matchCafe adds the `cafe` object
+3. `first` sends that amended input to each rule in series until, stopping when one matches the input, and callings its handler
 
-```typescript
-const luis = new LUIS<ITextInput>('modelID', 'modelKey');
+## Asynchronous functions
 
-const namer = luis.rule('nameForMyModel',
-    luis.intent('myName', (input, entities) =>
-        console.log(`Hello, ${luis.entityValues(entities, 'name')[0]}!`))
-);
+Any Matcher or Handler may optionally return a Promise or an Observable.
 
-doRule({ text: "My name is Bill"}, namer)
->> Hello, Bill!
-```
+## Applications and State
 
-### Multiple rules
+Now that you've been introduced to Rules, Matchers, and Handlers, the key helpers, and the type system, we can look into what it takes to build more complex apps using state.
 
-Now we have two rules for intepreting user messages. We could apply them both...
+## Prompts
 
-```typescript
-doRule({ text: "My name is sad"}, namer)
->> Hello, sad!
-
-doRule({ text: "My name is sad"}, moody)
->> I hear that you are feeling sad.
-```
-
-... but we immediately run into a common problem. For this we'll use a rule builder called `firstMatch` which runs through a series of rules in order, returning the first match. For this example we'll throw in a few more hypothetical rules:
-
-```typescript
-doRule({text: "My name is Bill"}, firstMatch(
-    moody,
-    namer,
-    jukebox,
-    pubFinder
-]))
-
->> "Hello, Bill"
-```
-
-Note that `firstMatch` itself returns a rule, so you can organize this code differently:
-
-```typescript
-doRule({text: "My name is Bill"}, firstMatch(
-    moody,
-    firstMatch(
-        namer,
-        jukebox
-    ),
-    pubFinder
-]))
-
->> "Hello, Bill"
-```
-
-There's also `bestMatch`, which runs a list of rules in parallel, and returns the *best* match. This utilizers `Match`'s other component, `score`, which is a number between 0 and 1. If missing, `score` is assumed to be 1. Please note that scores are difficult to calibrate across rules, so this function should be used with all due caution.
-
-### Composing Rules
-
-Most rule builders are relatively primitive. You can *compose* them to create more finely-tuned rules.
-
-First let's refactor `namer`, pulling out a slightly more general-purpose rule in the process:
-
-```typescript
-const namester: Rule<ITextInput> = (handler: (input, string) => any) =>
-    composeRule(re.rule(/My name is (.*)/, (input, args) => ({
-        action: () => handler(input, args[1])
-    })));
-
-const namer: Rule<ITextInput> = namester((input, name) => 
-    console.log(`Hello, ${name}!`)
-);
-
-doRule({ text: "My name is Bill" }, namer);
-
->> Hello, Bill!
-```
-
-Now let's create a version of `namester` that only recognizes the best of all names. Note that there isn't a second argument because there is no output. It either matches or it doesn't, with no further variation.
-
-```typescript
-const billster: Rule<ITextInput> = (handler: (input) => any) =>
-    composeRule(namester((input, name) => name === 'Bill' ? null : ({
-        action: () => handler(input, args[1])
-    })));
-
-const billbot: Rule<ITextInput> = billster((input) =>
-    console.log(`You have the best name.`)
-);
-
-doRule({ text: "My name is Bill" }, billster);
-
->> Hello, Bill!    
-```
-
-Here's how rule composition works: most rule builders transform the input, and pass the result to a handler function via the optional second argument. In rule composition instead of a handler you provide a *transformer*, which takes the result from the first rule and transforms it additionally, passing *that* result to a handler function via the second argument, thus forming a new rule. A given rule has no idea if its handler is the end of the road or another transformer.
-
-### Application state vs. Conversation state
-
-Just as our understanding of the world influences how we interpret the things people say to us, and how we then respond, each input should be evaluated in the context of the entire application state.
-
-Then there is more ephemeral state about the conversation itself. If a user says, "I have a question about life insurance," the app might store that face into a "topic" field in the state associated with that conversation.
-
-### Async
-
-Rules and handlers can return any of the following:
-* a value
-* an observable
-* a promise
-
-Internally all are converted to observables using the `observize` function.
-
-## Recipes
-
-As noted above, a given app might have multiple input sources, each with its own input type. These are called *recipes*. Right now there is one recipe: ReduxChat, for Redux-based browser applications embedding [WebChat](https://github.com/Microsoft/BotFramework-WebChat/). Add your own!
-
-## Patterns
-
-Once you have mastered the fundamentals of Prague you will realize it doesn't do much for you. It is, after all, just a low-level rules engine. 
-
-### Prompts
-
+Here I'll talk about Prompts.
