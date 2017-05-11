@@ -202,37 +202,35 @@ export interface Predicates<M extends Match> {
     [name: string]: Predicate<M>
 }
 
-export class Helpers<M extends Match> {
-    constructor() {
-    }
+export const Helpers = <M extends Match>() => {
+    // helpers are first defined as local variables so that they can call each other if necessary
 
-    rule(... args: MatcherOrHandler[]): IRule<M> {
-        return new SimpleRule(... args);
-    }
+    const rule = (... args: MatcherOrHandler[]) => new SimpleRule(... args) as IRule<M>;
 
-    first(... rules: IRule<M>[]): IRule<M> {
-        return new FirstMatchingRule(... rules);
-    }
+    const first = (... rules: IRule<M>[]) => new FirstMatchingRule(... rules) as IRule<M>;
 
-    matchPredicate(predicate: Predicate<M>) {
-        return match =>
+    const run = (handler: Handler<M>) => new RunRule<M>(handler) as IRule<M>;
+
+    const matchAlways = (match: M) => match;
+
+    const matchPredicate = (predicate: Predicate<M>) =>
+        match =>
             observize(predicate(match))
             .map(_ => match);
-    }
 
-    filter(predicate: Predicate<M>, rule: IRule<M>): IRule<M> {
-        return rule.prependMatcher<M>(this.matchPredicate(predicate));
-    }
+    const filter = (predicate: Predicate<M>, rule: IRule<M>) =>
+        rule.prependMatcher<M>(matchPredicate(predicate));
 
-    prepend<L>(matcher: Matcher<L, M>, rule: IRule<M>): IRule<L> {
-        return rule.prependMatcher(matcher);
-    }
+    const prepend = <L>(matcher: Matcher<L, M>, rule: IRule<M>) =>
+        rule.prependMatcher(matcher);
 
-    matchAll(match: M) {
-        return match;
-    }
-
-    run(handler: Handler<M>): IRule<M> {
-        return new RunRule<M>(handler);
+    return {
+        rule,
+        first,
+        run,
+        matchAlways,
+        matchPredicate,
+        filter,
+        prepend,
     }
 }

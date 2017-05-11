@@ -140,7 +140,7 @@ A Matcher *filters* and/or *transforms* its input. This one use a Regular Expres
 
 ## Rules and Helpers
 
-Now let's create a Rule for this scenario, and pass it to our recipe. Prague supplies a **Helpers** class with a bunch of useful, well, helpers. You provide the type of the main input object which, for now, is the same as the *output* type of NodeConsole.
+Now let's create a Rule for this scenario, and pass it to our recipe. Prague supplies **Helpers** with a bunch of useful, well, helpers. You provide the type of the main input object which, for now, is the same as the *output* type of NodeConsole.
 
 ```typescript
 interface INodeConsoleMatch {
@@ -149,7 +149,7 @@ interface INodeConsoleMatch {
 }
 
 import { Helpers } from 'prague';
-const { rule } = new Helpers<INodeConsoleMatch>;
+const { rule } = Helpers<INodeConsoleMatch>();
 
 const nameRule = rule(matchName, greetGuest);
 
@@ -164,7 +164,7 @@ This seems like a little more code than should be necessary for such a simple ap
 
 ```typescript
 import { RegExpHelpers, INodeConsoleMatch, NodeConsole } from 'prague';
-const { re } = new RegExpHelpers<INodeConsoleMatch>();
+const { re } = RegExpHelpers<INodeConsoleMatch>();
 
 const nameRule = re(/I am (.*)/, match => match.reply(`Hi there, ${match.groups[1]}! Welcome to CafeBot.`));
 
@@ -191,7 +191,7 @@ const moodyRule = re(/.*(sad|mad|happy).*/, match => match.reply(`I hear you are
 Now we have two rules. But we can only pass one rule to `runNodeConsole`. We can create one rule out of two using the `first` helper:
 
 ```typescript
-const { first } = new Helpers<INodeConsoleMatch>();
+const { first } = Helpers<INodeConsoleMatch>();
 
 const appRule = first(nameRule, moodyRule);
 
@@ -240,7 +240,7 @@ interface ICafeMatch{
 
 type ICafeBotMatch = INodeConsoleMatch & ICafeMatch;
 
-const { re } = new RegExpHelpers<ICafeBotMatch>();
+const { re } = RegExpHelpers<ICafeBotMatch>();
 
 const placeOrder = re(/I want (.*)/, match => {
     match.cafe.placeOrder(order);
@@ -261,7 +261,7 @@ Here's the complete CafeBot:
 ```typescript
 import { Helpers, RegExpHelpers } from 'prague';
 
-const { prepend } = new Helpers<INodeConsoleMatch>();
+const { prepend } = Helpers<INodeConsoleMatch>();
 
 interface ICafeMatch{
     cafe: Cafe;
@@ -269,8 +269,8 @@ interface ICafeMatch{
 
 type ICafeBotMatch = INodeConsoleMatch & ICafeMatch;
 
-const { first } = new Helpers<ICafeBotMatch>();
-const { re } = new RegExpHelpers<ICafeBotMatch>();
+const { first } = Helpers<ICafeBotMatch>();
+const { re } = RegExpHelpers<ICafeBotMatch>();
 
 const matchCafe = <M>(match: M) => ({
     ... match,

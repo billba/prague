@@ -1,7 +1,7 @@
 import { runNodeConsole, INodeConsoleMatch, Helpers, RegExpHelpers } from '../src/prague';
 
-const { first, run } = new Helpers<INodeConsoleMatch>();
-const { re } = new RegExpHelpers<INodeConsoleMatch>();
+const { first, run } = Helpers<INodeConsoleMatch>();
+const { re } = RegExpHelpers<INodeConsoleMatch>();
 
 runNodeConsole(first(
     run(match => console.log("match", match)),

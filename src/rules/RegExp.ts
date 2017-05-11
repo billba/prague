@@ -5,12 +5,11 @@ import { IRule, SimpleRule, Matcher, Handler, arrayize } from '../Rules';
 export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
-export class RegExpHelpers<M extends ITextMatch> {
-    constructor() {
-    }
+export const RegExpHelpers = <M extends ITextMatch>() => {
+    // helpers are first defined as local variables so that they can call each other if necessary
 
-    matchRegExp(intents: RegExp | RegExp[]): Matcher<M, M & IRegExpMatch> {
-        return (match) => 
+    const matchRegExp = (intents: RegExp | RegExp[]): Matcher<M, M & IRegExpMatch> =>
+        (match) => 
             Observable.from(arrayize(intents))
             .do(_ => console.log("RegExp.match matching", match))
             .map(regexp => regexp.exec(match.text))
@@ -22,14 +21,17 @@ export class RegExpHelpers<M extends ITextMatch> {
                 ... match as any, // remove "as any" when TypeScript fixes this bug,
                 groups
             }));
+
+    // Either call as re(intent, action) or re([intent, intent, ...], action)
+    const re = (intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>) => {
+        return new SimpleRule(
+            matchRegExp(intents),
+            handler
+        ) as IRule<M>;
     }
 
-    // Either call as rule(intent, action) or rule([intent, intent, ...], action)
-    re(intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>): IRule<M> {
-        console.log("re.this", this);
-        return new SimpleRule(
-            this.matchRegExp(intents),
-            handler
-        );
-    }
+    return {
+        matchRegExp,
+        re
+    };
 }

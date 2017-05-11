@@ -102,8 +102,8 @@ export class ReduxChat<APP, BOTDATA> {
         typing?: IRule<T>,
         other?: IRule<A>
     }) {
-        const { first: firstActivity, prepend: prependActivity, run: runActivity } = new Helpers<IActivityMatch>();
-        const { first, filter, run, prepend } = new Helpers<IReduxActivityMatch<APP, BOTDATA>>();
+        const { first: firstActivity, prepend: prependActivity, run: runActivity } = Helpers<IActivityMatch>();
+        const { first, filter, run, prepend } = Helpers<IReduxActivityMatch<APP, BOTDATA>>();
 
         const rule = firstActivity(
             runActivity(match => console.log("IActivityMatch", match)),
