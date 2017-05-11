@@ -168,26 +168,6 @@ export class LuisModel<M extends ITextMatch> {
                 }
             } as M & { luisResponse: LuisResponse}));
 
-    public matchIntent(intent: string): Matcher<M & { luisResponse: LuisResponse }, M & ILuisMatch> {
-        return (match) => 
-            Observable.from(match.luisResponse.intents)
-            .filter(luisIntent => luisIntent.intent === intent)
-            .take(1)
-            .filter(luisIntent => luisIntent.score >= this.scoreThreshold)
-            .map(luisIntent => ({
-                ... match as any, // remove "as any" when TypeScript fixes this bug
-                ... entityFields(match.luisResponse.entities),
-            }));
-    }
-
-    intentRule(intent: string, handler: Handler<M & ILuisMatch>): IRule<M> {
-        return new SimpleRule<M>(
-            this.match,
-            this.matchIntent(intent),
-            handler
-        );
-    }
-
     rule(intent: string, handler: Handler<M & ILuisMatch>): LuisRule<M> {
         return ({
             intent,
@@ -216,6 +196,7 @@ export class LuisModel<M extends ITextMatch> {
     best(... luisRules: LuisRule<M>[]): IRule<M> {
         return new BestMatchingLuisRule((match) => this.match(match), ... luisRules);
     }
+
     static findEntity(entities: LuisEntity[], type: string) {
         return entities
         .filter(entity => entity.type === type);
@@ -229,15 +210,15 @@ export class LuisModel<M extends ITextMatch> {
 }
 
 class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
-    luisRules: LuisRule<M>[];
+    private luisRules: LuisRule<M>[];
 
-    constructor(private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
+    constructor(private match: Matcher<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
         super();
         this.luisRules = luisRules;
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        return observize(this.matchModel(match))
+        return observize(this.match(match))
             .flatMap(m =>
                 Observable.from(m.luisResponse.intents)
                 .flatMap(

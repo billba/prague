@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { Store } from 'redux';
-import { IRule, Matcher, observize, first, filter, prepend, run } from '../Rules';
+import { IRule, Matcher, observize, Helpers } from '../Rules';
 import { ITextMatch } from './Text';
 import { IStateMatch } from './State';
 import { IReduxMatch } from './Redux';
@@ -102,15 +102,14 @@ export class ReduxChat<APP, BOTDATA> {
         typing?: IRule<T>,
         other?: IRule<A>
     }) {
-        // const rule = rules.messages
-        //     .prepend<A>(this.messages())
-        //     .prepend<I>(this.activities());
+        const { first: firstActivity, prepend: prependActivity, run: runActivity } = new Helpers<IActivityMatch>();
+        const { first, filter, run, prepend } = new Helpers<IReduxActivityMatch<APP, BOTDATA>>();
 
-        const rule = first(
-            run<I>(match => console.log("IActivityMatch", match)),
-            prepend(this.activities(), first(
-                run<A>(match => console.log("IReduxActivityMatch", match)),
-                run<A>(match => console.log("state before", match.state)),
+        const rule = firstActivity(
+            runActivity(match => console.log("IActivityMatch", match)),
+            prependActivity(this.activities(), first(
+                run(match => console.log("IReduxActivityMatch", match)),
+                run(match => console.log("state before", match.state)),
                 rules.messages  && prepend(this.messages(),  rules.messages),
                 rules.events    && prepend(this.events(),    rules.events),
                 rules.typing    && prepend(this.typing(),    rules.typing),
@@ -122,7 +121,7 @@ export class ReduxChat<APP, BOTDATA> {
         .map(activity => ({ activity }))
         .do(match => console.log("activity", match.activity))
         .flatMap(
-            match => rule.callActionIfMatch(match),
+            match => rule.callHandlerIfMatch(match),
             1
         )
         .subscribe(

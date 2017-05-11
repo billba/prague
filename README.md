@@ -37,7 +37,7 @@ Here is high-level description of every piece of software:
 
 Maybe 'Event' is a timer that goes off every minute, or a POST to a REST API, or a message from a WebSocket, or a user action of some kind. How each event is interpreted and handled depends on the context of the overall state of the system in question, including (but not limited to) each user's interaction history to date. For big, complex apps, coding up 'Action' could be quite complex indeed. In life we tend to solve big complex problems by breaking them down. Prague is one way to do that.
 
-Prague can be applied to any kind of event handling, but for now let's focus on the problem of interpreting text input. Specifically let's code up a chatbot that handles this simple conversation:
+Prague can be applied to any kind of event handling, but for now let's focus on the problem of interpreting text input. Specifically let's code up a chatbot that can conduct this simple conversation:
 
     User: I am Brandon
     App: Hi there, Brandon! Welcome to CafeBot.
@@ -107,20 +107,20 @@ Let's make a Recipe for a simple Node console application:
 ```typescript
 import readline = require('readline');
 
-const runNodeConsole = (rule) => {
+const runNodeConsole = <M>(rule: IRule<M>) => {
     const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
     });
 
-    rl.on('line', (text: string) => rule.callActionIfMatch({
+    rl.on('line', (text: string) => rule.callHandlerIfMatch({
         text,
         reply: console.log
     }));
 }
 ```
 
-Every time the user types a line of text, it is put into an object along with a `reply` method (so that's where it comes from!) and sent to something called `rule.callActionIfMatch`, which we'll come around to.
+Every time the user types a line of text, it is put into an object along with a `reply` method (so that's where it comes from!) and sent to a method called `rule.callHandlerIfMatch`, which we'll come back to.
 
 The object coming out of this recipe contains the text the user typed. Now we need to see if that text matches the pattern "I am [name]" and, if so, extract the `name` from it. This is the job of the Matcher.
 
@@ -136,14 +136,21 @@ const matchName = <M extends { text: string }>(match: M) => {
 }
 ```
 
-A Matcher *filters* and/or *transforms* its input. This one use a Regular Expression to test the user's input against the pattern we're looking for. If there's no match it return `null`, indicating no match. If it succeeds, it returns a new object containing all of the fields of the input object plus a new one, containing the name.
+A Matcher *filters* and/or *transforms* its input. This one use a Regular Expression to test the user's input against the pattern we're looking for. If there's no match it return `null`, indicating no match. If it succeeds, it returns a new object containing all of the fields of the input object plus the name.
 
-## Rules
+## Rules and Helpers
 
-Now let's create a Rule for this scenario, and pass it to our recipe:
+Now let's create a Rule for this scenario, and pass it to our recipe. Prague supplies a **Helpers** class with a bunch of useful, well, helpers. You provide the type of the main input object which, for now, is the same as the *output* type of NodeConsole.
 
 ```typescript
-import { rule } from 'prague';
+interface INodeConsoleMatch {
+    text: string;
+    reply: (text: string) => void;
+}
+
+import { Helpers } from 'prague';
+const { rule } = new Helpers<INodeConsoleMatch>;
+
 const nameRule = rule(matchName, greetGuest);
 
 runNodeConsole(nameRule);
@@ -153,23 +160,20 @@ runNodeConsole(nameRule);
 
 We've made our first Prague app!
 
-## Helpers
-
-This seems like a little more code than should be necessary for such a simple app. Prague supplies helper functions and classes to simplify things. Here's the same code using the built in Regular Expression helper.
+This seems like a little more code than should be necessary for such a simple app. As it happens, matching Regular Expressions is a very common scenario, and there are `RegExpHelpers` that can make things more concise, specifically a method called `re` which takes a RegExp and a Handler and returns a Rule. Also this is a good time to admit that `INodeConsoleMatch` and `NodeConsole` are built in:
 
 ```typescript
-import { RE, INodeConsoleMatch, runNodeConsole } from 'prague';
+import { RegExpHelpers, INodeConsoleMatch, NodeConsole } from 'prague';
+const { re } = new RegExpHelpers<INodeConsoleMatch>();
 
-const re = new RE<INodeConsoleMatch>();
-
-const nameRule = re.rule(/I am (.*)/, match => match.reply(`Hi there, ${match.groups[1]}! Welcome to CafeBot.`));
+const nameRule = re(/I am (.*)/, match => match.reply(`Hi there, ${match.groups[1]}! Welcome to CafeBot.`));
 
 runNodeConsole(nameRule);
 ```
 
-Using the interface `INodeConsoleMatch` when creating the `re` object gives us some typing magic - we don't need to explicitly define the type of `match` in the helper we passed to `re.rule`. If you moused over `match` in the above code in your editor, you would see that the type of `match` is known to be `INodeConsoleMatch & IRegExpArray`, the latter being the retur type of calling `RegExp.exec`. Using interfaces like this allow us to write very concise, type-safe code.
+That seems like an appropriate amount of code for such a simple conversation.
 
-Prague also provides helpers for using LUIS NLP models.
+Using the interface `INodeConsoleMatch` when creating the `RegExpHelpers` object gives us some typing magic - we don't need to explicitly define the type of `match` in the helper we passed to `re`. If you mouse over `match` in the above code in your editor, you would see that the type of `match` is known to be `INodeConsoleMatch & IRegExpArray`, the latter being the return type of calling `RegExp.exec`. Using interfaces like this allow us to write very concise, type-safe code. Plus you get intellisense to tell you what fields are available at a given point.
 
 ## Multiple rules
 
@@ -181,13 +185,13 @@ Let's add a little empathy to our chatbot:
 Here is a simple rule which does some extremely limited sentiment analysis and responds accordingly:
 
 ```typescript
-const moodyRule = re.rule(/.*(sad|mad|happy).*/, match => match.reply(`I hear you are feeling ${match.groups[1]}`));
+const moodyRule = re(/.*(sad|mad|happy).*/, match => match.reply(`I hear you are feeling ${match.groups[1]}`));
 ```
 
 Now we have two rules. But we can only pass one rule to `runNodeConsole`. We can create one rule out of two using the `first` helper:
 
 ```typescript
-import { first } from 'prague';
+const { first } = new Helpers<INodeConsoleMatch>();
 
 const appRule = first(nameRule, moodyRule);
 
@@ -200,23 +204,23 @@ runNodeConsole(appRule);
 
 What's happening here is that `first` tries the rules in order. If the matcher in `nameRule` succeeds, it calls its helper. Otherwise it tries `moodyRule`. If that doesn't match, nothing happens. The important concept is that `first` returns a rule. That means you can use it anywhere you expect a rule, including as a parameter to a different call to `first`.
 
-Let's try one more input with `appRule`:
+Let's try one more input:
 
 ```typescript
 >> "I am sad"
 >> "Hi there, sad! Welcome to CafeBot."
 ```
 
-Oops. We could resolve this particular problem by swapping the order of the rules in the call to `first`, or by coding the Regular Expression in `moody` more tightly. Welcome to the wonderful world of ambiguous human input!
+Oops. We could resolve this particular problem by swapping the order of the rules in the call to `first`, or maybe by coding our Regular Expressions tightly. Welcome to the wonderful world of ambiguous human input!
 
-## Adding Matchers to the pipeline
+## Transforming the input object
 
 The owner of our favorite cafe has seen our chatbot. She liked it so much she wants to make it available to her customers. Of course, she'd like to add some functionality:
 
     User: I want coffee.
     App: Great choice! I've placed your order for coffee.
 
-Let's assume the cafe already has an ordering system in place via a `cafe` object of class `Cafe`. Now we need to make that object available to our helper. We do that with a new Matcher.
+Let's assume the cafe already has an ordering system in place via a `cafe` object of class `Cafe`. Now we need to make that object available to our helper. We do that with a new Matcher:
 
 ```typescript
 const matchCafe = <M>(match: M) => ({
@@ -225,28 +229,63 @@ const matchCafe = <M>(match: M) => ({
 });
 ```
 
-Now we can build a rule that takes advantage of this new capability. We'll also add a type definition and use it when creating `re`.
+Note that, since all `matchCafe` does is add to the input object, it requires no constraints on its type.
+
+Now we can build a rule that takes advantage of this new capability. It's time to adopt a new type definition and use it when creating our helpers:
 
 ```typescript
 interface ICafeMatch{
     cafe: Cafe;
 }
 
-const re = new RE<ICafeChatBotMatch & ICafeMatch>();
+type ICafeBotMatch = INodeConsoleMatch & ICafeMatch;
 
-const placeOrder = re.rule(/I want (.*)/, match => {
+const { re } = new RegExpHelpers<ICafeBotMatch>();
+
+const placeOrder = re(/I want (.*)/, match => {
     match.cafe.placeOrder(order);
     match.reply(`Great choice! I've placed your order for ${match.order}.`);
 })
 ```
 
-If we hadn't added that type definition, TypeScript would have complained when we called `match.cafe.placeOrder` in our helper.
+Without that revised type definition, TypeScript would complain when we called `match.cafe.placeOrder` in our helper.
 
-Now you can see why it's helpful to define input types narrowly using constrained generics. It allows us to separate concerns by writing functions that only require the fields they need. The matcher in `RE.rule`, for example, requires only that its input have a field `text` of type `string`. So we can use it, untouched, with any Recipe that includes such a field.
+Now you can see why it's helpful to define input types narrowly using constrained generics. It allows us to separate concerns by writing functions that only require the fields they need. The matcher called by `re`, for example, requires only that its input have a field `text` of type `string`. So we can use it, untouched, with any Recipe that supplies such a field.
 
-All that's left now is to update `appRule`. We use a new helper called `prepend` which takes a Matcher and a Rule and only runs the Rule if the Matcher succeeds. Like `first`, `prepend` itself returns a Rule.
+Now we need to do several things:
+
+Now we need to add `matchCafe` into our pipeline. We use a helper called `prepend` which takes a Matcher and a Rule and only runs the Rule if the Matcher succeeds. Like `first`, `prepend` itself returns a Rule.
+
+Here's the complete CafeBot:
 
 ```typescript
+import { Helpers, RegExpHelpers } from 'prague';
+
+const { prepend } = new Helpers<INodeConsoleMatch>();
+
+interface ICafeMatch{
+    cafe: Cafe;
+}
+
+type ICafeBotMatch = INodeConsoleMatch & ICafeMatch;
+
+const { first } = new Helpers<ICafeBotMatch>();
+const { re } = new RegExpHelpers<ICafeBotMatch>();
+
+const matchCafe = <M>(match: M) => ({
+    ... match,
+    cafe
+});
+
+const nameRule = re(/I am (.*)/, match => match.reply(`Hi there, ${match.groups[1]}! Welcome to CafeBot.`));
+
+const moodyRule = re(/.*(sad|mad|happy).*/, match => match.reply(`I hear you are feeling ${match.groups[1]}`));
+
+const placeOrder = re(/I want (.*)/, match => {
+    match.cafe.placeOrder(order);
+    match.reply(`Great choice! I've placed your order for ${match.order}.`);
+})
+
 const appRule = prepend(
     matchCafe,
     first(
@@ -255,13 +294,15 @@ const appRule = prepend(
         placeOrder
     )
 );
+
+runNodeConsole(appRule);
 ```
 
 This code is extremely expressive and declarative in nature. It's easy to visualize the data flowing through the system:
 
 1. runNodeConsole receives the user input and adds the `reply` function.
 2. matchCafe adds the `cafe` object
-3. `first` sends that amended input to each rule in series until, stopping when one matches the input, and callings its handler
+3. `first` sends the enhanced input to each rule in series, stopping when one matches the input, and calling its handler
 
 ## Asynchronous functions
 

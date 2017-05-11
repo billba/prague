@@ -1,6 +1,6 @@
 import { CardAction, IChatMessageMatch, Activity } from '../recipes/Chat';
 import { ITextMatch } from '../recipes/Text';
-import { Observizeable, IRule, RuleResult, BaseRule, Matcher, Handler, matchAll, Match, observize, combineMatchers } from '../Rules';
+import { Observizeable, IRule, RuleResult, BaseRule, Matcher, Handler, Match, observize, combineMatchers, Helpers } from '../Rules';
 import { Observable } from 'rxjs';
 
 export interface IPromptTextMatch extends ITextMatch {
@@ -26,6 +26,7 @@ interface PromptMap<M extends ITextMatch & IChatMessageMatch> {
 
 export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<M> {
     private prompts: PromptMap<M> = {};
+    private matchAll = new Helpers<ITextMatch & IChatMessageMatch>();
 
     constructor(
         private getPromptKey: (match: M) => string,
@@ -46,7 +47,7 @@ export class Prompts<M extends ITextMatch & IChatMessageMatch> extends BaseRule<
     // Prompt Creators
     text(text: string, handler: Handler<M & IPromptTextMatch>) {
         return {
-            matcher: matchAll,
+            matcher: this.matchAll,
             handler,
             creator: (match) =>
                 match.reply(text),
