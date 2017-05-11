@@ -7,14 +7,14 @@ export interface RuleResult {
     action: () => Observizeable<any>
 }
 
+export interface Match {
+    score?: number
+}
+
 export interface IRule<M extends Match = Match> {
     tryMatch(match: M): Observable<RuleResult>;
     callHandlerIfMatch(match: M): Observable<any>;
     prependMatcher<L extends Match>(matcher: Matcher<L, M>): IRule<L>
-}
-
-export interface Match {
-    score?: number
 }
 
 const minMatch = {
