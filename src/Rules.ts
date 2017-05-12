@@ -115,11 +115,12 @@ export class FirstMatchingRule<M extends Match> extends BaseRule<M> {
 
     constructor(... rules: IRule<M>[]) {
         super();
+        console.log("FirstMatchingRule.constructor: rules", rules);
         this.rule$ = Observable.from(rules).filter(rule => !!rule);
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        console.log("Rule.first", this.rule$.toArray());
+        console.log("FirstMatchingRule.tryMatch", match);
         return this.rule$
         .flatMap(
             (rule, i) => {

@@ -11,8 +11,15 @@ export const runNodeConsole = (rule: IRule<INodeConsoleMatch>) => {
         input: process.stdin
     });
 
-    rl.on('line', (text: string) => rule.callHandlerIfMatch({
-        text,
-        reply: console.log
-    }));
+    rl.on('line', (text: string) =>
+        rule.callHandlerIfMatch({
+            text,
+            reply: console.log
+        })
+        .subscribe(
+            match => console.log("handled", match),
+            error => console.log("error", error),
+            () => console.log("complete")
+        );
+    );
 }

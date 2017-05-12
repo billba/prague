@@ -212,13 +212,13 @@ export class LuisModel<M extends ITextMatch> {
 class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
     private luisRules: LuisRule<M>[];
 
-    constructor(private match: Matcher<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
+    constructor(private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
         super();
         this.luisRules = luisRules;
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        return observize(this.match(match))
+        return observize(this.matchModel(match))
             .flatMap(m =>
                 Observable.from(m.luisResponse.intents)
                 .flatMap(
