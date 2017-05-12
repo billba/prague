@@ -20,6 +20,6 @@ export const runNodeConsole = (rule: IRule<INodeConsoleMatch>) => {
             match => console.log("handled", match),
             error => console.log("error", error),
             () => console.log("complete")
-        );
+        )
     );
 }
