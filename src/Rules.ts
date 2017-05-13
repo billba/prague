@@ -52,9 +52,14 @@ export abstract class BaseRule<M extends Match> implements IRule<M> {
     }
 }
 
-export function combineMatchers<M extends Match>(... matchers: Matcher[]): Matcher<M, any> {
+export function combineMatchers<M extends Match, N extends Match>(m1: Matcher<M, N>): Matcher<M, N>
+export function combineMatchers<M extends Match, N extends Match, O extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>): Matcher<M, O>
+export function combineMatchers<M extends Match, N extends Match, O extends Match, P extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, P>): Matcher<M, P>
+export function combineMatchers<M extends Match, N extends Match, O extends Match, P extends Match, Q extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, P>, m4: Matcher<P, Q>): Matcher<M, Q>
+export function combineMatchers<M extends Match>(... matchers: Matcher[]): Matcher<M, any>
+export function combineMatchers<M extends Match>(... args: Matcher[]): Matcher<M, any> {
     return match =>
-        Observable.from(matchers)
+        Observable.from(args)
         .reduce<Matcher, Observable<Match>>(
             (prevObservable, currentMatcher, i) =>
                 prevObservable
@@ -230,8 +235,9 @@ export const Helpers = <M extends Match>() => {
     function prepend<J extends Match, K extends Match, L extends Match>(m1: Matcher<J, K>, m2: Matcher<K, L>, m3: Matcher<L, M>, rule: IRule<M>): IRule<J>
     function prepend<I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<I, J>, m2: Matcher<J, K>, m3: Matcher<K, L>, m4: Matcher<L, M>, rule: IRule<M>): IRule<I>
     function prepend<H extends Match, I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<H, I>, m2: Matcher<I, J>, m3: Matcher<J, K>, m4: Matcher<K, L>, m5: Matcher<L, M>, rule: IRule<M>): IRule<H>
-    function prepend<L extends Match>(matcher: Matcher<L>, ... args: (Matcher | IRule)[]): IRule<L> {
-        return (args[args.length - 1] as IRule).prependMatcher(combineMatchers(matcher, ... args.slice(0, args.length - 1) as Matcher[]));
+    function prepend<L extends Match>(m1: Matcher<L>, ... matchers: (Matcher | IRule)[]): IRule<L>
+    function prepend<L extends Match>(... args: (Matcher | IRule)[]): IRule<L> {
+        return (args[args.length - 1] as IRule).prependMatcher(combineMatchers(... args.slice(0, args.length - 1) as Matcher[]));
     }
 
     return {

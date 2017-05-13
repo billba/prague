@@ -1,5 +1,5 @@
 import { Store } from 'redux';
-import { IRule, Match, Helpers } from '../Rules';
+import { IRule } from '../Rules';
 import { IReduxMatch, matchReduxState } from './Redux';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, chatRule } from './Chat';
 

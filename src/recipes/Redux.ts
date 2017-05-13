@@ -20,8 +20,8 @@ export const matchReduxState = <APP, BOTDATA>(
 
         // IReduxMatch
         data: getBotData(state),
-        store: store,
+        store,
         state,
-        getBotData: getBotData,
+        getBotData,
     } as M & IReduxMatch<APP, BOTDATA>;
 }
