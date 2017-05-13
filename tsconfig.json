@@ -12,7 +12,6 @@
         "sourceMap": true
     },
     "files": [
-        "src/prague.ts",
-        "samples/nodeConsole.ts"
+        "src/prague.ts"
     ]
 }

@@ -1,10 +1,11 @@
 import { Observizeable, RuleResult, BaseRule, Matcher, Handler, Match, observize, combineMatchers } from '../Rules';
 import { Observable } from 'rxjs';
+import { ITextMatch } from '../recipes/Text';
 
 export interface Prompt<M> {
     matcher: Matcher<M>,
     handler: Handler,
-    creator: Handler<M>;
+    replyWithPrompt: Handler<M>;
 }
 
 interface PromptMap<M> {
@@ -47,11 +48,39 @@ export class Prompts<M extends Match> extends BaseRule<M> {
             );
     }
 
-    reply(promptKey: string): Handler<M> {
+    replyWithPrompt(promptKey: string): Handler<M> {
         return match => {
-            console.log("prompts.reply", match);
+            console.log("prompts.replyWithPrompt", match);
             this.setPromptKey(match, promptKey);
-            return observize(this.prompts[promptKey].creator(match));
+            return observize(this.prompts[promptKey].replyWithPrompt(match));
         }
+    }
+}
+
+export interface IChatPromptConfirmMatch {
+    confirm: boolean,
+}
+
+export interface IChatPromptChoiceMatch {
+    choice: string,
+}
+
+export class TextPrompts<M extends ITextMatch> extends Prompts<M> {
+
+    matchChoice(choices: string[]): Matcher<M, M & IChatPromptChoiceMatch> {
+        return match =>
+            Observable.of(choices.find(choice => choice.toLowerCase() === match.text.toLowerCase()))
+            .filter(choice => !!choice)
+            .map(choice => ({
+                ... match as any, // remove "as any" when TypeScript fixes this bug
+                choice
+            }));
+    }
+
+    matchConfirm(): Matcher<M & IChatPromptChoiceMatch, M & IChatPromptConfirmMatch> {
+        return match => ({
+            ... match as any, // remove "as any" when TypeScript fixes this bug
+            confirm: match.choice === 'Yes' 
+        });
     }
 }

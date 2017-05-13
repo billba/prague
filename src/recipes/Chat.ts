@@ -3,7 +3,7 @@
 import { Observable } from 'rxjs';
 import { IRule, Observizeable, Match, Matcher, Handler, FirstMatchingRule, combineMatchers } from '../Rules';
 import { ITextMatch } from './Text';
-import { Prompt } from '../rules/Prompt';
+import { Prompt, TextPrompts, IChatPromptChoiceMatch, IChatPromptConfirmMatch } from '../rules/Prompt';
 import { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
@@ -92,7 +92,7 @@ export interface IChatTypingMatch extends IChatActivityMatch {
 
 export const reply = <M extends IChatActivityMatch>(message: Activity | string) => (match: M) => match.reply(message);
 
-export const matchActivity = <M extends IActivityMatch>(match: M) => {
+export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>(match: M) => {
     const address = getAddress(match.activity);
 
     return {
@@ -100,8 +100,8 @@ export const matchActivity = <M extends IActivityMatch>(match: M) => {
 
         // IChatActivityMatch
         address,
-        reply: (activity: Activity | string) => this.chat.send(address, activity),
-        replyAsync: (activity: Activity | string) => this.chat.sendAsync(address, activity),
+        reply: (activity: Activity | string) => chat.send(address, activity),
+        replyAsync: (activity: Activity | string) => chat.sendAsync(address, activity),
     } as M & IChatActivityMatch;
 }
 
@@ -130,53 +130,29 @@ export const matchTyping = <M extends IChatActivityMatch>(match: M) =>
         typing: match.activity
     } as M & ITextMatch & IChatEventMatch;
 
-export const chatRule = <M extends Match>(rules: {
-    message?:   IRule<M & IChatMessageMatch>,
-    event?:     IRule<M & IChatEventMatch>,
-    typing?:    IRule<M & IChatTypingMatch>,
-    other?:     IRule<M & IChatActivityMatch>,
-}) => 
+export const chatRule = <M extends Match>(
+    chat: UniversalChat,
+    rules: {
+        message?:   IRule<M & IChatMessageMatch>,
+        event?:     IRule<M & IChatEventMatch>,
+        typing?:    IRule<M & IChatTypingMatch>,
+        other?:     IRule<M & IChatActivityMatch>,
+    }
+) => 
     new FirstMatchingRule<M & IChatActivityMatch>(
         rules.message   && rules.message.prependMatcher(matchMessage),
         rules.event     && rules.event.prependMatcher(matchEvent),
         rules.typing    && rules.typing.prependMatcher(matchTyping),
         rules.other
     )
-    .prependMatcher<M & IActivityMatch>(matchActivity);
+    .prependMatcher<M & IActivityMatch>(matchActivity(chat));
 
-export interface IChatPromptConfirmMatch {
-    confirm: boolean,
-}
+export class ChatPrompts<M extends IChatMessageMatch> extends TextPrompts<M> {
 
-export interface IChatPromptChoiceMatch {
-    choice: string,
-}
+    // Reply creators
 
-export const ChatPromptHelpers = <M extends ITextMatch & IChatMessageMatch>() => {
-
-    // Matchers (these are called after Prompts.)
-
-    function matchChoice(choices: string[]): Matcher<M, M & IChatPromptChoiceMatch> {
+    replyWithChoice(text: string, choices: string[]): Handler<M> {
         return match =>
-            Observable.of(choices.find(choice => choice.toLowerCase() === match.text.toLowerCase()))
-            .filter(choice => !!choice)
-            .map(choice => ({
-                ... match as any, // remove "as any" when TypeScript fixes this bug
-                choice
-            }));
-    }
-
-    function matchConfirm(): Matcher<M & IChatPromptChoiceMatch, M & IChatPromptConfirmMatch> {
-        return match => ({
-            ... match as any, // remove "as any" when TypeScript fixes this bug
-            confirm: match.choice === 'Yes' 
-        });
-    }
-
-    // Creators
-
-    function createChoice(text: string, choices: string[]): Handler<M> {
-        return match => {
             match.reply({
                 type: 'message',
                 from: { id: 'MyBot' },
@@ -187,28 +163,27 @@ export const ChatPromptHelpers = <M extends ITextMatch & IChatMessageMatch>() =>
                     value: choice
                 })) }
             });
-        }
     }
 
-    // Factories
+    // Prompt creators
 
-    function text(text: string, handler: Handler<M>): Prompt<M> {
+    text(text: string, handler: Handler<M>): Prompt<M> {
         return {
             matcher: match => match,
             handler,
-            creator: match => match.reply(text),
+            replyWithPrompt: match => match.reply(text),
         };
     }
 
-    function choice(text: string, choices: string[], handler: Handler<M & IChatPromptChoiceMatch>): Prompt<M> {
+    choice(text: string, choices: string[], handler: Handler<M & IChatPromptChoiceMatch>): Prompt<M> {
         return {
             matcher: this.matchChoice(choices),
             handler,
-            creator: this.createChoice(text, choices)
+            replyWithPrompt: this.replyWithChoice(text, choices)
         };
     }
 
-    function confirm(text: string, handler: Handler<M & IChatPromptConfirmMatch>): Prompt<M> {
+    confirm(text: string, handler: Handler<M & IChatPromptConfirmMatch>): Prompt<M> {
         const choices = ['Yes', 'No'];
         return {
             matcher: combineMatchers<M>(
@@ -216,16 +191,7 @@ export const ChatPromptHelpers = <M extends ITextMatch & IChatMessageMatch>() =>
                 this.matchConfirm()
             ),
             handler,
-            creator: this.createChoice(text, choices)
+            replyWithPrompt: this.replyWithChoice(text, choices)
         };
-    }
-
-    return {
-        matchChoice,
-        matchConfirm,
-        createChoice,
-        text,
-        choice,
-        confirm
     }
 }
