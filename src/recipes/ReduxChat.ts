@@ -1,22 +1,7 @@
-import { Observable } from 'rxjs';
 import { Store } from 'redux';
-import { IRule, Match, Matcher, observize, Helpers } from '../Rules';
-import { ITextMatch } from './Text';
-import { IStateMatch } from './State';
+import { IRule, Match, Helpers } from '../Rules';
 import { IReduxMatch } from './Redux';
-import { UniversalChat, Message, Activity, EventActivity, Typing, Address, getAddress, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, matchActivity, matchMessage, matchEvent, matchTyping } from './Chat';
-
-export interface IReduxActivityMatch<APP, BOTDATA> extends IReduxMatch<APP, BOTDATA>, IChatActivityMatch {
-}
-
-export interface IReduxMessageMatch<APP, BOTDATA> extends ITextMatch, IReduxMatch<APP, BOTDATA>, IChatMessageMatch {
-}
-
-export interface IReduxEventMatch<APP, BOTDATA> extends IReduxMatch<APP, BOTDATA>, IChatEventMatch {
-}
-
-export interface IReduxTypingMatch<APP, BOTDATA> extends IReduxMatch<APP, BOTDATA>, IChatTypingMatch {
-}
+import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, chatRule } from './Chat';
 
 export class ReduxChat<APP, BOTDATA> {
     constructor(
@@ -41,29 +26,12 @@ export class ReduxChat<APP, BOTDATA> {
     }
 
     run(rules: {
-        message?:   IRule<IReduxMessageMatch    <APP, BOTDATA>>,
-        event?:     IRule<IReduxEventMatch      <APP, BOTDATA>>,
-        typing?:    IRule<IReduxTypingMatch     <APP, BOTDATA>>,
-        other?:     IRule<IReduxActivityMatch   <APP, BOTDATA>>
+        message?:   IRule<IReduxMatch<APP, BOTDATA> & IChatMessageMatch >,
+        event?:     IRule<IReduxMatch<APP, BOTDATA> & IChatEventMatch   >,
+        typing?:    IRule<IReduxMatch<APP, BOTDATA> & IChatTypingMatch  >,
+        other?:     IRule<IReduxMatch<APP, BOTDATA> & IChatActivityMatch>
     }) {
-        const a = Helpers<IActivityMatch>();
-        const r = Helpers<IReduxActivityMatch<APP, BOTDATA>>();
-
-        const rule = a.first(
-            a.run(match => console.log("IActivityMatch", match)),
-            a.prepend(
-                this.matchReduxState,
-                matchActivity,
-                r.first(
-                    r.run(match => console.log("IReduxActivityMatch", match)),
-                    r.run(match => console.log("state before", match.state)),
-                    rules.message   && r.prepend(matchMessage,    rules.message   ),
-                    rules.event     && r.prepend(matchEvent,      rules.event     ),
-                    rules.typing    && r.prepend(matchTyping,     rules.typing    ),
-                    rules.other
-                )
-            )
-        );
+        const rule = chatRule(rules).prependMatcher<IActivityMatch>(this.matchReduxState);
 
         this.chat.activity$
         .map(activity => ({ activity }))

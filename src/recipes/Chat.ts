@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable } from 'rxjs';
-import { Observizeable, Match, Matcher, Handler, combineMatchers } from '../Rules';
+import { IRule, Observizeable, Match, Matcher, Handler, FirstMatchingRule, combineMatchers } from '../Rules';
 import { ITextMatch } from './Text';
 import { Prompt } from '../rules/Prompt';
 import { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
@@ -130,8 +130,19 @@ export const matchTyping = <M extends IChatActivityMatch>(match: M) =>
         typing: match.activity
     } as M & ITextMatch & IChatEventMatch;
 
-export interface IChatPromptTextMatch extends ITextMatch {
-}
+export const chatRule = <M extends Match>(rules: {
+    message?:   IRule<M & IChatMessageMatch>,
+    event?:     IRule<M & IChatEventMatch>,
+    typing?:    IRule<M & IChatTypingMatch>,
+    other?:     IRule<M & IChatActivityMatch>,
+}) => 
+    new FirstMatchingRule<M & IChatActivityMatch>(
+        rules.message   && rules.message.prependMatcher(matchMessage),
+        rules.event     && rules.event.prependMatcher(matchEvent),
+        rules.typing    && rules.typing.prependMatcher(matchTyping),
+        rules.other
+    )
+    .prependMatcher<M & IActivityMatch>(matchActivity);
 
 export interface IChatPromptConfirmMatch {
     confirm: boolean,
@@ -181,7 +192,7 @@ export const ChatPromptHelpers = <M extends ITextMatch & IChatMessageMatch>() =>
 
     // Factories
 
-    function text(text: string, handler: Handler<M & IChatPromptTextMatch>): Prompt<M> {
+    function text(text: string, handler: Handler<M>): Prompt<M> {
         return {
             matcher: match => match,
             handler,

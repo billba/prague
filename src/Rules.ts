@@ -21,13 +21,9 @@ const minMatch = {
     score: Number.MIN_VALUE
 }
 
-export interface Matcher<A extends Match = Match, Z extends Match = Match> {
-    (match: A): Observizeable<Z>;
-}
+export type Matcher<A extends Match = Match, Z extends Match = Match> = (match: A) => Observizeable<Z>;
 
-export interface Handler<Z extends Match = Match> {
-    (match: Z): Observizeable<any>;
-}
+export type Handler<Z extends Match = Match> = (match: Z) => Observizeable<any>;
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
@@ -51,7 +47,7 @@ export abstract class BaseRule<M extends Match> implements IRule<M> {
             .do(_ => console.log("handle: called action"));
     }
 
-    prependMatcher<L>(matcher: Matcher<L, M>) {
+    prependMatcher<L>(matcher: Matcher<L, M>): IRule<L> {
         return new RuleWithPrependedMatcher(matcher, this);
     }
 }
@@ -229,12 +225,12 @@ export const Helpers = <M extends Match>() => {
     const filter = (predicate: Predicate<M>, rule: IRule<M>) =>
         rule.prependMatcher<M>(matchPredicate(predicate));
 
-    function prepend<L extends Match>(m1: Matcher<L, M>, rule: IRule<M>)
-    function prepend<K extends Match, L extends Match>(m1: Matcher<K, L>, m2: Matcher<L, M>, rule: IRule<M>)
-    function prepend<J extends Match, K extends Match, L extends Match>(m1: Matcher<J, K>, m2: Matcher<K, L>, m3: Matcher<L, M>, rule: IRule<M>)
-    function prepend<I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<I, J>, m2: Matcher<J, K>, m3: Matcher<K, L>, m4: Matcher<L, M>, rule: IRule<M>)
-    function prepend<H extends Match, I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<H, I>, m2: Matcher<I, J>, m3: Matcher<J, K>, m4: Matcher<K, L>, m5: Matcher<L, M>, rule: IRule<M>)
-    function prepend<L extends Match>(matcher: Matcher<L>, ... args: (Matcher | IRule)[]) {
+    function prepend<L extends Match>(m1: Matcher<L, M>, rule: IRule<M>): IRule<L>
+    function prepend<K extends Match, L extends Match>(m1: Matcher<K, L>, m2: Matcher<L, M>, rule: IRule<M>): IRule<K>
+    function prepend<J extends Match, K extends Match, L extends Match>(m1: Matcher<J, K>, m2: Matcher<K, L>, m3: Matcher<L, M>, rule: IRule<M>): IRule<J>
+    function prepend<I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<I, J>, m2: Matcher<J, K>, m3: Matcher<K, L>, m4: Matcher<L, M>, rule: IRule<M>): IRule<I>
+    function prepend<H extends Match, I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<H, I>, m2: Matcher<I, J>, m3: Matcher<J, K>, m4: Matcher<K, L>, m5: Matcher<L, M>, rule: IRule<M>): IRule<H>
+    function prepend<L extends Match>(matcher: Matcher<L>, ... args: (Matcher | IRule)[]): IRule<L> {
         return (args[args.length - 1] as IRule).prependMatcher(combineMatchers(matcher, ... args.slice(0, args.length - 1) as Matcher[]));
     }
 
