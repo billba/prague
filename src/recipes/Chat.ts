@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable } from 'rxjs';
-import { IRule, Observizeable, Match, Matcher, Handler, FirstMatchingRule, combineMatchers } from '../Rules';
+import { IRule, SimpleRule, Observizeable, Match, Matcher, Handler, FirstMatchingRule, combineMatchers } from '../Rules';
 import { ITextMatch } from './Text';
 import { Prompt, TextPrompts, IChatPromptChoiceMatch, IChatPromptConfirmMatch } from '../rules/Prompt';
 import { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
@@ -169,16 +169,14 @@ export class ChatPrompts<M extends IChatMessageMatch> extends TextPrompts<M> {
 
     text(text: string, handler: Handler<M>): Prompt<M> {
         return {
-            matcher: match => match,
-            handler,
+            rule: new SimpleRule<M>(match => match, handler),
             replyWithPrompt: match => match.reply(text),
         };
     }
 
     choice(text: string, choices: string[], handler: Handler<M & IChatPromptChoiceMatch>): Prompt<M> {
         return {
-            matcher: this.matchChoice(choices),
-            handler,
+            rule: new SimpleRule<M>(this.matchChoice(choices), handler),
             replyWithPrompt: this.replyWithChoice(text, choices)
         };
     }
@@ -186,11 +184,11 @@ export class ChatPrompts<M extends IChatMessageMatch> extends TextPrompts<M> {
     confirm(text: string, handler: Handler<M & IChatPromptConfirmMatch>): Prompt<M> {
         const choices = ['Yes', 'No'];
         return {
-            matcher: combineMatchers<M>(
+            rule: new SimpleRule<M>(
                 this.matchChoice(choices),
-                this.matchConfirm()
+                this.matchConfirm(),
+                handler
             ),
-            handler,
             replyWithPrompt: this.replyWithChoice(text, choices)
         };
     }

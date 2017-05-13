@@ -1,10 +1,9 @@
-import { Observizeable, RuleResult, BaseRule, Matcher, Handler, Match, observize, combineMatchers } from '../Rules';
+import { IRule, Observizeable, RuleResult, BaseRule, Matcher, Handler, Match, observize, combineMatchers } from '../Rules';
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
 
 export interface Prompt<M> {
-    matcher: Matcher<M>,
-    handler: Handler,
+    rule: IRule<M>,
     replyWithPrompt: Handler<M>;
 }
 
@@ -38,11 +37,12 @@ export class Prompts<M extends Match> extends BaseRule<M> {
             .map(promptKey => this.prompts[promptKey])
             .filter(prompt => prompt !== undefined)
             .flatMap(prompt =>
-                observize(prompt.matcher(match))
-                .map(m => ({
+                prompt.rule.tryMatch(match)
+                .map(ruleResult => ({
+                    ... ruleResult,
                     action: () => {
                         this.setPromptKey(match, undefined);
-                        return prompt.handler(m);
+                        return ruleResult.action();
                     }
                 }))
             );
