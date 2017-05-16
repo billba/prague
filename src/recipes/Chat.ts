@@ -3,7 +3,6 @@
 import { Observable } from 'rxjs';
 import { IRule, SimpleRule, Observizeable, Match, Matcher, Handler, FirstMatchingRule, combineMatchers } from '../Rules';
 import { ITextMatch } from './Text';
-import { Prompt, TextPrompts, IChatPromptChoiceMatch, IChatPromptConfirmMatch } from '../rules/Prompt';
 import { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
@@ -147,49 +146,19 @@ export const chatRule = <M extends Match>(
     )
     .prependMatcher<M & IActivityMatch>(matchActivity(chat));
 
-export class ChatPrompts<M extends IChatMessageMatch> extends TextPrompts<M> {
+export const createChoice = (text: string, choices: string[]): Activity => ({
+    type: 'message',
+    from: { id: 'MyBot' },
+    text,
+    suggestedActions: { actions: choices.map<CardAction>(choice => ({
+        type: 'postBack',
+        title: choice,
+        value: choice
+    })) }
+});
 
-    // Reply creators
-
-    replyWithChoice(text: string, choices: string[]): Handler<M> {
-        return match =>
-            match.reply({
-                type: 'message',
-                from: { id: 'MyBot' },
-                text,
-                suggestedActions: { actions: choices.map<CardAction>(choice => ({
-                    type: 'postBack',
-                    title: choice,
-                    value: choice
-                })) }
-            });
-    }
-
-    // Prompt creators
-
-    text(text: string, handler: Handler<M>): Prompt<M> {
-        return {
-            rule: new SimpleRule<M>(match => match, handler),
-            replyWithPrompt: match => match.reply(text),
-        };
-    }
-
-    choice(text: string, choices: string[], handler: Handler<M & IChatPromptChoiceMatch>): Prompt<M> {
-        return {
-            rule: new SimpleRule<M>(this.matchChoice(choices), handler),
-            replyWithPrompt: this.replyWithChoice(text, choices)
-        };
-    }
-
-    confirm(text: string, handler: Handler<M & IChatPromptConfirmMatch>): Prompt<M> {
-        const choices = ['Yes', 'No'];
-        return {
-            rule: new SimpleRule<M>(
-                this.matchChoice(choices),
-                this.matchConfirm(),
-                handler
-            ),
-            replyWithPrompt: this.replyWithChoice(text, choices)
-        };
-    }
+export const createConfirm = (text: string) => {
+    const choices = ['Yes', 'No'];
+    return createChoice(text, choices);
 }
+
