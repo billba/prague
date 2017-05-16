@@ -58,6 +58,7 @@ export function combineMatchers<M extends Match, N extends Match, O extends Matc
 export function combineMatchers<M extends Match, N extends Match, O extends Match, P extends Match, Q extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, P>, m4: Matcher<P, Q>): Matcher<M, Q>
 export function combineMatchers<M extends Match>(... matchers: Matcher[]): Matcher<M, any>
 export function combineMatchers<M extends Match>(... args: Matcher[]): Matcher<M, any> {
+    console.log("combineMatchers", args);
     return match =>
         Observable.from(args)
         .reduce<Matcher, Observable<Match>>(
@@ -73,7 +74,7 @@ export function combineMatchers<M extends Match>(... args: Matcher[]): Matcher<M
 }
 
 export class SimpleRule<M extends Match> extends BaseRule<M> {
-    private matchers: Matcher[];
+    private matchers: Matcher[] = [];
     private handler: Handler;
 
     constructor(... args: (Matcher | Handler)[]) {
@@ -88,8 +89,8 @@ export class SimpleRule<M extends Match> extends BaseRule<M> {
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        console.log("trying to match a rule");
-        return this.matchers
+        console.log("SimpleRule.tryMatch", this.matchers);
+        return this.matchers.length
             ? (combineMatchers<M>(... this.matchers)(match) as Observable<Match>)
                 .do(m => console.log("match", m))
                 .map(m => ({
@@ -103,6 +104,7 @@ export class SimpleRule<M extends Match> extends BaseRule<M> {
     }
 
     prependMatcher<L extends Match>(matcher: Matcher<L, M>) {
+        console.log("SimpleRule.prependMatcher", matcher);
         return new SimpleRule<L>(
             matcher,
             ... this.matchers,
@@ -144,7 +146,7 @@ export class RuleWithPrependedMatcher<L extends Match, M extends Match> extends 
 
     tryMatch(match: L): Observable<RuleResult> {
         return observize(this.matcher(match))
-        .flatMap(m => this.rule.tryMatch(m));
+            .flatMap(m => this.rule.tryMatch(m));
     }
 }
 
