@@ -37,6 +37,10 @@ export const observize = <T>(t: Observizeable<T>) => {
     return Observable.of(t);
 }
 
+export const ruleize = <M extends Match>(r: IRule<M> | Handler<M>) => {
+    return (((r as IRule<M>).tryMatch) ? r : new SimpleRule(r as Handler<M>)) as IRule<M>;
+}
+
 export abstract class BaseRule<M extends Match> implements IRule<M> {
     abstract tryMatch(match: M): Observable<RuleResult>;
 
@@ -116,10 +120,10 @@ export class SimpleRule<M extends Match> extends BaseRule<M> {
 export class FirstMatchingRule<M extends Match> extends BaseRule<M> {
     private rule$: Observable<IRule<M>>;
 
-    constructor(... rules: IRule<M>[]) {
+    constructor(... rules: (IRule<M> | Handler<M>)[]) {
         super();
         console.log("FirstMatchingRule.constructor: rules", rules);
-        this.rule$ = Observable.from(rules).filter(rule => !!rule);
+        this.rule$ = Observable.from(rules).filter(rule => !!rule).map(rule => ruleize(rule));
     }
 
     tryMatch(match: M): Observable<RuleResult> {
@@ -218,7 +222,7 @@ export const Helpers = <M extends Match>() => {
         return new SimpleRule(... args) as IRule<M>;
     }
 
-    const first = (... rules: IRule<M>[]) => new FirstMatchingRule(... rules) as IRule<M>;
+    const first = (... rules: (IRule<M> | Handler<M>)[]) => new FirstMatchingRule(... rules) as IRule<M>;
 
     const run = (handler: Handler<M>) => new RunRule<M>(handler) as IRule<M>;
 
@@ -229,8 +233,8 @@ export const Helpers = <M extends Match>() => {
             observize(predicate(match))
             .map(_ => match);
 
-    const filter = (predicate: Predicate<M>, rule: IRule<M>) =>
-        rule.prependMatcher<M>(matchPredicate(predicate));
+    const filter = (predicate: Predicate<M>, rule: IRule<M> | Handler<M>) =>
+        ruleize(rule).prependMatcher<M>(matchPredicate(predicate));
 
     function prepend<L extends Match>(m1: Matcher<L, M>, rule: IRule<M>): IRule<L>
     function prepend<K extends Match, L extends Match>(m1: Matcher<K, L>, m2: Matcher<L, M>, rule: IRule<M>): IRule<K>

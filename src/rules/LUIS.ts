@@ -194,7 +194,7 @@ export class LuisModel<M extends ITextMatch> {
     //      ).prepend(luis.model())
 
     best(... luisRules: LuisRule<M>[]): IRule<M> {
-        return new BestMatchingLuisRule((match) => this.match(match), ... luisRules);
+        return new BestMatchingLuisRule((match) => this.match(match), ... luisRules) as IRule<M>;
     }
 
     static findEntity(entities: LuisEntity[], type: string) {
