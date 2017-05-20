@@ -191,7 +191,7 @@ export class LuisModel<M extends ITextMatch> {
     //      Rule.first(
     //          luis.rule('intent1', handler1),
     //          luis.rule('intent2', handler2)
-    //      ).prepend(luis.model())
+    //      ).prependMatcher(luis.model())
 
     best(... luisRules: LuisRule<M>[]): IRule<M> {
         return new BestMatchingLuisRule((match) => this.match(match), ... luisRules) as IRule<M>;

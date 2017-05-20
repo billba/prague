@@ -37,8 +37,20 @@ export const observize = <T>(t: Observizeable<T>) => {
     return Observable.of(t);
 }
 
+export function isRule<M>(r: IRule<M> | Handler<M>): r is IRule<M> {
+    return ((r as any).tryMatch !== undefined);
+}
+
 export const ruleize = <M extends Match>(r: IRule<M> | Handler<M>) => {
-    return (((r as IRule<M>).tryMatch) ? r : new SimpleRule(r as Handler<M>)) as IRule<M>;
+    return isRule(r) ? r : new SimpleRule(r) as IRule<M>;
+}
+
+export const matchize = <M extends Match>(matcher: Matcher<M>, match: M) => {
+    // we want to allow any matcher to be a predicate (return a boolean)
+    // if so, the 'falsey' case will be filtered out by observize,
+    // so we just need to catch the case where it is precisely true
+    return observize(matcher(match))
+        .map(m => typeof(m) === 'boolean' ? match : m);
 }
 
 export abstract class BaseRule<M extends Match> implements IRule<M> {
@@ -70,7 +82,8 @@ export function combineMatchers<M extends Match>(... args: Matcher[]): Matcher<M
                 prevObservable
                 .flatMap(prevMatch => {
                     console.log(`calling matcher #${i}`, currentMatcher);
-                    return observize(currentMatcher(prevMatch)).do(result => console.log("result", result));
+                    return matchize(currentMatcher, prevMatch)
+                        .do(result => console.log("result", result));
                 }),
             Observable.of(match)
         )
@@ -81,7 +94,7 @@ export class SimpleRule<M extends Match> extends BaseRule<M> {
     private matchers: Matcher[] = [];
     private handler: Handler;
 
-    constructor(... args: (Matcher | Handler)[]) {
+    constructor(... args: (Matcher | Predicate | Handler)[]) {
         super();
         if (args.length < 1) {
             console.error("rules must at least have a handler");
@@ -94,17 +107,23 @@ export class SimpleRule<M extends Match> extends BaseRule<M> {
 
     tryMatch(match: M): Observable<RuleResult> {
         console.log("SimpleRule.tryMatch", this.matchers);
-        return this.matchers.length
-            ? (combineMatchers<M>(... this.matchers)(match) as Observable<Match>)
-                .do(m => console.log("match", m))
-                .map(m => ({
-                    score: m.score,
-                    action: () => this.handler(m)
-                } as RuleResult))
-            : Observable.of({
+        
+        if (this.matchers.length === 0)
+            return Observable.of({
                 score: match.score,
                 action: () => this.handler(match)
             } as RuleResult);
+        
+        return (
+            this.matchers.length === 1
+                ? matchize(this.matchers[0], match)
+                : combineMatchers<M>(... this.matchers)(match) as Observable<Match>
+            )
+            .do(m => console.log("match", m))
+            .map(m => ({
+                score: m.score,
+                action: () => this.handler(m)
+            } as RuleResult));
     }
 
     prependMatcher<L extends Match>(matcher: Matcher<L, M>) {
@@ -123,7 +142,9 @@ export class FirstMatchingRule<M extends Match> extends BaseRule<M> {
     constructor(... rules: (IRule<M> | Handler<M>)[]) {
         super();
         console.log("FirstMatchingRule.constructor: rules", rules);
-        this.rule$ = Observable.from(rules).filter(rule => !!rule).map(rule => ruleize(rule));
+        this.rule$ = Observable.from(rules)
+            .filter(rule => !!rule)
+            .map(rule => ruleize(rule));
     }
 
     tryMatch(match: M): Observable<RuleResult> {
@@ -149,7 +170,7 @@ export class RuleWithPrependedMatcher<L extends Match, M extends Match> extends 
     }
 
     tryMatch(match: L): Observable<RuleResult> {
-        return observize(this.matcher(match))
+        return matchize(this.matcher, match)
             .flatMap(m => this.rule.tryMatch(m));
     }
 }
@@ -201,58 +222,52 @@ export class RunRule<M extends Match> extends BaseRule<M> {
 //         }
 //     );
 
-export interface Predicate<M extends Match> {
+export interface Predicate<M extends Match = M> {
     (match: M): Observizeable<boolean>;
-}
-
-export interface Predicates<M extends Match> {
-    [name: string]: Predicate<M>
 }
 
 export const Helpers = <M extends Match>() => {
     // helpers are first defined as local variables so that they can call each other if necessary
 
-    function rule(handler: Handler<M>)
-    function rule<Z extends Match>(m1: Matcher<M, Z>, handler: Handler<Z>)
-    function rule<N extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, Z>, handler: Handler<Z>)
-    function rule<N extends Match, O extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, handler: Handler<Z>)
-    function rule<N extends Match, O extends Match, P extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, m4: Matcher<P, Z>, handler: Handler<Z>)
-    function rule<N extends Match, O extends Match, P extends Match, Q extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, m4: Matcher<P, Q>, m5: Matcher<Q, Z>, handler: Handler<Z>)
-    function rule<A>(... args: (Matcher | Handler)[]) {
-        return new SimpleRule(... args) as IRule<M>;
+    function rule(handler: Handler<M> | IRule<M>)
+
+    function rule(p1: Predicate<M>, handler: Handler<M> | IRule<M>)
+    function rule<Z extends Match>(m1: Matcher<M, Z>, handler: Handler<Z> | IRule<Z>)
+
+    function rule<Z extends Match>(p1: Predicate<M>, m2: Matcher<M, Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<Z extends Match>(m1: Matcher<M, Z>, p2: Predicate<Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<N extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, Z>, handler: Handler<Z> | IRule<Z>)
+
+    function rule<Z extends Match>(m1: Matcher<M, Z>, p2: Predicate<Z>, p3: Predicate<Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<Z extends Match>(p1: Matcher<M>, m2: Matcher<M, Z>, p3: Predicate<Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<Z extends Match>(p1: Predicate<M>, p2: Predicate<M>, m3: Matcher<M, Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<N extends Match, Z extends Match>(p1: Predicate<M>, m2: Matcher<M, N>, m3: Matcher<N, Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<N extends Match, Z extends Match>(m1: Matcher<M, N>, p2: Predicate<N>, m3: Matcher<N, Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<N extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, Z>, p3: Predicate<Z>, handler: Handler<Z> | IRule<Z>)
+    function rule<N extends Match, O extends Match, Z extends Match>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, handler: Handler<Z> | IRule<Z>)
+
+    function rule(... args: (Predicate | Matcher | Handler | IRule)[]) {
+        const ruleOrHandler = args[args.length - 1] as Handler | IRule;
+        if (isRule(ruleOrHandler)) {
+            switch (args.length) {
+                case 1:
+                    return ruleOrHandler;
+                case 2:
+                    return ruleOrHandler.prependMatcher(args[0] as Matcher);
+                default:
+                    return ruleOrHandler.prependMatcher(combineMatchers(... args.slice(0, args.length - 1) as Matcher[]));
+            }
+        }
+        return new SimpleRule(... args as Matcher[]) as IRule<M>;
     }
 
     const first = (... rules: (IRule<M> | Handler<M>)[]) => new FirstMatchingRule(... rules) as IRule<M>;
 
     const run = (handler: Handler<M>) => new RunRule<M>(handler) as IRule<M>;
 
-    const matchAlways = (match: M) => match;
-
-    const matchPredicate = (predicate: Predicate<M>) =>
-        match =>
-            observize(predicate(match))
-            .map(_ => match);
-
-    const filter = (predicate: Predicate<M>, rule: IRule<M> | Handler<M>) =>
-        ruleize(rule).prependMatcher<M>(matchPredicate(predicate));
-
-    function prepend<L extends Match>(m1: Matcher<L, M>, rule: IRule<M>): IRule<L>
-    function prepend<K extends Match, L extends Match>(m1: Matcher<K, L>, m2: Matcher<L, M>, rule: IRule<M>): IRule<K>
-    function prepend<J extends Match, K extends Match, L extends Match>(m1: Matcher<J, K>, m2: Matcher<K, L>, m3: Matcher<L, M>, rule: IRule<M>): IRule<J>
-    function prepend<I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<I, J>, m2: Matcher<J, K>, m3: Matcher<K, L>, m4: Matcher<L, M>, rule: IRule<M>): IRule<I>
-    function prepend<H extends Match, I extends Match, J extends Match, K extends Match, L extends Match>(m1: Matcher<H, I>, m2: Matcher<I, J>, m3: Matcher<J, K>, m4: Matcher<K, L>, m5: Matcher<L, M>, rule: IRule<M>): IRule<H>
-    function prepend<L extends Match>(m1: Matcher<L>, ... matchers: (Matcher | IRule)[]): IRule<L>
-    function prepend<L extends Match>(... args: (Matcher | IRule)[]): IRule<L> {
-        return (args[args.length - 1] as IRule).prependMatcher(combineMatchers(... args.slice(0, args.length - 1) as Matcher[]));
-    }
-
     return {
         rule,
         first,
-        run,
-        matchAlways,
-        matchPredicate,
-        filter,
-        prepend,
+        run
     }
 }
