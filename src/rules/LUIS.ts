@@ -48,7 +48,7 @@ const entityFields = (entities: LuisEntity[]): ILuisMatch => ({
     entityValues: (type: string) => LuisModel.entityValues(entities, type),
 })                
 
-export class LuisModel<M extends ITextMatch> {
+export class LuisModel {
     private cache: LuisCache = {};
     private url: string;
 
@@ -153,9 +153,8 @@ export class LuisModel<M extends ITextMatch> {
             .do(luisResponse => this.cache[utterance] = luisResponse);
     }
 
-    public match: Matcher<M, M & { luisResponse: LuisResponse }> =
-        (match) =>
-            this.call(match.text)
+    public match<M extends ITextMatch = any>(match: M) {
+        return this.call(match.text)
             .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
             .map(luisResponse => ({
                 ... match as any, // remove "as any" when TypeScript fixes this bug
@@ -165,6 +164,7 @@ export class LuisModel<M extends ITextMatch> {
                         .filter(luisIntent => luisIntent.score >= this.scoreThreshold)
                 }
             } as M & { luisResponse: LuisResponse}));
+    }
 
     // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
     // IMPORTANT: the order of rules is not important - the rule matching the *highest-ranked intent* will be executed
@@ -184,8 +184,8 @@ export class LuisModel<M extends ITextMatch> {
     //          luis.rule('intent2', handler2)
     //      ).prependMatcher(luis.model())
 
-    best(luisRules: LuisRules<M>): IRule<M> {
-        return new BestMatchingLuisRule(this.match, luisRules) as IRule<M>;
+    best<M extends ITextMatch = any>(luisRules: LuisRules<M>): IRule<M> {
+        return new BestMatchingLuisRule<M>(match => this.match(match), luisRules);
     }
 
     static findEntity(entities: LuisEntity[], type: string) {
