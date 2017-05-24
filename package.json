@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "rules-based app engine",
   "main": "dist/prague.js",
   "types": "dist/prague.d.ts",
