@@ -2,7 +2,7 @@ import { IRule, SimpleRule, Observizeable, RuleResult, BaseRule, Matcher, Handle
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
 
-export class Prompts<M extends Match> extends BaseRule<M> {
+export class Prompts<M extends Match = any> extends BaseRule<M> {
     private rules: {
         [promptKey: string]: IRule<M>;
     } = {};
