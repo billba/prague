@@ -171,7 +171,7 @@ export class RuleWithPrependedMatcher<L extends Match = any, M extends Match = a
 
     tryMatch(match: L): Observable<RuleResult> {
         return matchize(this.matcher, match)
-            .flatMap(m => this.rule.tryMatch(m));
+            .flatMap((m: M) => this.rule.tryMatch(m));
     }
 }
 

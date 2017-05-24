@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from '../recipes/Text';
-import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize } from '../Rules';
+import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize, ruleize } from '../Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
@@ -34,15 +34,13 @@ export interface ILuisMatch {
     entityValues: (type: string) => string[]    
 }
 
-export interface LuisRule<M extends ITextMatch> {
-    intent: string;
-    handler: Handler<M & ILuisMatch>;
+export interface LuisRules<M> {
+    [intent: string] : Handler<M & ILuisMatch> | IRule<M & ILuisMatch>
 }
 
 interface TestData {
     [utterance: string]: LuisResponse;
 }
-
 
 const entityFields = (entities: LuisEntity[]): ILuisMatch => ({
     entities: entities,
@@ -168,13 +166,6 @@ export class LuisModel<M extends ITextMatch> {
                 }
             } as M & { luisResponse: LuisResponse}));
 
-    rule(intent: string, handler: Handler<M & ILuisMatch>): LuisRule<M> {
-        return ({
-            intent,
-            handler
-        });
-    }
-
     // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
     // IMPORTANT: the order of rules is not important - the rule matching the *highest-ranked intent* will be executed
     // Note that:
@@ -193,8 +184,8 @@ export class LuisModel<M extends ITextMatch> {
     //          luis.rule('intent2', handler2)
     //      ).prependMatcher(luis.model())
 
-    best(... luisRules: LuisRule<M>[]): IRule<M> {
-        return new BestMatchingLuisRule((match) => this.match(match), ... luisRules) as IRule<M>;
+    best(luisRules: LuisRules<M>): IRule<M> {
+        return new BestMatchingLuisRule(this.match, luisRules) as IRule<M>;
     }
 
     static findEntity(entities: LuisEntity[], type: string) {
@@ -210,11 +201,11 @@ export class LuisModel<M extends ITextMatch> {
 }
 
 class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
-    private luisRules: LuisRule<M>[];
-
-    constructor(private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>, ... luisRules: LuisRule<M>[]) {
+    constructor(
+        private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>,
+        private luisRules: LuisRules<M>
+    ) {
         super();
-        this.luisRules = luisRules;
     }
 
     tryMatch(match: M): Observable<RuleResult> {
@@ -223,15 +214,15 @@ class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
                 Observable.from(m.luisResponse.intents)
                 .flatMap(
                     luisIntent =>
-                        Observable.of(this.luisRules.find(luisRule => luisRule.intent === luisIntent.intent))
-                        .filter(luisRule => !!luisRule)
-                        .map(luisRule => ({
-                            score: luisIntent.score,
-                            action: () => luisRule.handler({
-                                ... m as any, // remove "as any" when TypeScript fixes this bug
+                        Observable.of(this.luisRules[luisIntent.intent])
+                        .filter(rule => !!rule)
+                        .flatMap(rule =>
+                            ruleize(rule).tryMatch({
+                                ... match as any,
+                                score: luisIntent.score,
                                 ... entityFields(m.luisResponse.entities),
-                            })
-                        })),
+                                })
+                        ),
                     1
                 )
                 .take(1) // stop with first intent that appears in the rules
