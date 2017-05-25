@@ -2,24 +2,17 @@ import { IRule, SimpleRule, Observizeable, RuleResult, BaseRule, Matcher, Handle
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 
-export class Prompts<M extends Match = any> extends BaseRule<M> {
-    private rules: {
-        [promptKey: string]: IRule<M>;
-    } = {};
+export interface PromptRules<M> {
+    [promptKey: string]: IRule<M>;
+}
 
+export class Prompts<M extends Match = any> extends BaseRule<M> {
     constructor(
+        private rules: PromptRules<M>,
         private getPromptKey: (match: M) => string,
         private setPromptKey: (match: M, promptKey?: string) => void
     ) {
         super();
-    }
-
-    add(promptKey: string, rule: IRule<M>) {
-        if (this.rules[promptKey]) {
-            console.warn(`Prompt key ${promptKey} already exists. Please use a different key.`);
-            return;
-        }
-        this.rules[promptKey] = rule;
     }
 
     tryMatch(match: M): Observable<RuleResult> {
