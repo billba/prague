@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
-import { ITextMatch } from '../recipes/Text';
-import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize, ruleize } from '../Rules';
+import { ITextMatch } from './Text';
+import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize, ruleize } from './Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 

@@ -1,9 +1,8 @@
 // Generic Chat support
 
-import { Observable } from 'rxjs';
-import { IRule, SimpleRule, Observizeable, Match, Matcher, Handler, FirstMatchingRule, combineMatchers } from '../Rules';
-import { ITextMatch } from './Text';
-import { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
+import { Observable, Subject, BehaviorSubject } from 'rxjs';
+import { IRule, Match, FirstMatchingRule, ITextMatch } from 'prague';
+import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
@@ -135,14 +134,14 @@ export const chatRule = <M extends Match>(
         message?:   IRule<M & IChatMessageMatch>,
         event?:     IRule<M & IChatEventMatch>,
         typing?:    IRule<M & IChatTypingMatch>,
-        other?:     IRule<M & IChatActivityMatch>,
+        activity?:  IRule<M & IChatActivityMatch>,
     }
 ) => 
     new FirstMatchingRule<M & IChatActivityMatch>(
         rules.message   && rules.message.prependMatcher(matchMessage),
         rules.event     && rules.event.prependMatcher(matchEvent),
         rules.typing    && rules.typing.prependMatcher(matchTyping),
-        rules.other
+        rules.activity
     )
     .prependMatcher<M & IActivityMatch>(matchActivity(chat));
 
@@ -162,3 +161,49 @@ export const createConfirm = (text: string) => {
     return createChoice(text, choices);
 }
 
+
+export class WebChatConnector {
+    constructor() {
+    }
+
+    private activityFromChat$ = new Subject<Activity>();
+    private id = 0;
+    
+    private activityToChat$ = new Subject<Activity>();
+
+    private postActivityFromChat(activity: Activity) {
+        const newActivity: Activity = {
+            ... activity,
+            channelId: "webchat",
+            conversation: { id: "webchat" },
+            timestamp: (new Date()).toISOString(),
+            id: (this.id++).toString()
+        }
+        this.activityFromChat$.next(newActivity);
+        return Observable.of(newActivity.id);
+    }
+
+    private postActivityToChat(activity: Activity) {
+        console.log("posting", activity);
+        const newActivity: Activity = {
+            ... activity,
+            timestamp: (new Date()).toISOString(),
+            id: (this.id++).toString()
+        }
+        this.activityToChat$.next(newActivity);
+        return Observable.of(newActivity);
+    }
+
+    public botConnection: IBotConnection = {
+        postActivity: (activity: Activity) => this.postActivityFromChat(activity),
+        activity$: this.activityToChat$ as Observable<Activity>,
+        connectionStatus$: new BehaviorSubject(ConnectionStatus.Online),
+        end: () => {}
+    }
+
+    public chatConnector: ChatConnector = {
+        channelId: 'webchat',
+        postActivity: (activity: Activity) => this.postActivityToChat(activity),
+        activity$: this.activityFromChat$ as Observable<Activity>,
+    }
+}

@@ -12,6 +12,6 @@
         "sourceMap": true
     },
     "files": [
-        "./prague.ts"
+        "src/botframework.ts"
     ]
 }

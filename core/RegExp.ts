@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
-import { ITextMatch } from '../recipes/Text';
-import { IRule, SimpleRule, Matcher, Handler, arrayize } from '../Rules';
+import { ITextMatch } from './Text';
+import { IRule, SimpleRule, Matcher, Handler, arrayize } from './Rules';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;

@@ -1,12 +1,9 @@
 {
-  "name": "prague",
-  "repository": {
-    
-  },
-  "version": "0.6.0",
-  "description": "rules-based app engine",
-  "main": "dist/prague.js",
-  "types": "dist/prague.d.ts",
+  "name": "prague-botframework-browserbot",
+  "version": "0.1.1",
+  "description": "simple in-browser bot",
+  "main": "dist/browserbot.js",
+  "types": "dist/browserbot.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
@@ -18,6 +15,8 @@
     "typescript": "^2.3.2"
   },
   "dependencies": {
+    "prague-botframework": "^0.1.2",
+    "prague": "0.6.0",
     "rxjs": "^5.3.0"
   }
 }
