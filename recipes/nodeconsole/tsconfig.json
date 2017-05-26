@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "declaration": true,
+        "lib": [
+            "dom",
+            "es2017"
+        ],
+        "module": "commonjs",
+        "noImplicitAny": false,
+        "outDir": "./dist/",
+        "target": "es5",
+        "sourceMap": true
+    },
+    "files": [
+        "src/nodeconsole.ts"
+    ]
+}

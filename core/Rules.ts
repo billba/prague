@@ -1,3 +1,4 @@
+import { konsole } from './Konsole';
 import { Observable } from 'rxjs';
 
 export type Observizeable<T> = T | Observable<T> | Promise<T>
@@ -58,9 +59,9 @@ export abstract class BaseRule<M extends Match = any> implements IRule<M> {
 
     callHandlerIfMatch(match: M): Observable<any> {
         return this.tryMatch(match)
-            .do(result => console.log("handle: matched a rule", result))
+            .do(result => konsole.log("handle: matched a rule", result))
             .flatMap(result => observize(result.action()))
-            .do(_ => console.log("handle: called action"));
+            .do(_ => konsole.log("handle: called action"));
     }
 
     prependMatcher<L>(matcher: Matcher<L, M>): IRule<L> {
@@ -74,16 +75,16 @@ export function combineMatchers<M extends Match = any, N extends Match = any, O 
 export function combineMatchers<M extends Match = any, N extends Match = any, O extends Match = any, P extends Match = any, Q extends Match = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, P>, m4: Matcher<P, Q>): Matcher<M, Q>
 export function combineMatchers<M extends Match = any>(... matchers: Matcher[]): Matcher<M, any>
 export function combineMatchers<M extends Match = any>(... args: Matcher[]): Matcher<M, any> {
-    console.log("combineMatchers", args);
+    konsole.log("combineMatchers", args);
     return match =>
         Observable.from(args)
         .reduce<Matcher, Observable<Match>>(
             (prevObservable, currentMatcher, i) =>
                 prevObservable
                 .flatMap(prevMatch => {
-                    console.log(`calling matcher #${i}`, currentMatcher);
+                    konsole.log(`calling matcher #${i}`, currentMatcher);
                     return matchize(currentMatcher, prevMatch)
-                        .do(result => console.log("result", result));
+                        .do(result => konsole.log("result", result));
                 }),
             Observable.of(match)
         )
@@ -97,7 +98,7 @@ export class SimpleRule<M extends Match = any> extends BaseRule<M> {
     constructor(... args: (Matcher | Predicate | Handler)[]) {
         super();
         if (args.length < 1) {
-            console.error("rules must at least have a handler");
+            konsole.error("rules must at least have a handler");
             return;
         }
         if (args.length > 1)
@@ -106,7 +107,7 @@ export class SimpleRule<M extends Match = any> extends BaseRule<M> {
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        console.log("SimpleRule.tryMatch", this.matchers);
+        konsole.log("SimpleRule.tryMatch", this.matchers);
         
         if (this.matchers.length === 0)
             return Observable.of({
@@ -119,7 +120,7 @@ export class SimpleRule<M extends Match = any> extends BaseRule<M> {
                 ? matchize(this.matchers[0], match)
                 : combineMatchers<M>(... this.matchers)(match) as Observable<Match>
             )
-            .do(m => console.log("match", m))
+            .do(m => konsole.log("match", m))
             .map(m => ({
                 score: m.score,
                 action: () => this.handler(m)
@@ -127,7 +128,7 @@ export class SimpleRule<M extends Match = any> extends BaseRule<M> {
     }
 
     prependMatcher<L extends Match = any>(matcher: Matcher<L, M>) {
-        console.log("SimpleRule.prependMatcher", matcher);
+        konsole.log("SimpleRule.prependMatcher", matcher);
         return new SimpleRule<L>(
             matcher,
             ... this.matchers,
@@ -141,20 +142,20 @@ export class FirstMatchingRule<M extends Match = any> extends BaseRule<M> {
 
     constructor(... rules: (IRule<M> | Handler<M>)[]) {
         super();
-        console.log("FirstMatchingRule.constructor: rules", rules);
+        konsole.log("FirstMatchingRule.constructor: rules", rules);
         this.rule$ = Observable.from(rules)
             .filter(rule => !!rule)
             .map(rule => ruleize(rule));
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        console.log("FirstMatchingRule.tryMatch", match);
+        konsole.log("FirstMatchingRule.tryMatch", match);
         return this.rule$
         .flatMap(
             (rule, i) => {
-                console.log(`Rule.first: trying rule #${i}`);
+                konsole.log(`Rule.first: trying rule #${i}`);
                 return rule.tryMatch(match)
-                    .do(m => console.log(`Rule.first: rule #${i} succeeded`, m));
+                    .do(m => konsole.log(`Rule.first: rule #${i} succeeded`, m));
             },
             1
         )
@@ -192,7 +193,7 @@ export class RunRule<M extends Match = any> extends BaseRule<M> {
 //     return new Rule<M>(
 //         (match: M) =>
 //             rule$
-//             .do(_ => console.log("Rule.best: trying rule"))
+//             .do(_ => konsole.log("Rule.best: trying rule"))
 //             .flatMap(rule =>
 //                 rule.recognize(match)
 //                 .map(match => ({
@@ -213,7 +214,7 @@ export class RunRule<M extends Match = any> extends BaseRule<M> {
 
 // export const everyMatch$ = <S>(rule$: Observable<Rule<S>>, scoreThreshold = 0) => (input) =>
 //     rule$
-//     .do(_ => console.log("everyMatch$: trying rule"))
+//     .do(_ => konsole.log("everyMatch$: trying rule"))
 //     .flatMap(rule => observize(rule(input)))
 //     .reduce((prev, current) => (current.score || 1) < scoreThreshold ? prev : {
 //         action: prev

@@ -1,5 +1,6 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
+import { konsole } from './Konsole';
 import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize, ruleize } from './Rules';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
@@ -135,21 +136,21 @@ export class LuisModel {
     }
 
     public call(utterance: string): Observable<LuisResponse> {
-        console.log("calling LUIS");
+        konsole.log("calling LUIS");
         const response = this.cache[utterance];
         if (response)
-            return Observable.of(response).do(_ => console.log("from cache!!"));
+            return Observable.of(response).do(_ => konsole.log("from cache!!"));
         if (this.url === 'testData') {
             const luisResponse = this.testData[utterance];
             if (!luisResponse)
                 return Observable.empty();
             return Observable.of(luisResponse)
-                .do(luisResponse => console.log("LUIS test data!", luisResponse))
+                .do(luisResponse => konsole.log("LUIS test data!", luisResponse))
                 .do(luisResponse => this.cache[utterance] = luisResponse);
         }
         return Observable.fromPromise(fetch(this.url + utterance).then<LuisResponse>(response => response.json()))
             .do(luisResponse => {
-                console.log("LUIS response!", luisResponse);
+                konsole.log("LUIS response!", luisResponse);
                 this.cache[utterance] = luisResponse;
             });
     }

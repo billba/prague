@@ -15,19 +15,21 @@ Some types of applications you could build with Prague:
 * Multi-platform Chat bot
 * Server-rendered Website w/pop-up chat
 
-# Getting up and Running
-
 ## Building Prague
 
 * clone or fork this repo
 * `npm install`
 * `npm run build` (or `npm run watch` to build on file changes)
 
-## Using Prague in your app
+## Prague recipes
 
-* `npm install prague -S`
-* or, if you're building your own, `npm install file:../path/to/your/repo`
-* `import { the, stuff, you, want } from 'prague'` or `import * as Prague from 'prague'`
+Prague is a low-level framework. If you want to build an app you will want to use (or create) a `recipe`, which is a set of functionality that allows you to exchange messages with a given channel, using a given state store, etc. Here is a list of available recipes. Please post your own!
+
+* [prague-botframework-browserbot](https://www.npmjs.com/package/prague-botframework-browserbot) - Build
+
+## Prague samples
+
+* [BrowserBot](https://github.com/billba/BrowserBot)
 
 # Prague 101
 

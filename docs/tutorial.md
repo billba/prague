@@ -26,11 +26,11 @@ const greetGuest = (match) => {
     match.reply(`Hi there, ${match.name}! Welcome to CafeBot.`);
 }
 
-greetGuest({ name: "Brandon", reply: console.log });
+greetGuest({ name: "Brandon", reply: konsole.log });
 >> "Hi there, Brandon! Welcome to CafeBot."
 ```
 
-By convention, a Handler has one parameter, an object called `match` because it is the output of a Matcher. Also by convention, `match` includes the common tools (like `reply`) that a handler might need. By including those tools in `match` we can easily use dependency injection to replace `console.log` with a function that sends a reply to a chat app, or a function that returns text to a testing harness, allowing us to validate our business logic.
+By convention, a Handler has one parameter, an object called `match` because it is the output of a Matcher. Also by convention, `match` includes the common tools (like `reply`) that a handler might need. By including those tools in `match` we can easily use dependency injection to replace `konsole.log` with a function that sends a reply to a chat app, or a function that returns text to a testing harness, allowing us to validate our business logic.
 
 It already sounds like this approach might be a little error-prone. What if we pass the wrong kind of object? Let's use TypeScript to help protect ourselves from simple coding errors by adding type annotations.
 
@@ -59,7 +59,7 @@ greetGuest({ name: "Brandon" }); // missing "reply" -- will give error
 But because we used a constrained generic, TypeScript will not complain if we have *extra* fields:
 
 ```typescript
-greetGuest({ name: "Brandon", reply: console.log, cafe });
+greetGuest({ name: "Brandon", reply: konsole.log, cafe });
 >> "Hi there, Brandon! Welcome to CafeBot."
 ```
 
@@ -84,7 +84,7 @@ const runNodeConsole = <M>(rule: IRule<M>) => {
 
     rl.on('line', (text: string) => rule.callHandlerIfMatch({
         text,
-        reply: console.log
+        reply: konsole.log
     }));
 }
 ```

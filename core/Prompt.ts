@@ -1,3 +1,4 @@
+import { konsole } from './Konsole';
 import { IRule, SimpleRule, Observizeable, RuleResult, BaseRule, Matcher, Handler, Match, observize, combineMatchers } from './Rules';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
@@ -17,7 +18,7 @@ export class Prompts<M extends Match = any> extends BaseRule<M> {
 
     tryMatch(match: M): Observable<RuleResult> {
         return Observable.of(this.getPromptKey(match))
-            .do(promptKey => console.log("promptKey", promptKey))
+            .do(promptKey => konsole.log("promptKey", promptKey))
             .filter(promptKey => promptKey !== undefined)
             .map(promptKey => this.rules[promptKey])
             .filter(rule => rule !== undefined)

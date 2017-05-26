@@ -1,6 +1,5 @@
 import readline = require('readline');
-import { IRule } from '../Rules';
-import { ITextMatch } from './Text';
+import { IRule, ITextMatch, Match } from 'prague';
 
 export interface INodeConsoleMatch extends ITextMatch {
     reply: (text: string) => void;

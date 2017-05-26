@@ -1,3 +1,4 @@
+import { konsole } from './Konsole';
 import { Store } from 'redux';
 import { IRule } from '../Rules';
 import { IReduxMatch, matchReduxState } from './Redux';
@@ -21,15 +22,15 @@ export class ReduxChat<APP, BOTDATA> {
 
         this.chat.activity$
         .map(activity => ({ activity }))
-        .do(match => console.log("activity", match.activity))
+        .do(match => konsole.log("activity", match.activity))
         .flatMap(
             match => rule.callHandlerIfMatch(match),
             1
         )
         .subscribe(
-            match => console.log("handled", match),
-            error => console.log("error", error),
-            () => console.log("complete")
+            match => konsole.log("handled", match),
+            error => konsole.log("error", error),
+            () => konsole.log("complete")
         );
     }
 }

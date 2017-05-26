@@ -1,5 +1,6 @@
 import { Store } from 'redux';
 import { Match } from '../Rules';
+import { konsole } from './Konsole';
 import { IStateMatch } from './State';
 
 export interface IReduxMatch<APP, BOTDATA> extends IStateMatch<BOTDATA> {
@@ -12,7 +13,7 @@ export const matchReduxState = <APP, BOTDATA>(
     store: Store<APP>,
     getBotData: (state: APP) => BOTDATA
 ) => <M extends Match>(match: M) => {
-    console.log("ReduxChat", this.store);
+    konsole.log("ReduxChat", this.store);
     const state = store.getState();
 
     return {
