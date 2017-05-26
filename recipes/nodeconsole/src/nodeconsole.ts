@@ -1,9 +1,13 @@
 import readline = require('readline');
-import { IRule, ITextMatch, Match } from 'prague';
+import { IRule, ITextMatch, konsole } from 'prague';
+
+export * from 'prague';
 
 export interface INodeConsoleMatch extends ITextMatch {
     reply: (text: string) => void;
 }
+
+export const reply = <M extends INodeConsoleMatch>(message: string) => (match: M) => match.reply(message);
 
 export const runNodeConsole = (rule: IRule<INodeConsoleMatch>) => {
     const rl = readline.createInterface({
@@ -16,9 +20,9 @@ export const runNodeConsole = (rule: IRule<INodeConsoleMatch>) => {
             reply: console.log
         })
         .subscribe(
-            match => console.log("handled", match),
-            error => console.log("error", error),
-            () => console.log("complete")
+            match => konsole.log("handled", match),
+            error => konsole.log("error", error),
+            () => konsole.log("complete")
         )
     );
 }

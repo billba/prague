@@ -1,4 +1,4 @@
-import { IRule, IStateMatch } from 'prague';
+import { IRule, IStateMatch, konsole } from 'prague';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, chatRule } from 'prague-botframework';
 
 export * from 'prague';
@@ -24,15 +24,15 @@ export class BrowserBot<BOTDATA> {
 
         this.chat.activity$
         .map(activity => ({ activity }))
-        .do(match => console.log("activity", match.activity))
+        .do(match => konsole.log("activity", match.activity))
         .flatMap(
             match => rule.callHandlerIfMatch(match),
             1
         )
         .subscribe(
-            match => console.log("handled", match),
-            error => console.log("error", error),
-            () => console.log("complete")
+            match => konsole.log("handled", match),
+            error => konsole.log("error", error),
+            () => konsole.log("complete")
         );
     }
 }

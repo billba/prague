@@ -1,6 +1,6 @@
 {
-  "name": "prague-botframework-nodeconsole",
-  "version": "0.1.0",
+  "name": "prague-nodeconsole",
+  "version": "0.1.5",
   "description": "simple node console bot",
   "main": "dist/nodeconsole.js",
   "types": "dist/nodeconsole.d.ts",
@@ -16,7 +16,8 @@
     "typescript": "^2.3.2"
   },
   "dependencies": {
-    "prague": "0.6.2",
+    "node-fetch": "^1.7.0",
+    "prague": "0.6.5",
     "rxjs": "^5.3.0"
   }
 }

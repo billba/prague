@@ -184,7 +184,7 @@ export class WebChatConnector {
     }
 
     private postActivityToChat(activity: Activity) {
-        console.log("posting", activity);
+        konsole.log("posting", activity);
         const newActivity: Activity = {
             ... activity,
             timestamp: (new Date()).toISOString(),

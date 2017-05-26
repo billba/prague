@@ -2,6 +2,7 @@ import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
 import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize, ruleize } from './Rules';
+import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
 
