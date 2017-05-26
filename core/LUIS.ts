@@ -147,10 +147,11 @@ export class LuisModel {
                 .do(luisResponse => console.log("LUIS test data!", luisResponse))
                 .do(luisResponse => this.cache[utterance] = luisResponse);
         }
-        return Observable.ajax.get(this.url + utterance)
-            .do(ajaxResponse => console.log("LUIS response!", ajaxResponse))
-            .map(ajaxResponse => ajaxResponse.response as LuisResponse)
-            .do(luisResponse => this.cache[utterance] = luisResponse);
+        return Observable.fromPromise(fetch(this.url + utterance).then<LuisResponse>(response => response.json()))
+            .do(luisResponse => {
+                console.log("LUIS response!", luisResponse);
+                this.cache[utterance] = luisResponse;
+            });
     }
 
     public match<M extends ITextMatch = any>(match: M) {

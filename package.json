@@ -3,7 +3,7 @@
   "repository": {
     
   },
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "rules-based app engine",
   "main": "dist/prague.js",
   "types": "dist/prague.d.ts",
