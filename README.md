@@ -25,27 +25,29 @@ Some types of applications you could build with Prague:
 
 Prague is a low-level framework. If you want to build an app you will want to use (or create) a `recipe`, which is a set of functionality that allows you to exchange messages with a given channel, using a given state store, etc. Here is a list of available recipes. Please post your own!
 
-* [prague-botframework-browserbot](https://www.npmjs.com/package/prague-botframework-browserbot) - Build
+* [prague-botframework-browserbot](https://www.npmjs.com/package/prague-botframework-browserbot) - Build in-browser bots using the Bot Framework WebChat
+* [prague-nodeconsole](https://www.npmjs.com/package/prague-nodeconsole) - Build Node console bots
 
 ## Prague samples
 
 * [BrowserBot](https://github.com/billba/BrowserBot)
+* [NodeConsoleBot](https://github.com/billba/NodeConsoleBot)
 
 # Prague 101
 
-Let's write a simple bot:
+Let's write a simple bot that replies the same way to all inputs:
 
 ```typescript
 const rule = reply("Hello!");
 ```
 
-```typescript
-const rule = rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!"));
-```
+Let's be a little more discriminating about when we say Hello, so we introduce a condition that must be satisfied before the action is taken:
 
 ```typescript
 const rule = rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!"));
 ```
+
+We need a default reply for when the first rule is not satisfied. That means we have two rules, so we need a way to decide how to evaluate them. `first` tries a given input on each rule, in order, until one succeeds:
 
 ```typescript
 const rule = first(
@@ -53,6 +55,8 @@ const rule = first(
     reply("I don't understand you.")
 )
 ```
+
+Now let's add a new rule that responds to a different pattern:
 
 ```typescript
 const rule = first(
@@ -62,6 +66,8 @@ const rule = first(
 )
 ```
 
+`matchRegExp` isn't just a predicate. It also extracts out matching groups, which we can use to customize the reply:
+
 ```typescript
 const rule = first(
     rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!")),
@@ -70,34 +76,36 @@ const rule = first(
 )
 ```
 
+Now let's add another rule which looks for specific names. We do this by adding another condition that must be satisfied before the action is taken:
+
 ```typescript
 const rule = first(
     rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!")),
-    rule(matchRegExp(/I am (.*)/), match => match.groups[1] === 'Bill', match => match.reply(`HELLO MY CREATOR`)),
+    rule(matchRegExp(/I am (.*)/), match => match.groups[1] === 'Bill', reply(`HELLO MY CREATOR`)),
     rule(matchRegExp(/I am (.*)/), match => match.reply(`Nice to meet you, ${match.groups[1]}!`)),
     reply("I don't understand you.")
 )
 ```
+
+This works, but if the name isn't "Bill" we'll end up calling `matchRegExp` twice. let's optimize this:
 
 ```typescript
 const rule = first(
     rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!")),
     rule(matchRegExp(/I am (.*)/), first(
-        rule(match => match.groups[1] === 'Bill', match => match.reply(`HELLO MY CREATOR`)),
-        rule(match => match.reply(`Nice to meet you, ${match.groups[1]}!`))
+        rule(match => match.groups[1] === 'Bill', reply(`HELLO MY CREATOR`)),
+        match => match.reply(`Nice to meet you, ${match.groups[1]}!`)
     )),
     reply("I don't understand you.")
 )
 ```
 
+This is a simple example to give you a sense of how rules are created and composed in Prague.
+
 ## Asynchronous functions
 
 Any Matcher or Handler may optionally return a Promise or an Observable.
 
-## Applications and State
+## Lots More Tutorial Needed
 
-Now that you've been introduced to Rules, Matchers, and Handlers, the key helpers, and the type system, we can look into what it takes to build more complex apps using state.
-
-## Prompts
-
-Here I'll talk about Prompts.
+I know, I know.
