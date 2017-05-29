@@ -60,7 +60,7 @@ Now let's add a new rule that responds to a different pattern:
 
 ```typescript
 const rule = first(
-    rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!"));
+    rule(matchRegExp(/Hello|Hi|Wassup/), reply("Hello!")),
     rule(matchRegExp(/I am (.*)/), reply("Nice to meet you!")),
     reply("I don't understand you.")
 )
