@@ -16,7 +16,7 @@
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^2.3.2"
+    "typescript": "^2.4.0-dev.20170530"
   },
   "dependencies": {
     "isomorphic-fetch": "^2.2.1",

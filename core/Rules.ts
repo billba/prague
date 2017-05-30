@@ -227,7 +227,7 @@ export interface Predicate<M extends Match = any> {
     (match: M): Observizeable<boolean>;
 }
 
-export function rule<M extends Match = any>(handler: Handler<M> | IRule<M>)
+export function rule<M extends Match = any>(handler: Handler<M> | IRule<M>): IRule<M>
 
 export function rule<M extends Match = any>(p1: Predicate<M>, handler: Handler<M> | IRule<M>): IRule<M>
 export function rule<M extends Match = any, Z extends Match = any>(m1: Matcher<M, Z>, handler: Handler<Z> | IRule<Z>): IRule<M>
