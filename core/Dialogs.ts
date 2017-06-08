@@ -1,68 +1,84 @@
 import { Match, IRule, BaseRule, RuleResult, Observizeable, observize } from './Rules';
 import { Observable } from 'rxjs';
-import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
 
-interface IDialog<M extends IDialogMatch = any> {
-    invoke?(args: any): Observable<string>;
-    tryMatch(m: M, instance: string): Observable<RuleResult>;
-}
-
-interface IDialogMatch<M extends IDialogMatch = any> {
-}
-
-interface ActiveDialog {
+interface DialogInstance {
     name: string;
     instance: string;
 }
 
-function isDialog<M>(dialog: IDialog<M> | IRule<M>): dialog is IDialog<M> {
-    return ((dialog as any).tryMatch !== undefined);
+interface IDialogMatch {
+    currentDialog?: DialogInstance;
+    activeDialog?: DialogInstance;
+    beginDialog(name: string, args?: any): void;
+    replaceDialog(name: string, args?: any): void;
+    endDialog(): void;
+    clearDialogs(): void;
 }
 
-export class Dialogs<M extends IDialogMatch = any> extends BaseRule<M> {
+interface IDialog<M extends IDialogMatch = any> {
+    invoke(args?: any): Observable<string>;
+    tryMatch(match: M, instance: string): Observable<RuleResult>;
+}
+
+function isDialog<M extends IDialogMatch = any>(dialog: IDialog<M> | IRule<M>): dialog is IDialog<M> {
+    return ((dialog as any).invoke !== undefined);
+}
+
+export class Dialogs<M extends Match = any> extends BaseRule<M> {
     private dialogs: {
-        [name: string]: IDialog<M>;
+        [name: string]: IDialog<M & IDialogMatch>;
     }
 
     constructor(
-        private getActiveDialog: (match: M) => Observizeable<ActiveDialog>,
-        private setActiveDialog: (match: M, activeDialog?: ActiveDialog) => Observizeable<void>
+        private getActiveDialog: (match: M) => Observizeable<DialogInstance>,
+        private setActiveDialog: (match: M, activeDialog?: DialogInstance) => Observizeable<void>
     ) {
         super();
     }
 
-    add(name: string, dialog: IDialog<M> | IRule<M>) {
+    matchDialog(match: M, currentDialog: string) {
+        return match && {
+            ... match as any,
+            // currentDialog,
+            beginDialog: (name: string, args?: any) => this.beginDialog(match, name, args),
+            // endDialog:
+        } as M & IDialogMatch
+    }
+
+    add(name: string, dialog: IDialog<M & IDialogMatch> | IRule<M & IDialogMatch>) {
         if (this.dialogs[name]) {
             console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
             return;
         }
         if (!isDialog(dialog))
-            dialog = new SimpleDialog(this, dialog);
+            dialog = new SimpleDialog(dialog);
 
         this.dialogs[name] = dialog;
     }
 
-    invoke(name: string, args?: any) {
+    beginDialog(match: M, name: string, args?: any) {
         return Observable.of("instance");
         // return observize(this.getActiveDialog(m))
     }
 
-    tryMatch(m: M): Observable<RuleResult> {
-        return observize(this.getActiveDialog(m))
+    tryMatch(match: M): Observable<RuleResult> {
+        return 
+        
+        observize(this.getActiveDialog(match))
             .flatMap(activeDialog => {
                 const dialog = this.dialogs[activeDialog.name];
                 if (!dialog) {
                     console.warn(`A dialog named "${activeDialog.name}" doesn't exist.`);
                     return Observable.empty<RuleResult>();
                 }
-                return dialog.tryMatch(m, activeDialog.instance);
+                return dialog.tryMatch(this.matchDialog(match, activeDialog.name), activeDialog.instance);
             });
     }
 }
 
 class SimpleDialog<M extends IDialogMatch = any> implements IDialog<M> {
-    constructor(private dialogs: Dialogs<M>, private rule: IRule<M>) {
+    constructor(private rule: IRule<M>) {
     }
 
     invoke() {
@@ -75,8 +91,17 @@ class SimpleDialog<M extends IDialogMatch = any> implements IDialog<M> {
     }
 }
 
-class RemoteDialog<M extends IDialogMatch = any> implements IDialog<M> {
-    constructor(private dialogs: Dialogs<M>, public remoteUrl: string) {
+export class Remote<M extends IDialogMatch = any> {
+    constructor(private matchRemoteDialog: (match: M) => any) {
+    }
+
+    dialog(remoteUrl: string): IDialog<M> {
+        return new RemoteDialog<M>(remoteUrl, this.matchRemoteDialog);
+    }
+}
+
+export class RemoteDialog<M extends IDialogMatch = any> implements IDialog<M> {
+    constructor(private remoteUrl: string, private matchRemoteDialog: (match: M) => any) {
     }
 
     invoke(args: any) {
@@ -106,6 +131,8 @@ class RemoteDialog<M extends IDialogMatch = any> implements IDialog<M> {
     }
 
     tryMatch(match: M, instance: string) {
+        // here we need to do some major surgery on match
+        // get rid of all the methods, for example
         return Observable.fromPromise(
                 fetch(
                     this.remoteUrl + "/tryMatch", {
