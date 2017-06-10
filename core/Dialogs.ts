@@ -102,88 +102,70 @@ export class RemoteDialogs<M extends IDialogMatch = any> {
     ) {
     }
 
-    dialog(remoteUrl: string): IDialog<M> {
-        return new RemoteDialog<M>(remoteUrl, this.matchRemoteDialog, this.handleSuccessfulResponse);
-    }
-}
-
-export class RemoteDialog<M extends IDialogMatch = any> implements IDialog<M> {
-    constructor(
-        private remoteUrl: string,
-        private matchRemoteDialog: (match: M) => any,
-        private handleSuccessfulResponse: (response: any) => any,
-    ) {
-    }
-
-    invoke(name: string, args: any) {
-        return Observable.fromPromise(
-                fetch(
-                    this.remoteUrl + "/invoke", {
-                        method: 'POST',
-                        body: {
-                            name,
-                            args
-                        }
-                    }
-                )
-                .then(response => response.json())
-            )
-            .catch(error => {
-                konsole.log("Network error calling remote invoke()", error);
-                return Observable.empty();
-            })
-            .flatMap(json => {
-                switch (json.status) {
-                    case 'success':
-                        return Observable.of(json.instance);
-                    case 'error':
-                        return Observable.throw(`RemoteDialog.invoke() returned error "${json.error}".`);
-                    default:
-                        return Observable.throw(`RemoteDialog.invoke() returned unexpected status "${json.status}".`);
-                }
-            });
-    }
-
-    tryMatch(dialogInstance: DialogInstance, match: M) {
-        // here we need to do some major surgery on match
-        // get rid of all the methods, for example
-        return Observable.fromPromise(
-                fetch(
-                    this.remoteUrl + "/tryMatch", {
-                        method: 'POST',
-                        body: {
-                            dialogInstance,
-                            match: this.matchRemoteDialog(match)
-                        }
-                    }
-                )
-                .then(response => response.json())
-            )
-            .catch(error => {
-                konsole.log("Network error calling remote tryMatch()", error);
-                return Observable.empty();
-            })
-            .flatMap(json => {
-                switch (json.status) {
-                    case 'endWithResult':
-                        // end dialog, then fall through
-                    case 'result':
-                        return observize(this.handleSuccessfulResponse(json.ruleResult));
-                    case 'matchless':
+    dialog(remoteUrl: string) {
+        return {
+            invoke: (name: string, args: any) =>
+                Observable.fromPromise(
+                        fetch(
+                            remoteUrl + "/invoke", {
+                                method: 'POST',
+                                body: {
+                                    name,
+                                    args
+                                }
+                            }
+                        )
+                        .then(response => response.json())
+                    )
+                    .catch(error => {
+                        konsole.log("Network error calling remote invoke()", error);
                         return Observable.empty();
-                    case 'error':
-                        return Observable.throw(`RemoteDialog.tryMatch() returned error "${json.error}".`);
-                    default:
-                        return Observable.throw(`RemoteDialog.tryMatch() returned unexpected status "${json.status}".`);
-                }
-            });
+                    })
+                    .flatMap(json => {
+                        switch (json.status) {
+                            case 'success':
+                                return Observable.of(json.instance);
+                            case 'error':
+                                return Observable.throw(`RemoteDialog.invoke() returned error "${json.error}".`);
+                            default:
+                                return Observable.throw(`RemoteDialog.invoke() returned unexpected status "${json.status}".`);
+                        }
+                    }),
+
+            tryMatch: (dialogInstance: DialogInstance, match: M) =>
+                Observable.fromPromise(
+                        fetch(
+                            remoteUrl + "/tryMatch", {
+                                method: 'POST',
+                                body: {
+                                    dialogInstance,
+                                    match: this.matchRemoteDialog(match)
+                                }
+                            }
+                        )
+                        .then(response => response.json())
+                    )
+                    .catch(error => {
+                        konsole.log("Network error calling remote tryMatch()", error);
+                        return Observable.empty();
+                    })
+                    .flatMap(json => {
+                        switch (json.status) {
+                            case 'endWithResult':
+                                // end dialog, then fall through
+                            case 'result':
+                                return observize(this.handleSuccessfulResponse(json.ruleResult));
+                            case 'matchless':
+                                return Observable.empty();
+                            case 'error':
+                                return Observable.throw(`RemoteDialog.tryMatch() returned error "${json.error}".`);
+                            default:
+                                return Observable.throw(`RemoteDialog.tryMatch() returned unexpected status "${json.status}".`);
+                        }
+                    })
+        }
     }
 }
-
-// This is a helper class for creating more than one LocalDialog. You can:
-// const local = new LocalDialogs(...)
-// const thisDialog = local.dialog(...)
-// const thatDialog = local.dialog(...)
 
 export class LocalDialogs<M extends IDialogMatch = any> {
     constructor(
@@ -193,46 +175,27 @@ export class LocalDialogs<M extends IDialogMatch = any> {
     ) {
     }
 
-    dialog<DIALOGSTATE = undefined>(
+    dialog<DIALOGSTATE = undefined, ARGS = any>(
         rule: IRule<M & IDialogStateMatch<DIALOGSTATE>>,
-        initialState?: (args: any) => DIALOGSTATE
+        initialState?: (args: ARGS) => DIALOGSTATE
     ): IDialog<M> {
-        return new LocalDialog<M, DIALOGSTATE>(
-            rule,
-            initialState,
-            this.newDialogInstance,
-            this.getDialogData,
-            this.setDialogData
-            );
-    }
-}
+        return {
+            invoke: (name: string, args?: ARGS) =>
+                (initialState ? observize(initialState(args)) : Observable.of({}))
+                    .flatMap(initialState => observize(this.newDialogInstance(name, initialState))),
 
-export class LocalDialog<M extends IDialogMatch = any, DIALOGSTATE = undefined> implements IDialog<M> {
-    constructor(
-        private rule: IRule<M & IDialogStateMatch<DIALOGSTATE>>,
-        private initialState: (args: any) => Observizeable<DIALOGSTATE>,
-        private newDialogInstance: (name: string, dialogData: any) => Observizeable<string>,
-        private getDialogData: (dialogInstance: DialogInstance) => Observizeable<any>,
-        private setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observizeable<void>
-    ) {
-    }
-
-    invoke(name: string, args?: any) {
-        return (this.initialState ? observize(this.initialState(args)) : Observable.of({}))
-            .flatMap(initialState => observize(newDialogInstance(name, initialState)));
-    }
-
-    tryMatch(dialogInstance: DialogInstance, m: M) {
-        return observize(getDialogData(dialogInstance) as DIALOGSTATE)
-            .flatMap(dialogData =>
-                this.rule.tryMatch({
-                    ... m as any,
-                    dialogData
-                })
-                .do(ruleResult => {
-                    setDialogData(dialogInstance, dialogData);
-                })
-            );
+            tryMatch: (dialogInstance: DialogInstance, m: M) =>
+                observize(this.getDialogData(dialogInstance) as DIALOGSTATE)
+                    .flatMap(dialogData =>
+                        rule.tryMatch({
+                            ... m as any,
+                            dialogData
+                        })
+                        .do(ruleResult => {
+                            this.setDialogData(dialogInstance, dialogData);
+                        })
+                    )
+        }
     }
 }
 
@@ -243,10 +206,13 @@ import { re } from './RegExp';
 
 const activeDialogInstances: {
     [name: string]: any[];
-}
+} = {};
 
-const newDialogInstance = (name: string, dialogData: any = {}) =>
+const newDialogInstance = (name: string, dialogData: any = {}) => {
+    if (!activeDialogInstances[name])
+        activeDialogInstances[name] = [];
     (activeDialogInstances[name].push(dialogData) - 1).toString();
+}
 
 const getDialogData = (dialogInstance: DialogInstance) =>
     activeDialogInstances[dialogInstance.name][dialogInstance.instance];
