@@ -259,6 +259,8 @@ export function rule<M extends Match = any>(... args: (Predicate | Matcher | Han
     return new SimpleRule(... args as Matcher[]) as IRule<M>;
 }
 
-export const first = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) => new FirstMatchingRule(... rules) as IRule<M>;
+export function first<M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]): IRule<M> {
+    return new FirstMatchingRule(... rules);
+}
 
 export const run = <M extends Match = any>(handler: Handler<M>) => new RunRule<M>(handler) as IRule<M>;
