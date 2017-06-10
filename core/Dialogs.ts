@@ -211,7 +211,7 @@ const activeDialogInstances: {
 const newDialogInstance = (name: string, dialogData: any = {}) => {
     if (!activeDialogInstances[name])
         activeDialogInstances[name] = [];
-    (activeDialogInstances[name].push(dialogData) - 1).toString();
+    return (activeDialogInstances[name].push(dialogData) - 1).toString();
 }
 
 const getDialogData = (dialogInstance: DialogInstance) =>
