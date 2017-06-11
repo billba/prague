@@ -12,12 +12,15 @@ const rootDialogInstance: DialogInstance = {
     instance: undefined
 }
 
-export interface IDialogMatch<DIALOGSTATE = undefined> {
+export interface IDialogMatch {
     currentDialogInstance?: DialogInstance;
     beginDialog(name: string, args?: any): void;
     replaceDialog(name: string, args?: any): void;
     endDialog(): void;
     clearDialogs(): void;
+}
+
+export interface IDialogStateMatch<DIALOGSTATE> {
     dialogData: DIALOGSTATE;
 }
 
@@ -182,7 +185,7 @@ export class LocalDialogs<M extends Match & IDialogMatch = any> {
     }
 
     dialog<DIALOGSTATE = undefined, ARGS = any>(
-        rule: IRule<M & IDialogMatch<DIALOGSTATE>>,
+        rule: IRule<M & IDialogStateMatch<DIALOGSTATE>>,
         initialState?: (args: ARGS) => DIALOGSTATE
     ): IDialog<M> {
         return {
@@ -246,7 +249,6 @@ interface IGameMatch extends Match {
     replaceDialog(name: string, args?: any): void;
     endDialog(): void;
     clearDialogs(): void;    
-    dialogData: undefined;
 }
 
 import { first } from './Rules';
