@@ -29,19 +29,6 @@ export interface IDialog<M extends Match & IDialogMatch> {
     tryMatch(dialogInstance: DialogInstance, match: M): Observable<RuleResult>;
 }
 
-export function isDialog<M extends Match & IDialogMatch>(dialog: IDialog<M> | IRule<M>): dialog is IDialog<M> {
-    return ((dialog as any).invoke !== undefined);
-}
-
-export function dialogize<M extends Match & IDialogMatch>(dialog: IDialog<M> | IRule<M>): IDialog<M> {
-    return isDialog<M>(dialog)
-        ? dialog
-        : {
-            invoke: () => Observable.of("shared instance"),
-            tryMatch: (dialogInstance: DialogInstance, match: M) => dialog.tryMatch(match)
-        }
-}
-
 class DialogRule<M extends Match & IDialogMatch> extends BaseRule<M> {
     constructor(
         private getActiveDialogInstance: (match: M) => Observizeable<DialogInstance>,
@@ -92,12 +79,19 @@ export class Dialogs<M extends Match & IDialogMatch> {
         } as M & IDialogMatch
     }
 
-    add(name: string, dialog: IDialog<M> | IRule<M>) {
+    add(name: string, dialog: IDialog<M>) {
         if (this.dialogs[name]) {
             console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
             return;
         }
-        this.dialogs[name] = dialogize<M>(dialog);
+        this.dialogs[name] = dialog;
+    }
+
+    addRule(name: string, rule: IRule<M>) {
+        this.add(name, {
+            invoke: () => Observable.of("shared instance"),
+            tryMatch: (dialogInstance: DialogInstance, match: M) => rule.tryMatch(match)
+        });
     }
 
     invoke(name: string, match: M, args?: any): Observable<void> {
@@ -263,9 +257,8 @@ const gameDialog = local.dialog<GameState>(
     () => ({ num: Math.random() * 100 })
 );
 
-// Typing problem here too - first shows up as first<Match> which is weird
 dialogs.add('game', gameDialog);
-dialogs.add('stocks', first(
+dialogs.addRule('stocks', first(
 
 ));
 
