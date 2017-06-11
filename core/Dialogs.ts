@@ -56,22 +56,25 @@ class DialogRule<M extends Match & IDialogMatch> extends BaseRule<M> {
     }
 }
 
-export class Dialogs<M extends Match & IDialogMatch> {
+export class Dialogs<M extends Match = any> {
     private dialogs: {
-        [name: string]: IDialog<M>;
+        [name: string]: IDialog<M & IDialogMatch>;
     }
 
     private dialogRule: IRule<M>;
 
+    private tasks: (() => Observable<void>)[] = [];
+
     constructor(
-        private getActiveDialogInstance: (match: M) => Observizeable<DialogInstance>,
-        private setActiveDialogInstance: (match: M, activeDialog?: DialogInstance) => Observizeable<void>
+        private getActiveDialogInstance: (match: M & IDialogMatch) => Observizeable<DialogInstance>,
+        private setActiveDialogInstance: (match: M & IDialogMatch, activeDialog?: DialogInstance) => Observizeable<void>
     ) {
-        this.dialogRule = new DialogRule(getActiveDialogInstance, setActiveDialogInstance, this.dialogs);
+        this.dialogRule = new DialogRule(getActiveDialogInstance, setActiveDialogInstance, this.dialogs)
+            .prependMatcher(this.matchDialog());
     }
 
-    matchDialog<N extends Match = any>(match: N, currentDialogInstance: DialogInstance = rootDialogInstance) {
-        return match && {
+    private matchDialog(currentDialogInstance: DialogInstance = rootDialogInstance) {
+        return (match: M) => match && {
             ... match as any,
             currentDialogInstance,
             // beginDialog: (name: string, args?: any) => this.beginDialog(match, name, args),
@@ -79,7 +82,7 @@ export class Dialogs<M extends Match & IDialogMatch> {
         } as M & IDialogMatch
     }
 
-    add(name: string, dialog: IDialog<M>) {
+    add(name: string, dialog: IDialog<M & IDialogMatch>) {
         if (this.dialogs[name]) {
             console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
             return;
@@ -87,23 +90,27 @@ export class Dialogs<M extends Match & IDialogMatch> {
         this.dialogs[name] = dialog;
     }
 
-    addRule(name: string, rule: IRule<M>) {
+    addRule(name: string, rule: IRule<M & IDialogMatch>) {
         this.add(name, {
             invoke: () => Observable.of("shared instance"),
-            tryMatch: (dialogInstance: DialogInstance, match: M) => rule.tryMatch(match)
+            tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch) => rule.tryMatch(match)
         });
     }
 
-    invoke(name: string, match: M, args?: any): Observable<void> {
+    invoke(name: string, match: M & IDialogMatch, args?: any): Observable<void> {
         return Observable.of(this.dialogs[name])
             .flatMap(dialog => dialog.invoke(args))
             .flatMap(instance => observize(this.setActiveDialogInstance(match, { name, instance })));
     }
 
-    rule<N extends Match = M>(): IRule<N> {
-        return this.dialogRule as any as IRule<N>;
+    beginDialog(name: string, match: M & IDialogMatch, args?: any) {
+        this.tasks.push(() => 
+        );
     }
 
+    rule<ANYMATCH extends Match = M>(): IRule<ANYMATCH> {
+        return this.dialogRule as any as IRule<ANYMATCH>;
+    }
 }
 
 export class RemoteDialogs<M extends Match & IDialogMatch = any> {
@@ -252,6 +259,7 @@ const local = new LocalDialogs<IGameMatch>(newDialogInstance, getDialogData, set
 const gameDialog = local.dialog<GameState>(
     first(
         dialogs.rule(),
+        re(/stocks/, m => m.beginDialog('stocks')),
         re(/answer/, m => m.reply(`The answer is ${m.dialogData.num}`)),
     ),
     () => ({ num: Math.random() * 100 })
