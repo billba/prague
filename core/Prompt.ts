@@ -47,7 +47,7 @@ export interface IChatPromptChoiceMatch {
     choice: string,
 }
 
-export class TextPrompts<M extends ITextMatch> extends Prompts<M> {
+export class TextPrompts<M extends Match & ITextMatch> extends Prompts<M> {
     matchChoice(choices: string[]): Matcher<M, M & IChatPromptChoiceMatch> {
         return match =>
             Observable.of(choices.find(choice => choice.toLowerCase() === match.text.toLowerCase()))

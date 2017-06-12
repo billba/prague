@@ -187,7 +187,7 @@ export class LuisModel {
     //          luis.rule('intent2', handler2)
     //      ).prependMatcher(luis.model())
 
-    best<M extends ITextMatch = any>(luisRules: LuisRules<M>): IRule<M> {
+    best<M extends Match & ITextMatch = any>(luisRules: LuisRules<M>): IRule<M> {
         return new BestMatchingLuisRule<M>(match => this.match(match), luisRules);
     }
 
@@ -203,7 +203,7 @@ export class LuisModel {
 
 }
 
-class BestMatchingLuisRule<M extends ITextMatch> extends BaseRule<M> {
+class BestMatchingLuisRule<M extends Match & ITextMatch> extends BaseRule<M> {
     constructor(
         private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>,
         private luisRules: LuisRules<M>

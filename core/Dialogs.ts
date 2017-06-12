@@ -33,20 +33,20 @@ interface DialogTask {
     (): Observable<void>;
 }
 
-interface DialogStack {
+export interface DialogStack {
     getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) => Observizeable<DialogInstance>;
     setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>;
 }
 
-interface IDialogResponderMatch {
+export interface IDialogResponderMatch {
     dialogResponse: any;
 }
 
-interface DialogResponder<M extends Match = any> {
+export interface DialogResponder<M extends Match = any> {
     (match: M & IDialogMatch & IDialogResponderMatch): Observizeable<void>;
 }
 
-interface DialogResponders<M extends Match = any> {
+export interface DialogResponders<M extends Match = any> {
     [name: string]: DialogResponder<M>;
 }
 
@@ -235,7 +235,7 @@ export class RemoteDialogs<M extends Match = any> {
     }
 }
 
-interface DialogInstances {
+export interface DialogInstances {
     newInstance: (name: string, dialogData: any) => Observizeable<string>,
     getDialogData: (dialogInstance: DialogInstance) => Observizeable<any>,
     setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observizeable<void>
@@ -270,6 +270,7 @@ export class LocalDialogs<M extends Match = any> {
     }
 }
 
+/*
 // Sample implementation
 
 const dialogStack: {
@@ -337,3 +338,4 @@ dialogs.addRule('/', first(
 ));
 
 const appRule: IRule<IGameMatch> = dialogs.runIfActive();
+*/
