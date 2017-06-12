@@ -14,10 +14,10 @@ const rootDialogInstance: DialogInstance = {
 
 export interface IDialogMatch {
     currentDialogInstance?: DialogInstance;
-    beginDialog(name: string, args?: any): void;
-    replaceDialog(name: string, args?: any): void;
-    endDialog(): void;
-    clearDialog(): void;
+    beginChildDialog(name: string, args?: any): void;
+    replaceThisDialog(name: string, args?: any): void;
+    endThisDialog(): void;
+    clearChildDialog(): void;
 }
 
 export interface IDialogStateMatch<DIALOGSTATE> {
@@ -67,14 +67,14 @@ export class Dialogs<M extends Match = any> {
                         return dialog.tryMatch(activeDialogInstance, {
                                 ... match as any,
                                 currentDialogInstance: activeDialogInstance,
-                                beginDialog: (name: string, args?: any) => addDialogTask(tasks, match, activeDialogInstance, name, args),
-                                replaceDialog: match.currentDialogInstance
+                                beginChildDialog: (name: string, args?: any) => addDialogTask(tasks, match, activeDialogInstance, name, args),
+                                replaceThisDialog: match.currentDialogInstance
                                     ? (name: string, args?: any) => addDialogTask(tasks, match, match.currentDialogInstance, name, args)
                                     : () => console.warn("You cannot replace the root dialog"),
-                                endDialog: match.currentDialogInstance
+                                endThisDialog: match.currentDialogInstance
                                     ? () => addDialogTask(tasks, match, activeDialogInstance)
                                     : () => console.warn("You cannot end the root dialog"),
-                                clearDialog: () => addDialogTask(tasks, match, match.currentDialogInstance || activeDialogInstance),
+                                clearChildDialog: () => addDialogTask(tasks, match, match.currentDialogInstance || activeDialogInstance),
                             })
                             .flatMap(ruleResult =>
                                 Observable.from(tasks)
@@ -200,12 +200,14 @@ export class RemoteDialogs<M extends Match = any> {
     }
 }
 
+interface DialogInstances {
+    newInstance: (name: string, dialogData: any) => Observizeable<string>,
+    getDialogData: (dialogInstance: DialogInstance) => Observizeable<any>,
+    setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observizeable<void>
+}
+
 export class LocalDialogs<M extends Match = any> {
-    constructor(
-        private newDialogInstance: (name: string, dialogData: any) => Observizeable<string>,
-        private getDialogData: (dialogInstance: DialogInstance) => Observizeable<any>,
-        private setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observizeable<void>
-    ) {
+    constructor(private dialogInstances: DialogInstances) {
     }
 
     dialog<DIALOGDATA = undefined, ARGS = any>(
@@ -215,17 +217,17 @@ export class LocalDialogs<M extends Match = any> {
         return {
             invoke: (name: string, args?: ARGS) =>
                 (init ? observize(init(args)) : Observable.of({}))
-                    .flatMap(dialogData => observize(this.newDialogInstance(name, dialogData))),
+                    .flatMap(dialogData => observize(this.dialogInstances.newInstance(name, dialogData))),
 
             tryMatch: (dialogInstance: DialogInstance, match: M) =>
-                observize(this.getDialogData(dialogInstance) as DIALOGDATA)
+                observize(this.dialogInstances.getDialogData(dialogInstance) as DIALOGDATA)
                     .flatMap(dialogData =>
                         rule.tryMatch({
                             ... match as any,
                             dialogData
                         })
                         .flatMap(ruleResult =>
-                            observize(this.setDialogData(dialogInstance, dialogData))
+                            observize(this.dialogInstances.setDialogData(dialogInstance, dialogData))
                             .map(_ => ruleResult)
                         )
                     )
@@ -256,29 +258,29 @@ const dialogDataStorage: {
     [name: string]: any[];
 } = {};
 
-const newDialogInstance = (name: string, dialogData: any = {}) => {
-    if (!dialogDataStorage[name])
-        dialogDataStorage[name] = [];
-    return (dialogDataStorage[name].push(dialogData) - 1).toString();
-}
-
-const getDialogData = (dialogInstance: DialogInstance) =>
-    dialogDataStorage[dialogInstance.name][dialogInstance.instance];
-
-const setDialogData = (dialogInstance: DialogInstance, dialogData?: any) => {
-    dialogDataStorage[dialogInstance.name][dialogInstance.instance] = dialogData;
+const dialogInstances: DialogInstances = {
+    newInstance: (name: string, dialogData: any = {}) => {
+            if (!dialogDataStorage[name])
+                dialogDataStorage[name] = [];
+            return (dialogDataStorage[name].push(dialogData) - 1).toString();
+        },
+    getDialogData: (dialogInstance: DialogInstance) =>
+        dialogDataStorage[dialogInstance.name][dialogInstance.instance],
+    setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => {
+        dialogDataStorage[dialogInstance.name][dialogInstance.instance] = dialogData;
+    }
 }
 
 import { first } from './Rules';
 import { re } from './RegExp';
 
-const local = new LocalDialogs<IGameMatch>(newDialogInstance, getDialogData, setDialogData);
+const local = new LocalDialogs<IGameMatch>(dialogInstances);
 const gameDialog = local.dialog<{
     num: number;
 }>(
     first(
         dialogs.rule(),
-        re(/stocks/, m => m.beginDialog('stocks')),
+        re(/stocks/, m => m.beginChildDialog('stocks')),
         re(/answer/, m => m.reply(`The answer is ${m.dialogData.num}`)),
     ),
     () => ({ num: Math.random() * 100 })
@@ -290,10 +292,10 @@ dialogs.addRule('stocks', first(
 ));
 
 dialogs.addRule('/', first(
-    re(/cancel/, m => m.clearDialog()),
+    re(/cancel/, m => m.clearChildDialog()),
     re(/time/, m => m.reply(`the time is ${Date.now}`)),
     dialogs.rule(),
-    re(/start game/, m => m.beginDialog('game')),
+    re(/start game/, m => m.beginChildDialog('game')),
 ));
 
 const appRule: IRule<IGameMatch> = dialogs.rule();
