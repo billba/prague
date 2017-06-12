@@ -16,7 +16,7 @@ export interface IDialogMatch {
     currentDialogInstance?: DialogInstance;
     beginChildDialog(name: string, args?: any): void;
     replaceThisDialog(name: string, args?: any): void;
-    endThisDialog(): void;
+    endThisDialog(args?: any): void;
     clearChildDialog(): void;
 }
 
@@ -33,58 +33,29 @@ interface DialogTask {
     (): Observable<void>;
 }
 
+interface DialogStack {
+    getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) => Observizeable<DialogInstance>;
+    setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>;
+}
+
+interface IDialogResponderMatch {
+    dialogResponse: any;
+}
+
+interface DialogResponder<M extends Match = any> {
+    (match: M & IDialogMatch & IDialogResponderMatch): Observizeable<void>;
+}
+
+interface DialogResponders<M extends Match = any> {
+    [name: string]: DialogResponder<M>;
+}
+
 export class Dialogs<M extends Match = any> {
     private dialogs: {
         [name: string]: IDialog<M & IDialogMatch>;
     }
 
-    private dialogRule: IRule<M>;
-
-    constructor(
-        private getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) => Observizeable<DialogInstance>,
-        private setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>,
-    ) {
-        const dialogs = this.dialogs,
-            addDialogTask = this.addDialogTask;
-        
-        this.dialogRule = new class extends BaseRule<M & IDialogMatch> {
-            constructor() {
-                super();
-            }
-            tryMatch(match: M & IDialogMatch): Observable<RuleResult> {
-                return (
-                    match.currentDialogInstance
-                        ? observize(getActiveDialogInstance(match, match.currentDialogInstance))
-                        : Observable.of(rootDialogInstance)
-                    )
-                    .flatMap(activeDialogInstance => {
-                        const dialog = dialogs[activeDialogInstance.name];
-                        if (!dialog) {
-                            console.warn(`A dialog named "${activeDialogInstance.name}" doesn't exist.`);
-                            return Observable.empty<RuleResult>();
-                        }
-                        const tasks: DialogTask[] = [];
-                        return dialog.tryMatch(activeDialogInstance, {
-                                ... match as any,
-                                currentDialogInstance: activeDialogInstance,
-                                beginChildDialog: (name: string, args?: any) => addDialogTask(tasks, match, activeDialogInstance, name, args),
-                                replaceThisDialog: match.currentDialogInstance
-                                    ? (name: string, args?: any) => addDialogTask(tasks, match, match.currentDialogInstance, name, args)
-                                    : () => console.warn("You cannot replace the root dialog"),
-                                endThisDialog: match.currentDialogInstance
-                                    ? () => addDialogTask(tasks, match, activeDialogInstance)
-                                    : () => console.warn("You cannot end the root dialog"),
-                                clearChildDialog: () => addDialogTask(tasks, match, match.currentDialogInstance || activeDialogInstance),
-                            })
-                            .flatMap(ruleResult =>
-                                Observable.from(tasks)
-                                    .flatMap(task => task(), 1)
-                                    .count()
-                                    .map(_ => ruleResult)
-                            )
-                    });
-            }
-        }
+    constructor(private dialogStack: DialogStack) {
     }
 
     add(name: string, dialog: IDialog<M & IDialogMatch>) {
@@ -102,10 +73,6 @@ export class Dialogs<M extends Match = any> {
         });
     }
 
-    invoke(name: string, match: M & IDialogMatch, args?: any): Observable<void> {
-        return ;
-    }
-
     private addDialogTask(
         tasks: DialogTask[],
         match: M & IDialogMatch,
@@ -119,18 +86,86 @@ export class Dialogs<M extends Match = any> {
                 console.warn(`You attempted to begin a dialog named "${name}" but no dialog with that name exists.`);
                 return;
             }
-
             tasks.push(() => Observable.of(dialog)
                 .flatMap(dialog => dialog.invoke(args))
-                .flatMap(instance => observize(this.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
+                .flatMap(instance => observize(this.dialogStack.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
             );
         } else {
-            tasks.push(() => observize(this.setActiveDialogInstance(match, parentDialogInstance)));
+            tasks.push(() => observize(this.dialogStack.setActiveDialogInstance(match, parentDialogInstance)));
         }
     }
 
-    rule<ANYMATCH extends Match = M>(): IRule<ANYMATCH> {
-        return this.dialogRule as any as IRule<ANYMATCH>;
+    runIfActive<ANYMATCH extends Match = M>(name: string, responder: DialogResponder<ANYMATCH>): IRule<ANYMATCH>;
+    runIfActive<ANYMATCH extends Match = M>(responders?: DialogResponders<ANYMATCH>): IRule<ANYMATCH>;
+    runIfActive<ANYMATCH extends Match = M>(... args: any[]): IRule<ANYMATCH> {
+        const dialogs = this.dialogs,
+            dialogStack = this.dialogStack,
+            addDialogTask = this.addDialogTask as any as (
+                tasks: DialogTask[],
+                match: ANYMATCH & IDialogMatch,
+                parentDialogInstance: DialogInstance,
+                name?: string,
+                args?: any
+            ) => void;
+        
+        return new class extends BaseRule<ANYMATCH & IDialogMatch> {
+            responders: DialogResponders<ANYMATCH>;
+
+            constructor(... args: any[]) {
+                super();
+                if (args.length === 2)
+                    this.responders = { [args[0]]: args[1] };
+                else if (args.length === 1)
+                    this.responders = args[0];
+            }
+
+            tryMatch(match: ANYMATCH & IDialogMatch): Observable<RuleResult> {
+                return (
+                    match.currentDialogInstance
+                        ? observize(dialogStack.getActiveDialogInstance(match, match.currentDialogInstance))
+                        : Observable.of(rootDialogInstance)
+                    )
+                    .flatMap(activeDialogInstance => {
+                        let responder: DialogResponder;
+                        if (this.responders) {
+                            responder = this.responders[activeDialogInstance.name];
+                            if (!responder)
+                                return Observable.empty<RuleResult>();
+                        }
+                        const dialog = dialogs[activeDialogInstance.name];
+                        if (!dialog) {
+                            console.warn(`A dialog named "${activeDialogInstance.name}" doesn't exist.`);
+                            return Observable.empty<RuleResult>();
+                        }
+                        const tasks: DialogTask[] = [];
+                        return dialog.tryMatch(activeDialogInstance, {
+                                ... match as any,
+                                currentDialogInstance: activeDialogInstance,
+                                beginChildDialog: (name: string, args?: any) => addDialogTask(tasks, match, activeDialogInstance, name, args),
+                                replaceThisDialog: match.currentDialogInstance
+                                    ? (name: string, args?: any) => addDialogTask(tasks, match, match.currentDialogInstance, name, args)
+                                    : () => console.warn("You cannot replace the root dialog"),
+                                endThisDialog: match.currentDialogInstance
+                                    ? (args?: any) => {
+                                        addDialogTask(tasks, match, activeDialogInstance);
+                                        if (responder)
+                                            tasks.push(() => observize(responder({
+                                                ... match as any,
+                                                dialogResponse: args
+                                            })));
+                                    }
+                                    : () => console.warn("You cannot end the root dialog"),
+                                clearChildDialog: () => addDialogTask(tasks, match, match.currentDialogInstance || activeDialogInstance),
+                            })
+                            .flatMap(ruleResult =>
+                                Observable.from(tasks)
+                                    .flatMap(task => task(), 1)
+                                    .count()
+                                    .map(_ => ruleResult)
+                            )
+                    });
+            }
+        }(args) as IRule<ANYMATCH>
     }
 }
 
@@ -241,10 +276,12 @@ const dialogStack: {
     [name: string]: DialogInstance;
 } = {};
 
-const getActiveDialogInstance = (match: any, currentDialogInstance: DialogInstance) =>
-    dialogStack[match.currentDialogInstance.name];
-const setActiveDialogInstance = (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => {
-    dialogStack[match.currentDialogInstance.name] = activeDialogInstance;
+const ds = {
+    getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) =>
+        dialogStack[match.currentDialogInstance.name],
+    setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => {
+        dialogStack[match.currentDialogInstance.name] = activeDialogInstance
+    }
 }
 
 interface IGameMatch extends Match {
@@ -252,7 +289,7 @@ interface IGameMatch extends Match {
     reply: (text: string) => void;
 }
 
-const dialogs = new Dialogs<IGameMatch>(getActiveDialogInstance, setActiveDialogInstance);
+const dialogs = new Dialogs<IGameMatch>(ds);
 
 const dialogDataStorage: {
     [name: string]: any[];
@@ -279,9 +316,10 @@ const gameDialog = local.dialog<{
     num: number;
 }>(
     first(
-        dialogs.rule(),
+        dialogs.runIfActive(),
         re(/stocks/, m => m.beginChildDialog('stocks')),
         re(/answer/, m => m.reply(`The answer is ${m.dialogData.num}`)),
+        m => m.endThisDialog("foo")
     ),
     () => ({ num: Math.random() * 100 })
 );
@@ -294,8 +332,8 @@ dialogs.addRule('stocks', first(
 dialogs.addRule('/', first(
     re(/cancel/, m => m.clearChildDialog()),
     re(/time/, m => m.reply(`the time is ${Date.now}`)),
-    dialogs.rule(),
+    dialogs.runIfActive('game', m => m.reply(`The name of the game is ${m.dialogResponse}`)),
     re(/start game/, m => m.beginChildDialog('game')),
 ));
 
-const appRule: IRule<IGameMatch> = dialogs.rule();
+const appRule: IRule<IGameMatch> = dialogs.runIfActive();
