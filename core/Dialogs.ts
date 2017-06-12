@@ -17,7 +17,7 @@ export interface IDialogMatch {
     beginDialog(name: string, args?: any): void;
     replaceDialog(name: string, args?: any): void;
     endDialog(): void;
-    clearDialogs(): void;
+    clearDialog(): void;
 }
 
 export interface IDialogStateMatch<DIALOGSTATE> {
@@ -29,31 +29,8 @@ export interface IDialog<M extends Match & IDialogMatch> {
     tryMatch(dialogInstance: DialogInstance, match: M): Observable<RuleResult>;
 }
 
-class DialogRule<M extends Match & IDialogMatch> extends BaseRule<M> {
-    constructor(
-        private getActiveDialogInstance: (match: M) => Observizeable<DialogInstance>,
-        private setActiveDialogInstance: (match: M, activeDialog?: DialogInstance) => Observizeable<void>,
-        private dialogs: {
-            [name: string]: IDialog<M>;
-        }
-    ) {
-        super();
-    }
-
-    tryMatch(match: M): Observable<RuleResult> {
-        return observize(this.getActiveDialogInstance(match))
-            .flatMap(activeDialogInstance => {
-                const dialog = this.dialogs[activeDialogInstance.name];
-                if (!dialog) {
-                    console.warn(`A dialog named "${activeDialogInstance.name}" doesn't exist.`);
-                    return Observable.empty<RuleResult>();
-                }
-                return dialog.tryMatch(match.currentDialogInstance, {
-                        ... match as any,
-                        currentDialogInstance: activeDialogInstance
-                    });
-            });
-    }
+interface DialogTask {
+    (): Observable<void>;
 }
 
 export class Dialogs<M extends Match = any> {
@@ -63,23 +40,55 @@ export class Dialogs<M extends Match = any> {
 
     private dialogRule: IRule<M>;
 
-    private tasks: (() => Observable<void>)[] = [];
-
     constructor(
-        private getActiveDialogInstance: (match: M & IDialogMatch) => Observizeable<DialogInstance>,
-        private setActiveDialogInstance: (match: M & IDialogMatch, activeDialog?: DialogInstance) => Observizeable<void>
+        private getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) => Observizeable<DialogInstance>,
+        private setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>,
     ) {
-        this.dialogRule = new DialogRule(getActiveDialogInstance, setActiveDialogInstance, this.dialogs)
-            .prependMatcher(this.matchDialog());
-    }
-
-    private matchDialog(currentDialogInstance: DialogInstance = rootDialogInstance) {
-        return (match: M) => match && {
-            ... match as any,
-            currentDialogInstance,
-            // beginDialog: (name: string, args?: any) => this.beginDialog(match, name, args),
-            // endDialog:
-        } as M & IDialogMatch
+        const dialogs = this.dialogs,
+            beginDialog = this.beginDialog,
+            clearDialog = this.clearDialog;
+        
+        this.dialogRule = new class extends BaseRule<M & IDialogMatch> {
+            constructor() {
+                super();
+            }
+            tryMatch(match: M & IDialogMatch): Observable<RuleResult> {
+                return (
+                    match.currentDialogInstance
+                        ? observize(getActiveDialogInstance(match, match.currentDialogInstance))
+                        : Observable.of(rootDialogInstance)
+                    )
+                    .flatMap(activeDialogInstance => {
+                        const dialog = dialogs[activeDialogInstance.name];
+                        if (!dialog) {
+                            console.warn(`A dialog named "${activeDialogInstance.name}" doesn't exist.`);
+                            return Observable.empty<RuleResult>();
+                        }
+                        const tasks: DialogTask[] = [];
+                        return dialog.tryMatch(activeDialogInstance, {
+                                ... match as any,
+                                currentDialogInstance: activeDialogInstance,
+                                beginDialog: (name: string, args?: any) => beginDialog(tasks, match, activeDialogInstance, name, args),
+                                replaceDialog: match.currentDialogInstance
+                                    ? (name: string, args?: any) => {
+                                            clearDialog(tasks, match, match.currentDialogInstance);
+                                            beginDialog(tasks, match, match.currentDialogInstance, name, args);
+                                        }
+                                    : () => console.warn("You cannot replace the root dialog"),
+                                endDialog: match.currentDialogInstance
+                                    ? () => clearDialog(tasks, match, activeDialogInstance)
+                                    : () => console.warn("You cannot end the root dialog"),
+                                clearDialog: () => clearDialog(tasks, match, match.currentDialogInstance || activeDialogInstance),
+                            })
+                            .flatMap(ruleResult =>
+                                Observable.from(tasks)
+                                    .flatMap(task => task(), 1)
+                                    .count()
+                                    .map(_ => ruleResult)
+                            )
+                    });
+            }
+        }
     }
 
     add(name: string, dialog: IDialog<M & IDialogMatch>) {
@@ -98,14 +107,30 @@ export class Dialogs<M extends Match = any> {
     }
 
     invoke(name: string, match: M & IDialogMatch, args?: any): Observable<void> {
-        return Observable.of(this.dialogs[name])
-            .flatMap(dialog => dialog.invoke(args))
-            .flatMap(instance => observize(this.setActiveDialogInstance(match, { name, instance })));
+        return ;
     }
 
-    beginDialog(name: string, match: M & IDialogMatch, args?: any) {
-        this.tasks.push(() => 
+    private beginDialog(
+        tasks: DialogTask[],
+        match: M & IDialogMatch,
+        parentDialogInstance: DialogInstance,
+        name: string,
+        args?: any
+    ) {
+        const dialog = this.dialogs[name];
+        if (!dialog) {
+            console.warn(`You attempted to begin a dialog named "${name}" but no dialog with that name exists.`);
+            return;
+        }
+
+        tasks.push(() => Observable.of(dialog)
+            .flatMap(dialog => dialog.invoke(args))
+            .flatMap(instance => observize(this.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
         );
+    }
+
+    private clearDialog(tasks: DialogTask[], match: M & IDialogMatch, parentDialogInstance: DialogInstance) {
+        tasks.push(() => observize(this.setActiveDialogInstance(match, parentDialogInstance)));
     }
 
     rule<ANYMATCH extends Match = M>(): IRule<ANYMATCH> {
@@ -113,14 +138,16 @@ export class Dialogs<M extends Match = any> {
     }
 }
 
-export class RemoteDialogs<M extends Match & IDialogMatch = any> {
+export class RemoteDialogs<M extends Match = any> {
     constructor(
-        private matchRemoteDialog: (match: M) => any,
-        private handleSuccessfulResponse: (response: any) => any
+        private matchRemoteDialog: (match: M & IDialogMatch) => any,
+        private handleSuccessfulResponse: (response: any) => Observizeable<void>
     ) {
     }
 
-    dialog(remoteUrl: string) {
+    dialog(
+        remoteUrl: string
+    ): IDialog<M & IDialogMatch> {
         return {
             invoke: (name: string, args: any) =>
                 Observable.fromPromise(
@@ -146,7 +173,7 @@ export class RemoteDialogs<M extends Match & IDialogMatch = any> {
                         }
                     }),
 
-            tryMatch: (dialogInstance: DialogInstance, match: M) =>
+            tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch) =>
                 Observable.fromPromise(
                         fetch(
                             remoteUrl + "/tryMatch", {
@@ -177,7 +204,7 @@ export class RemoteDialogs<M extends Match & IDialogMatch = any> {
     }
 }
 
-export class LocalDialogs<M extends Match & IDialogMatch = any> {
+export class LocalDialogs<M extends Match = any> {
     constructor(
         private newDialogInstance: (name: string, dialogData: any) => Observizeable<string>,
         private getDialogData: (dialogInstance: DialogInstance) => Observizeable<any>,
@@ -185,25 +212,26 @@ export class LocalDialogs<M extends Match & IDialogMatch = any> {
     ) {
     }
 
-    dialog<DIALOGSTATE = undefined, ARGS = any>(
-        rule: IRule<M & IDialogStateMatch<DIALOGSTATE>>,
-        initialState?: (args: ARGS) => DIALOGSTATE
-    ): IDialog<M> {
+    dialog<DIALOGDATA = undefined, ARGS = any>(
+        rule: IRule<M & IDialogMatch & IDialogStateMatch<DIALOGDATA>>,
+        init?: (args: ARGS) => DIALOGDATA
+    ): IDialog<M & IDialogMatch> {
         return {
             invoke: (name: string, args?: ARGS) =>
-                (initialState ? observize(initialState(args)) : Observable.of({}))
-                    .flatMap(initialState => observize(this.newDialogInstance(name, initialState))),
+                (init ? observize(init(args)) : Observable.of({}))
+                    .flatMap(dialogData => observize(this.newDialogInstance(name, dialogData))),
 
-            tryMatch: (dialogInstance: DialogInstance, m: M) =>
-                observize(this.getDialogData(dialogInstance) as DIALOGSTATE)
+            tryMatch: (dialogInstance: DialogInstance, match: M) =>
+                observize(this.getDialogData(dialogInstance) as DIALOGDATA)
                     .flatMap(dialogData =>
                         rule.tryMatch({
-                            ... m as any,
+                            ... match as any,
                             dialogData
                         })
-                        .do(ruleResult => {
-                            this.setDialogData(dialogInstance, dialogData);
-                        })
+                        .flatMap(ruleResult =>
+                            observize(this.setDialogData(dialogInstance, dialogData))
+                            .map(_ => ruleResult)
+                        )
                     )
         }
     }
@@ -215,9 +243,15 @@ const dialogStack: {
     [name: string]: DialogInstance;
 } = {};
 
-const getActiveDialogInstance = <M extends IDialogMatch>(match: M) => dialogStack[match.currentDialogInstance.name];
-const setActiveDialogInstance = <M extends IDialogMatch>(match: M, activeDialogInstance?: DialogInstance) => {
+const getActiveDialogInstance = (match: any, currentDialogInstance: DialogInstance) =>
+    dialogStack[match.currentDialogInstance.name];
+const setActiveDialogInstance = (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => {
     dialogStack[match.currentDialogInstance.name] = activeDialogInstance;
+}
+
+interface IGameMatch extends Match {
+    text: string;
+    reply: (text: string) => void;
 }
 
 const dialogs = new Dialogs<IGameMatch>(getActiveDialogInstance, setActiveDialogInstance);
@@ -239,24 +273,13 @@ const setDialogData = (dialogInstance: DialogInstance, dialogData?: any) => {
     dialogDataStorage[dialogInstance.name][dialogInstance.instance] = dialogData;
 }
 
-interface GameState {
-    num: number;
-}
-
-interface IGameMatch extends Match {
-    text: string;
-    reply: (text: string) => void;
-    beginDialog(name: string, args?: any): void;
-    replaceDialog(name: string, args?: any): void;
-    endDialog(): void;
-    clearDialogs(): void;    
-}
-
 import { first } from './Rules';
 import { re } from './RegExp';
 
 const local = new LocalDialogs<IGameMatch>(newDialogInstance, getDialogData, setDialogData);
-const gameDialog = local.dialog<GameState>(
+const gameDialog = local.dialog<{
+    num: number;
+}>(
     first(
         dialogs.rule(),
         re(/stocks/, m => m.beginDialog('stocks')),
@@ -270,9 +293,11 @@ dialogs.addRule('stocks', first(
 
 ));
 
-const appRule: IRule<IGameMatch> = first(
-    re(/cancel/, m => m.clearDialogs()),
+dialogs.addRule('/', first(
+    re(/cancel/, m => m.clearDialog()),
     re(/time/, m => m.reply(`the time is ${Date.now}`)),
     dialogs.rule(),
     re(/start game/, m => m.beginDialog('game')),
-);
+));
+
+const appRule: IRule<IGameMatch> = dialogs.rule();
