@@ -45,8 +45,7 @@ export class Dialogs<M extends Match = any> {
         private setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>,
     ) {
         const dialogs = this.dialogs,
-            beginDialog = this.beginDialog,
-            clearDialog = this.clearDialog;
+            addDialogTask = this.addDialogTask;
         
         this.dialogRule = new class extends BaseRule<M & IDialogMatch> {
             constructor() {
@@ -68,17 +67,14 @@ export class Dialogs<M extends Match = any> {
                         return dialog.tryMatch(activeDialogInstance, {
                                 ... match as any,
                                 currentDialogInstance: activeDialogInstance,
-                                beginDialog: (name: string, args?: any) => beginDialog(tasks, match, activeDialogInstance, name, args),
+                                beginDialog: (name: string, args?: any) => addDialogTask(tasks, match, activeDialogInstance, name, args),
                                 replaceDialog: match.currentDialogInstance
-                                    ? (name: string, args?: any) => {
-                                            clearDialog(tasks, match, match.currentDialogInstance);
-                                            beginDialog(tasks, match, match.currentDialogInstance, name, args);
-                                        }
+                                    ? (name: string, args?: any) => addDialogTask(tasks, match, match.currentDialogInstance, name, args)
                                     : () => console.warn("You cannot replace the root dialog"),
                                 endDialog: match.currentDialogInstance
-                                    ? () => clearDialog(tasks, match, activeDialogInstance)
+                                    ? () => addDialogTask(tasks, match, activeDialogInstance)
                                     : () => console.warn("You cannot end the root dialog"),
-                                clearDialog: () => clearDialog(tasks, match, match.currentDialogInstance || activeDialogInstance),
+                                clearDialog: () => addDialogTask(tasks, match, match.currentDialogInstance || activeDialogInstance),
                             })
                             .flatMap(ruleResult =>
                                 Observable.from(tasks)
@@ -110,27 +106,27 @@ export class Dialogs<M extends Match = any> {
         return ;
     }
 
-    private beginDialog(
+    private addDialogTask(
         tasks: DialogTask[],
         match: M & IDialogMatch,
         parentDialogInstance: DialogInstance,
-        name: string,
+        name?: string,
         args?: any
     ) {
-        const dialog = this.dialogs[name];
-        if (!dialog) {
-            console.warn(`You attempted to begin a dialog named "${name}" but no dialog with that name exists.`);
-            return;
+        if (name) {
+            const dialog = this.dialogs[name];
+            if (!dialog) {
+                console.warn(`You attempted to begin a dialog named "${name}" but no dialog with that name exists.`);
+                return;
+            }
+
+            tasks.push(() => Observable.of(dialog)
+                .flatMap(dialog => dialog.invoke(args))
+                .flatMap(instance => observize(this.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
+            );
+        } else {
+            tasks.push(() => observize(this.setActiveDialogInstance(match, parentDialogInstance)));
         }
-
-        tasks.push(() => Observable.of(dialog)
-            .flatMap(dialog => dialog.invoke(args))
-            .flatMap(instance => observize(this.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
-        );
-    }
-
-    private clearDialog(tasks: DialogTask[], match: M & IDialogMatch, parentDialogInstance: DialogInstance) {
-        tasks.push(() => observize(this.setActiveDialogInstance(match, parentDialogInstance)));
     }
 
     rule<ANYMATCH extends Match = M>(): IRule<ANYMATCH> {
