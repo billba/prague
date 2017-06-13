@@ -28,13 +28,13 @@ export type Handler<Z extends Match = any> = (match: Z) => Observizeable<any>;
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
-export const observize = <T>(t: Observizeable<T>) => {
-    if (!t)
+export const observize = <T>(t: Observizeable<T>, filterResults = true) => {
+    if (filterResults && !t)
         return Observable.empty<T>();
     if (t instanceof Observable)
-        return t.filter(i => !!i);
+        return t.filter(i => !filterResults || !!i);
     if (t instanceof Promise)
-        return Observable.fromPromise<T>(t).filter(i => !!i);
+        return Observable.fromPromise<T>(t).filter(i => !filterResults || !!i);
     return Observable.of(t);
 }
 
@@ -60,7 +60,7 @@ export abstract class BaseRule<M extends Match = any> implements IRule<M> {
     callHandlerIfMatch(match: M): Observable<any> {
         return this.tryMatch(match)
             .do(result => konsole.log("handle: matched a rule", result))
-            .flatMap(result => observize(result.action()))
+            .flatMap(result => observize(result.action(), false))
             .do(_ => konsole.log("handle: called action"));
     }
 
