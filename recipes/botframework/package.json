@@ -12,11 +12,11 @@
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^2.3.2"
+    "typescript": "^2.4.0-dev.20170612"
   },
   "dependencies": {
     "botframework-directlinejs": "^0.9.6",
-    "prague": "0.6.5",
+    "prague": "../../",
     "rxjs": "^5.3.0"
   }
 }
