@@ -16,6 +16,7 @@
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^7.0.31",
     "typescript": "^2.4.0-dev.20170610"
   },
   "dependencies": {
