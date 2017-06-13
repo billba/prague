@@ -12,11 +12,11 @@ const rootDialogInstance: DialogInstance = {
     instance: undefined
 }
 
-export interface IDialogMatch {
+export interface IDialogMatch<DIALOGRESPONSE extends object = object> {
     dialogInstance?: DialogInstance;
-    beginChildDialog(name: string, args?: any): void;
-    replaceThisDialog(name: string, args?: any): void;
-    endThisDialog(args?: object): void;
+    beginChildDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS): void;
+    replaceThisDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS): void;
+    endThisDialog(args?: DIALOGRESPONSE): void;
     clearChildDialog(): void;
 }
 
@@ -28,9 +28,9 @@ export interface IDialogArgsMatch<DIALOGARGS> {
     dialogArgs: DIALOGARGS;
 }
 
-export interface IDialog<M extends Match = any, DIALOGARGS = any> {
-    invoke(name: string, match: M & IDialogMatch & IDialogArgsMatch<DIALOGARGS>): Observable<string>;
-    tryMatch(dialogInstance: DialogInstance, match: M & IDialogMatch): Observable<RuleResult>;
+export interface IDialog<M extends Match = any, DIALOGARGS = any, DIALOGRESPONSE extends object = object> {
+    invoke(name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>): Observable<string>;
+    tryMatch(dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>): Observable<RuleResult>;
 }
 
 interface DialogTask {
@@ -42,12 +42,12 @@ export interface DialogStack {
     setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>;
 }
 
-export interface IDialogResponderMatch {
-    dialogResponse: any;
+export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
+    dialogResponse: DIALOGRESPONSE;
 }
 
-export interface DialogResponder<M extends Match = any> {
-    (match: M & IDialogMatch & IDialogResponderMatch): Observizeable<void>;
+export interface DialogResponder<M extends Match = any, DIALOGRESPONSE extends object = object> {
+    (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogResponderMatch<DIALOGRESPONSE>): Observizeable<void>;
 }
 
 export interface DialogResponders<M extends Match = any> {
@@ -70,10 +70,10 @@ export class Dialogs<M extends Match = any> {
         this.dialogs[name] = dialog;
     }
 
-    addRule(name: string, rule: IRule<M & IDialogMatch>) {
+    addRule<DIALOGRESPONSE extends object = object>(name: string, rule: IRule<M & IDialogMatch<DIALOGRESPONSE>>) {
         this.add(name, {
             invoke: () => Observable.of("shared instance"),
-            tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch) => rule.tryMatch(match)
+            tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>) => rule.tryMatch(match)
         });
     }
 
@@ -257,12 +257,12 @@ export class LocalDialogs<M extends Match = any> {
     constructor(private dialogInstances: DialogInstances) {
     }
 
-    dialog<DIALOGDATA = undefined, DIALOGARGS = any>(
-        rule: IRule<M & IDialogMatch & IDialogStateMatch<DIALOGDATA>>,
-        init?: (match: M & IDialogMatch & IDialogArgsMatch<DIALOGARGS>) => DIALOGDATA
-    ): IDialog<M & IDialogMatch> {
+    dialog<DIALOGDATA = undefined, DIALOGARGS = any, DIALOGRESPONSE extends object = object>(
+        rule: IRule<M & IDialogMatch<DIALOGRESPONSE> & IDialogStateMatch<DIALOGDATA>>,
+        init?: (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) => DIALOGDATA
+    ): IDialog<M & IDialogMatch<DIALOGRESPONSE>> {
         return {
-            invoke: (name: string, match: M & IDialogMatch & IDialogArgsMatch<DIALOGARGS>) =>
+            invoke: (name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) =>
                 (init ? observize(init(match)) : Observable.of({}))
                     .flatMap(dialogData => observize(this.dialogInstances.newInstance(name, dialogData))),
 
