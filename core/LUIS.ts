@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observizeable, observize, ruleize } from './Rules';
+import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observableable, toFilteredObservable, ruleize } from './Rules';
 import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
@@ -212,7 +212,7 @@ class BestMatchingLuisRule<M extends Match & ITextMatch> extends BaseRule<M> {
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        return observize(this.matchModel(match))
+        return toFilteredObservable(this.matchModel(match))
             .flatMap(m =>
                 Observable.from(m.luisResponse.intents)
                 .flatMap(

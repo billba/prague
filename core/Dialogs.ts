@@ -1,4 +1,4 @@
-import { Match, IRule, BaseRule, RuleResult, Observizeable, observize } from './Rules';
+import { Match, IRule, BaseRule, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -38,8 +38,8 @@ interface DialogTask {
 }
 
 export interface DialogStack {
-    getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) => Observizeable<DialogInstance>;
-    setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observizeable<void>;
+    getActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance) => Observableable<DialogInstance>;
+    setActiveDialogInstance: (match: any, currentDialogInstance: DialogInstance, activeDialogInstance?: DialogInstance) => Observableable<void>;
 }
 
 export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
@@ -47,7 +47,7 @@ export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
 }
 
 export interface DialogResponder<M extends Match = any, DIALOGRESPONSE extends object = object> {
-    (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogResponderMatch<DIALOGRESPONSE>): Observizeable<void>;
+    (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogResponderMatch<DIALOGRESPONSE>): Observableable<void>;
 }
 
 export interface DialogResponders<M extends Match = any> {
@@ -95,10 +95,10 @@ export class Dialogs<M extends Match = any> {
                     ... match as any,
                     dialogArgs: args
                 }))
-                .flatMap(instance => observize(this.dialogStack.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
+                .flatMap(instance => toObservable(this.dialogStack.setActiveDialogInstance(match, parentDialogInstance, { name, instance })))
             );
         } else {
-            tasks.push(() => observize(this.dialogStack.setActiveDialogInstance(match, parentDialogInstance)));
+            tasks.push(() => toObservable(this.dialogStack.setActiveDialogInstance(match, parentDialogInstance)));
         }
     }
 
@@ -130,7 +130,7 @@ export class Dialogs<M extends Match = any> {
                 console.log("runifActive.tryMatch", match, dialogStack);
                 return (
                     match.dialogInstance
-                        ? observize(dialogStack.getActiveDialogInstance(match, match.dialogInstance))
+                        ? toFilteredObservable(dialogStack.getActiveDialogInstance(match, match.dialogInstance))
                         : Observable.of(rootDialogInstance)
                     )
                     .flatMap(activeDialogInstance => {
@@ -157,7 +157,7 @@ export class Dialogs<M extends Match = any> {
                                     ? (args?: object) => {
                                         addDialogTask(tasks, match, match.dialogInstance);
                                         if (responder)
-                                            tasks.push(() => observize(responder({
+                                            tasks.push(() => toObservable(responder({
                                                 ... match as any,
                                                 dialogResponse: args
                                             })));
@@ -168,7 +168,7 @@ export class Dialogs<M extends Match = any> {
                             .map(ruleResult => ({
                                 ... ruleResult,
                                 action: () =>
-                                    observize(ruleResult.action(), false)
+                                    toObservable(ruleResult.action())
                                         .flatMap(_ =>
                                             Observable.from(tasks)
                                             .flatMap(task => task(), 1)
@@ -181,6 +181,7 @@ export class Dialogs<M extends Match = any> {
     }
 }
 
+/*
 export class RemoteDialogs<M extends Match = any> {
     constructor(
         private matchRemoteDialog: (match: M & IDialogMatch) => any,
@@ -236,7 +237,7 @@ export class RemoteDialogs<M extends Match = any> {
                             case 'result':
                                 return observize(this.handleSuccessfulResponse(json.ruleResult));
                             case 'matchless':
-                                return Observable.empty();
+                                return Observable.empty<void>();
                             case 'error':
                                 return Observable.throw(`RemoteDialog.tryMatch() returned error "${json.error}".`);
                             default:
@@ -246,28 +247,33 @@ export class RemoteDialogs<M extends Match = any> {
         }
     }
 }
+*/
 
 export interface DialogInstances {
-    newInstance: (name: string, dialogData: any) => Observizeable<string>,
-    getDialogData: (dialogInstance: DialogInstance) => Observizeable<any>,
-    setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observizeable<void>
+    newInstance: (name: string, dialogData: any) => Observableable<string>,
+    getDialogData: (dialogInstance: DialogInstance) => Observableable<any>,
+    setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observableable<void>
 }
 
 export class LocalDialogs<M extends Match = any> {
     constructor(private dialogInstances: DialogInstances) {
     }
 
-    dialog<DIALOGDATA = undefined, DIALOGARGS = any, DIALOGRESPONSE extends object = object>(
+    dialog<
+        DIALOGDATA = undefined,
+        DIALOGARGS = any,
+        DIALOGRESPONSE extends object = object
+    >(
         rule: IRule<M & IDialogMatch<DIALOGRESPONSE> & IDialogStateMatch<DIALOGDATA>>,
         init?: (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) => DIALOGDATA
     ): IDialog<M & IDialogMatch<DIALOGRESPONSE>> {
         return {
             invoke: (name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) =>
-                (init ? observize(init(match)) : Observable.of({}))
-                    .flatMap(dialogData => observize(this.dialogInstances.newInstance(name, dialogData))),
+                (init ? toObservable(init(match)) : Observable.of({}))
+                    .flatMap(dialogData => toObservable(this.dialogInstances.newInstance(name, dialogData))),
 
             tryMatch: (dialogInstance: DialogInstance, match: M) =>
-                observize(this.dialogInstances.getDialogData(dialogInstance) as DIALOGDATA)
+                toObservable(this.dialogInstances.getDialogData(dialogInstance) as DIALOGDATA)
                     .flatMap(dialogData =>
                         rule.tryMatch({
                             ... match as any,
@@ -276,8 +282,8 @@ export class LocalDialogs<M extends Match = any> {
                         .map(ruleResult => ({
                             ... ruleResult,
                             action: () =>
-                                observize(ruleResult.action(), false)
-                                .flatMap(_ => observize(this.dialogInstances.setDialogData(dialogInstance, dialogData)))
+                                toObservable(ruleResult.action())
+                                .flatMap(_ => toFilteredObservable(this.dialogInstances.setDialogData(dialogInstance, dialogData)))
                         }))
                     )
         }

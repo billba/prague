@@ -1,5 +1,5 @@
 import { konsole } from './Konsole';
-import { IRule, SimpleRule, Observizeable, RuleResult, BaseRule, Matcher, Handler, Match, observize, combineMatchers } from './Rules';
+import { IRule, SimpleRule, Observableable, RuleResult, BaseRule, Matcher, Handler, Match, combineMatchers } from './Rules';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 
