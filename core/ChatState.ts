@@ -1,6 +1,6 @@
-export interface ChatState<BOT = undefined, USER = undefined, CHANNEL = undefined, CONVERSATION = undefined, USERINCONVERSATION = undefined> {
+export interface ChatState<BOT = undefined, USERINCHANNEL = undefined, CHANNEL = undefined, CONVERSATION = undefined, USERINCONVERSATION = undefined> {
     bot?: BOT
-    user?: USER,
+    userInChannel?: USERINCHANNEL,
     channel?: CHANNEL,
     conversation?: CONVERSATION,
     userInConversation?: USERINCONVERSATION

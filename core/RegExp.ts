@@ -1,13 +1,13 @@
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 import { ITextMatch } from './Text';
-import { IRule, SimpleRule, Matcher, Handler, arrayize } from './Rules';
+import { Match, IRule, SimpleRule, Matcher, Handler, arrayize } from './Rules';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
-export const matchRegExp = <M extends ITextMatch = any>(intents: RegExp | RegExp[]): Matcher<M, M & IRegExpMatch> =>
+export const matchRegExp = <M extends Match & ITextMatch = any>(intents: RegExp | RegExp[]): Matcher<M, M & IRegExpMatch> =>
     (match) => 
         Observable.from(arrayize(intents))
         .do(_ => konsole.log("RegExp.match matching", match))
@@ -22,7 +22,7 @@ export const matchRegExp = <M extends ITextMatch = any>(intents: RegExp | RegExp
         }));
 
 // Either call as re(intent, action) or re([intent, intent, ...], action)
-export const re = <M extends ITextMatch = any>(intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>) => {
+export const re = <M extends Match & ITextMatch = any>(intents: RegExp | RegExp[], handler: Handler<M & IRegExpMatch>) => {
     return new SimpleRule(
         matchRegExp(intents),
         handler

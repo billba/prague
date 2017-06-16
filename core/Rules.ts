@@ -1,11 +1,11 @@
 import { konsole } from './Konsole';
 import { Observable } from 'rxjs';
 
-export type Observizeable<T> = T | Observable<T> | Promise<T>
+export type Observableable<T> = T | Observable<T> | Promise<T>
 
 export interface RuleResult {
     score?: number,
-    action: () => Observizeable<any>
+    action: () => Observableable<any>
 }
 
 export interface Match {
@@ -22,19 +22,27 @@ const minMatch = {
     score: Number.MIN_VALUE
 }
 
-export type Matcher<A extends Match = any, Z extends Match = any> = (match: A) => Observizeable<Z>;
+export type Matcher<A extends Match = any, Z extends Match = any> = (match: A) => Observableable<Z>;
 
-export type Handler<Z extends Match = any> = (match: Z) => Observizeable<any>;
+export type Handler<Z extends Match = any> = (match: Z) => Observableable<any>;
 
 export const arrayize = <T>(stuff: T | T[]) => Array.isArray(stuff) ? stuff : [stuff];
 
-export const observize = <T>(t: Observizeable<T>) => {
+export const toFilteredObservable = <T>(t: Observableable<T>) => {
     if (!t)
         return Observable.empty<T>();
     if (t instanceof Observable)
         return t.filter(i => !!i);
     if (t instanceof Promise)
         return Observable.fromPromise<T>(t).filter(i => !!i);
+    return Observable.of(t);
+}
+
+export const toObservable = <T>(t: Observableable<T>) => {
+    if (t instanceof Observable)
+        return t;
+    if (t instanceof Promise)
+        return Observable.fromPromise<T>(t);
     return Observable.of(t);
 }
 
@@ -50,7 +58,7 @@ export const matchize = <M extends Match = any>(matcher: Matcher<M>, match: M) =
     // we want to allow any matcher to be a predicate (return a boolean)
     // if so, the 'falsey' case will be filtered out by observize,
     // so we just need to catch the case where it is precisely true
-    return observize(matcher(match))
+    return toFilteredObservable(matcher(match))
         .map(m => typeof(m) === 'boolean' ? match : m);
 }
 
@@ -60,7 +68,7 @@ export abstract class BaseRule<M extends Match = any> implements IRule<M> {
     callHandlerIfMatch(match: M): Observable<any> {
         return this.tryMatch(match)
             .do(result => konsole.log("handle: matched a rule", result))
-            .flatMap(result => observize(result.action()))
+            .flatMap(result => toObservable(result.action()))
             .do(_ => konsole.log("handle: called action"));
     }
 
@@ -182,7 +190,7 @@ export class RunRule<M extends Match = any> extends BaseRule<M> {
     }
 
     tryMatch(match: M): Observable<RuleResult> {
-        return observize(this.handler(match))
+        return toFilteredObservable(this.handler(match))
         .map(_ => null);
     }
 }
@@ -224,7 +232,7 @@ export class RunRule<M extends Match = any> extends BaseRule<M> {
 //     );
 
 export interface Predicate<M extends Match = any> {
-    (match: M): Observizeable<boolean>;
+    (match: M): Observableable<boolean>;
 }
 
 export function rule<M extends Match = any>(handler: Handler<M> | IRule<M>): IRule<M>
@@ -259,6 +267,8 @@ export function rule<M extends Match = any>(... args: (Predicate | Matcher | Han
     return new SimpleRule(... args as Matcher[]) as IRule<M>;
 }
 
-export const first = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) => new FirstMatchingRule(... rules) as IRule<M>;
+export function first<M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]): IRule<M> {
+    return new FirstMatchingRule(... rules);
+}
 
 export const run = <M extends Match = any>(handler: Handler<M>) => new RunRule<M>(handler) as IRule<M>;

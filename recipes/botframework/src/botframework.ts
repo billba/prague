@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { IRule, Match, FirstMatchingRule, ITextMatch } from 'prague';
+import { IRule, Match, FirstMatchingRule, ITextMatch, konsole } from 'prague';
 import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 

@@ -6,3 +6,4 @@ export * from './core/State';
 export * from './core/ChatState';
 export * from './core/Prompt';
 export * from './core/Konsole';
+export * from './core/Dialogs';
