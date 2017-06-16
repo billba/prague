@@ -18,8 +18,10 @@ export interface IDialogRootMatch {
     clearChildDialog(): Observableable<void>;
 }
 
+export type IDialogData<DIALOGDATA> = { childDialogInstance?: DialogInstance } & DIALOGDATA;
+
 export interface IDialogMatch<DIALOGRESPONSE extends object = any, DIALOGDATA = undefined> extends IDialogRootMatch {
-    dialogData: { childDialogInstance: DialogInstance } & DIALOGDATA;
+    dialogData: IDialogData<DIALOGDATA>;
     dialogStack: DialogInstance[];
     replaceThisDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS, response?: DIALOGRESPONSE): Observableable<void>;
     endThisDialog(response?: DIALOGRESPONSE): Observableable<void>;
@@ -52,9 +54,9 @@ export interface DialogResponders<M extends Match = any> {
 }
 
 export interface LocalDialogInstances {
-    newInstance: (name: string, dialogData: any) => Observableable<string>,
-    getDialogData: (dialogInstance: DialogInstance) => Observableable<any>,
-    setDialogData: (dialogInstance: DialogInstance, dialogData?: any) => Observableable<void>
+    newInstance: <DIALOGDATA = any>(name: string, dialogData: IDialogData<DIALOGDATA>) => Observableable<string>,
+    getDialogData: <DIALOGDATA = any>(dialogInstance: DialogInstance) => Observableable<IDialogData<DIALOGDATA>>,
+    setDialogData: <DIALOGDATA = any>(dialogInstance: DialogInstance, dialogData?: IDialogData<DIALOGDATA>) => Observableable<void>
 }
 
 // export interface RemoteDialogProxy {
@@ -96,8 +98,8 @@ export class Dialogs<M extends Match = any> {
                 super();
                 if (args.length === 1)
                     this.dialogResponders = typeof args[0] === "object"
-                         ? { [args[0]]: () => {} }
-                         : args[0];
+                         ? args[0]
+                         : { [args[0]]: () => {} }
                 else if (args.length === 2)
                     this.dialogResponders = { [args[0]]: args[1] };
             }
@@ -184,7 +186,7 @@ export class Dialogs<M extends Match = any> {
                     .flatMap(dialogData => toObservable(this.localDialogInstances.newInstance(name, dialogData))),
 
             tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>) =>
-                toObservable(this.localDialogInstances.getDialogData(dialogInstance) as DIALOGDATA)
+                toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
                     .flatMap(dialogData =>
                         rule.tryMatch({
                             ... match as any,
@@ -195,10 +197,10 @@ export class Dialogs<M extends Match = any> {
                             beginChildDialog: <DIALOGARGS>(name: string, args?: DIALOGARGS) =>
                                 this.invokeDialog(match, name, args)
                                     .flatMap(dialogInstance => {
-                                        match.dialogData.childDialogInstance = dialogInstance;
+                                        dialogData.childDialogInstance = dialogInstance;
                                         return Observable.of({});
                                     }),
-                            clearChildDialog: () => match.dialogData.childDialogInstance = undefined,
+                            clearChildDialog: () => dialogData.childDialogInstance = undefined,
                         })
                         .map(ruleResult => ({
                             ... ruleResult,
