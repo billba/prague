@@ -9,13 +9,18 @@ export interface DialogInstance {
     instance: string;
 }
 
+export interface DialogRegistry<M extends Match = any> {
+    [name: string]: IDialog<M>;
+}
+
 export interface IDialogRootMatch {
+    dialogs: DialogRegistry;
     beginChildDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS): Observableable<void>;
     clearChildDialog(): Observableable<void>;
 }
 
 export interface IDialogMatch<DIALOGRESPONSE extends object = any, DIALOGDATA = undefined> extends IDialogRootMatch {
-    dialogData: DIALOGDATA;
+    dialogData: { childDialogInstance: DialogInstance } & DIALOGDATA;
     dialogStack: DialogInstance[];
     replaceThisDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS, response?: DIALOGRESPONSE): Observableable<void>;
     endThisDialog(response?: DIALOGRESPONSE): Observableable<void>;
@@ -31,8 +36,8 @@ export interface IDialog<M extends Match = any, DIALOGARGS = any, DIALOGRESPONSE
 }
 
 export interface DialogStackManager<M extends Match = any> {
-    getChildDialogInstance: (parent: DialogInstance | M) => Observableable<DialogInstance>;
-    setChildDialogInstance: (parent: DialogInstance | M, child?: DialogInstance) => Observableable<void>;
+    getRootDialogInstance: (match: M) => Observableable<DialogInstance>;
+    setRootDialogInstance: (match:  M, rootDialogInstance?: DialogInstance) => Observableable<void>;
 }
 
 export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
@@ -47,10 +52,27 @@ export interface DialogResponders<M extends Match = any> {
     [name: string]: DialogResponder<M>;
 }
 
+function setChildDialogInstance<M extends Match = any>(match: M & IDialogMatch, dialogInstance?: DialogInstance) {
+    if (match.dialogData)
+        match.dialogData.childDialogInstance = dialogInstance;
+    else
+        this.dsm.setRootDialogInstance(match, dialogInstance);
+}
+
+function beginChildDialog<M extends Match = any, DIALOGARGS = any>(dialogs: DialogRegistry, match: M, name: string, args?: DIALOGARGS) {
+    const dialog = this.dialogs[name];
+    if (!dialog)
+        throw new Error(`You attempted to begin a dialog named "${name}" but no dialog with that name exists.`);
+    
+    return dialog.invoke(name, {
+            ... match as any,
+            dialogArgs: args
+        })
+        .flatMap(instance => toObservable(setChildDialogInstance(match as any, { name, instance })));
+}
+
 export class Dialogs<M extends Match = any> {
-    private dialogs: {
-        [name: string]: IDialog<M>;
-    } = {}
+    private dialogs: DialogRegistry<M> = {}
 
     constructor(private dsm: DialogStackManager) {
     }
@@ -67,37 +89,37 @@ export class Dialogs<M extends Match = any> {
     runChildIfActive<ANYMATCH extends Match = M>(responders?: DialogResponders<ANYMATCH>): IRule<ANYMATCH>;
     runChildIfActive<ANYMATCH extends Match = M>(... args: any[]): IRule<ANYMATCH> {
         const dialogs = this.dialogs,
-            dsm: DialogStackManager<ANYMATCH> = this.dsm,
-            beginChildDialog =  <DIALOGARGS = any>(match: ANYMATCH, name: string, args?: DIALOGARGS) => this.beginChildDialog(match as any, name, args),
-            clearChildDialog = (match: ANYMATCH) =>this.dsm.setChildDialogInstance(match);
-        
+            dsm: DialogStackManager<ANYMATCH> = this.dsm;
+
         return new class extends BaseRule<ANYMATCH & IDialogMatch> {
             dialogResponders: DialogResponders<ANYMATCH>;
 
             constructor(... args: any[]) {
                 super();
                 if (args.length === 1)
-                    if (typeof args[0] === "object")
-                        this.dialogResponders = { [args[0]]: () => {} };
-                    else 
-                        this.dialogResponders = args[0];
+                    this.dialogResponders = typeof args[0] === "object"
+                         ? { [args[0]]: () => {} }
+                         : args[0];
                 else if (args.length === 2)
                     this.dialogResponders = { [args[0]]: args[1] };
             }
 
             tryMatch(match: ANYMATCH & IDialogMatch): Observable<RuleResult> {
                 console.log("runIfActive.tryMatch", match);
-                if (!match.dialogStack) {
+
+                let odi: Observable<DialogInstance>;
+                if (match.dialogStack) {
+                    odi = Observable.of(match.dialogData.childDialogInstance);
+                } else {
                     // This is being run from a non-dialog rule
                     match = {
                         ... match as any,
                         dialogStack: [],
                     }
+                    odi = toObservable(dsm.getRootDialogInstance(match));
                 }
-                return (toFilteredObservable(dsm.getChildDialogInstance(match.dialogStack.length
-                        ? match.dialogStack[match.dialogStack.length - 1]
-                        : match
-                    )))
+
+                return odi
                     .flatMap(dialogInstance => {
                         let dialogResponder: DialogResponder<ANYMATCH> = () => {};
                         if (this.dialogResponders) {
@@ -105,51 +127,41 @@ export class Dialogs<M extends Match = any> {
                             if (!dialogResponder)
                                 return Observable.empty<RuleResult>();
                         }
+
                         const dialog = dialogs[dialogInstance.name];
                         if (!dialog) {
                             console.warn(`The stack references a dialog named "${dialogInstance.name}", which doesn't exist.`);
                             return Observable.empty<RuleResult>();
                         }
+
                         return dialog.tryMatch(dialogInstance, {
                             ... match as any,
                             dialogStack: [... match.dialogStack, dialogInstance],
-                            beginChildDialog: <DIALOGARGS>(name: string, args?: DIALOGARGS) => beginChildDialog(match, name, args),
-                            clearChildDialog: () => toObservable(dsm.setChildDialogInstance(match)),
+
                             replaceThisDialog: <DIALOGARGS = any, DIALOGRESPONSE extends object = any>(name: string, args?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
                                 toObservable(dialogResponder({
                                         ... match as any,
                                         dialogResponse
                                     }))
-                                    .flatMap(_ => beginChildDialog(match as any, name, args)),
+                                    .flatMap(_ => toObservable(match.beginChildDialog(name, args))),
                             endThisDialog: <DIALOGRESPONSE extends object = any>(dialogResponse?: DIALOGRESPONSE) =>
                                 toObservable(dialogResponder({
                                         ... match as any,
                                         dialogResponse
                                     }))
-                                    .flatMap(_ => toObservable(dsm.setChildDialogInstance(match)))
+                                    .flatMap(_ => toObservable(match.clearChildDialog()))
                         });
                     });
             }
-        }(... args) as IRule<ANYMATCH>
-    }
-
-    private beginChildDialog<DIALOGARGS = any>(match: M, name: string, args?: DIALOGARGS) {
-        const dialog = this.dialogs[name];
-        if (!dialog)
-            throw new Error(`You attempted to begin a dialog named "${name}" but no dialog with that name exists.`);
-        
-        return dialog.invoke(name, {
-                ... match as any,
-                dialogArgs: args
-            })
-            .flatMap(instance => toObservable(this.dsm.setChildDialogInstance(match, { name, instance })));
+        }(... args) as IRule<ANYMATCH>;
     }
 
     matchDialog(match: M): M & IDialogRootMatch {
         return {
             ... match as any,
-            beginChildDialog: <DIALOGARGS>(name: string, args?: DIALOGARGS) => this.beginChildDialog(match, name, args),
-            clearChildDialog: () => toObservable(this.dsm.setChildDialogInstance(match))
+            dialogs: this.dialogs,
+            beginChildDialog: <DIALOGARGS>(name: string, args?: DIALOGARGS) => beginChildDialog(this.dialogs, match, name, args),
+            clearChildDialog: () => this.dsm.setRootDialogInstance(match)
         }
     }
 }
@@ -235,16 +247,16 @@ export class LocalDialogs<M extends Match = any> {
     }
 
     dialog<
-        DIALOGDATA = undefined,
+        DIALOGDATA = any,
         DIALOGARGS = any,
         DIALOGRESPONSE extends object = object
     >(
         rule: IRule<M & IDialogMatch<DIALOGRESPONSE, DIALOGDATA>>,
-        init?: (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) => DIALOGDATA
+        init: (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA> = () => ({} as DIALOGDATA)
     ): IDialog<M, DIALOGARGS, DIALOGRESPONSE> {
         return {
             invoke: (name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) =>
-                (init ? toObservable(init(match)) : Observable.of({}))
+                toObservable(init(match))
                     .flatMap(dialogData => toObservable(this.dialogInstances.newInstance(name, dialogData))),
 
             tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>) =>
@@ -252,13 +264,16 @@ export class LocalDialogs<M extends Match = any> {
                     .flatMap(dialogData =>
                         rule.tryMatch({
                             ... match as any,
-                            dialogData
+                            dialogData,
+
+                            beginChildDialog: <DIALOGARGS>(name: string, args?: DIALOGARGS) => beginChildDialog(match.dialogs, match, name, args),
+                            clearChildDialog: () => setChildDialogInstance(match),
                         })
                         .map(ruleResult => ({
                             ... ruleResult,
                             action: () =>
                                 toObservable(ruleResult.action())
-                                .flatMap(_ => toFilteredObservable(this.dialogInstances.setDialogData(dialogInstance, dialogData)))
+                                .flatMap(_ => toObservable(this.dialogInstances.setDialogData(dialogInstance, dialogData)))
                         }))
                     )
         }
