@@ -83,7 +83,7 @@ export class Dialogs<M extends Match = any> {
             .map(instance => ({ name, instance }));
     }
 
-    runChildIfActive<ANYMATCH extends Match = M, DIALOGRESPONSE extends object = any>(name: string, responder: DialogResponder<ANYMATCH, DIALOGRESPONSE>): IRule<ANYMATCH>;
+    runChildIfActive<ANYMATCH extends Match = M, DIALOGRESPONSE extends object = any>(name: string, responder?: DialogResponder<ANYMATCH, DIALOGRESPONSE>): IRule<ANYMATCH>;
     runChildIfActive<ANYMATCH extends Match = M>(responders?: DialogResponders<ANYMATCH>): IRule<ANYMATCH>;
     runChildIfActive<ANYMATCH extends Match = M>(... args: any[]): IRule<ANYMATCH> {
         const dialogs = this.dialogs,
