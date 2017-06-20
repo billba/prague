@@ -14,8 +14,8 @@ export interface DialogRegistry<M extends Match = any> {
 }
 
 export interface IDialogRootMatch {
-    beginChildDialog<DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS): Observableable<void>;
-    clearChildDialog(): Observableable<void>;
+    beginChildDialog<DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS): Promise<void>;
+    clearChildDialog(): Promise<void>;
 }
 
 export type IDialogData<DIALOGDATA extends object> = { childDialogInstance?: DialogInstance } & DIALOGDATA;
@@ -23,8 +23,8 @@ export type IDialogData<DIALOGDATA extends object> = { childDialogInstance?: Dia
 export interface IDialogMatch<DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any> extends IDialogRootMatch {
     dialogData: IDialogData<DIALOGDATA>;
     dialogStack: DialogInstance[];
-    replaceThisDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS, response?: DIALOGRESPONSE): Observableable<void>;
-    endThisDialog(response?: DIALOGRESPONSE): Observableable<void>;
+    replaceThisDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS, response?: DIALOGRESPONSE): Promise<void>;
+    endThisDialog(response?: DIALOGRESPONSE): Promise<void>;
 }
 
 export interface IDialogArgsMatch<DIALOGARGS extends object> {
@@ -135,13 +135,15 @@ export class Dialogs<M extends Match = any> {
                                     ... match as any,
                                     dialogResponse
                                 }))
-                                    .flatMap(_ => toObservable(match.beginChildDialog(name, args))),
+                                    .toPromise()
+                                    .then(() => match.beginChildDialog(name, args)),
                             endThisDialog: <DIALOGRESPONSE extends object = any>(dialogResponse?: DIALOGRESPONSE) =>
                                 toObservable(dialogResponder({
                                     ... match as any,
                                     dialogResponse
                                 }))
-                                    .flatMap(_ => toObservable(match.clearChildDialog()))
+                                    .toPromise()
+                                    .then(() => match.clearChildDialog()),
                         });
                     });
             }
@@ -153,8 +155,9 @@ export class Dialogs<M extends Match = any> {
             ... match as any,
             beginChildDialog: <DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS) =>
                 this.invokeDialog(match, name, args)
-                    .flatMap(dialogInstance => toObservable(this.rootDialogInstance.set(match, dialogInstance))),
-            clearChildDialog: () => this.rootDialogInstance.set(match)
+                    .flatMap(dialogInstance => toObservable(this.rootDialogInstance.set(match, dialogInstance)))
+                    .toPromise(),
+            clearChildDialog: () => toObservable(this.rootDialogInstance.set(match)).toPromise(),
         }
     }
 
@@ -189,11 +192,12 @@ export class Dialogs<M extends Match = any> {
 
                             beginChildDialog: <DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS) =>
                                 this.invokeDialog(match, name, args)
-                                    .flatMap(dialogInstance => {
+                                    .toPromise()
+                                    .then(dialogInstance => {
                                         dialogData.childDialogInstance = dialogInstance;
-                                        return Observable.of({});
+                                        return;
                                     }),
-                            clearChildDialog: () => dialogData.childDialogInstance = undefined,
+                            clearChildDialog: () => new Promise<void>(() => dialogData.childDialogInstance = undefined),
                         })
                         .map(ruleResult => ({
                             ... ruleResult,
