@@ -14,8 +14,6 @@ export interface Match {
 
 export interface IRule<M extends Match = any> {
     tryMatch(match: M): Observable<RuleResult>;
-    callHandlerIfMatch(match: M): Observable<any>;
-    prependMatcher<L extends Match = any>(matcher: Matcher<L, M>): IRule<L>
 }
 
 const minMatch = {
@@ -51,31 +49,22 @@ export function isRule<M>(r: IRule<M> | Handler<M>): r is IRule<M> {
 }
 
 export const ruleize = <M extends Match = any>(r: IRule<M> | Handler<M>) => {
-    return isRule(r) ? r : new SimpleRule(r) as IRule<M>;
+    return isRule(r) ? r : simpleRule(r);
 }
 
 export const matchize = <M extends Match = any>(matcher: Matcher<M>, match: M) => {
     // we want to allow any matcher to be a predicate (return a boolean)
-    // if so, the 'falsey' case will be filtered out by observize,
+    // if so, the 'falsey' case will be filtered out by toFilteredObservable,
     // so we just need to catch the case where it is precisely true
     return toFilteredObservable(matcher(match))
-        .map(m => typeof(m) === 'boolean' ? match : m);
+        .map(m => typeof m === 'boolean' ? match : m);
 }
 
-export abstract class BaseRule<M extends Match = any> implements IRule<M> {
-    abstract tryMatch(match: M): Observable<RuleResult>;
-
-    callHandlerIfMatch(match: M): Observable<any> {
-        return this.tryMatch(match)
-            .do(result => konsole.log("handle: matched a rule", result))
-            .flatMap(result => toObservable(result.action()))
-            .do(_ => konsole.log("handle: called action"));
-    }
-
-    prependMatcher<L>(matcher: Matcher<L, M>): IRule<L> {
-        return new RuleWithPrependedMatcher(matcher, this);
-    }
-}
+export const callActionIfMatch = <M extends Match = any>(match: M, rule: IRule<M>) => 
+    rule.tryMatch(match)
+        .do(result => konsole.log("handle: matched a rule", result))
+        .flatMap(result => toObservable(result.action()))
+        .do(_ => konsole.log("handle: called action"));
 
 export function combineMatchers<M extends Match = any, N extends Match = any>(m1: Matcher<M, N>): Matcher<M, N>
 export function combineMatchers<M extends Match = any, N extends Match = any, O extends Match = any>(m1: Matcher<M, N>, m2: Matcher<N, O>): Matcher<M, O>
@@ -99,101 +88,43 @@ export function combineMatchers<M extends Match = any>(... args: Matcher[]): Mat
         .flatMap(omatch => omatch);
 }
 
-export class SimpleRule<M extends Match = any> extends BaseRule<M> {
-    private matchers: Matcher[] = [];
-    private handler: Handler;
+export const simpleRule = <M extends Match = any>(handler: Handler<M>) => ({
+    tryMatch: (match: M) => Observable.of({
+        score: match.score,
+        action: () => handler(match)
+    } as RuleResult)
+}) as IRule<M>;
 
-    constructor(... args: (Matcher | Predicate | Handler)[]) {
-        super();
-        if (args.length < 1) {
-            konsole.error("rules must at least have a handler");
-            return;
-        }
-        if (args.length > 1)
-            this.matchers = args.slice(0, args.length - 1) as Matcher[];
-        this.handler = args[args.length - 1] as Handler;
-    }
+export const first = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) => {
+    const rule$ = Observable.from(rules)
+        .filter(rule => !!rule)
+        .map(rule => ruleize(rule));
 
-    tryMatch(match: M): Observable<RuleResult> {
-        konsole.log("SimpleRule.tryMatch", this.matchers);
-        
-        if (this.matchers.length === 0)
-            return Observable.of({
-                score: match.score,
-                action: () => this.handler(match)
-            } as RuleResult);
-        
-        return (
-            this.matchers.length === 1
-                ? matchize(this.matchers[0], match)
-                : combineMatchers<M>(... this.matchers)(match) as Observable<Match>
+    return {
+        tryMatch: (match: M) =>
+            rule$.flatMap(
+                (rule, i) => {
+                    konsole.log(`Rule.first: trying rule #${i}`);
+                    return rule.tryMatch(match)
+                        .do(m => konsole.log(`Rule.first: rule #${i} succeeded`, m));
+                },
+                1
             )
-            .do(m => konsole.log("match", m))
-            .map(m => ({
-                score: m.score,
-                action: () => this.handler(m)
-            } as RuleResult));
-    }
-
-    prependMatcher<L extends Match = any>(matcher: Matcher<L, M>) {
-        konsole.log("SimpleRule.prependMatcher", matcher);
-        return new SimpleRule<L>(
-            matcher,
-            ... this.matchers,
-            this.handler
-        );
-    }
+            .take(1) // so that we don't keep going through rules after we find one that matches
+    } as IRule<M>;
 }
 
-export class FirstMatchingRule<M extends Match = any> extends BaseRule<M> {
-    private rule$: Observable<IRule<M>>;
+export const prependMatcher = <L extends Match = any, M extends Match = any>(matcher: Matcher<L, M>, rule: IRule<M>) => ({
+    tryMatch: (match: L) =>
+        matchize(matcher, match)
+            .flatMap((m: M) => rule.tryMatch(m))
+    } as IRule<L>);
 
-    constructor(... rules: (IRule<M> | Handler<M>)[]) {
-        super();
-        konsole.log("FirstMatchingRule.constructor: rules", rules);
-        this.rule$ = Observable.from(rules)
-            .filter(rule => !!rule)
-            .map(rule => ruleize(rule));
-    }
-
-    tryMatch(match: M): Observable<RuleResult> {
-        konsole.log("FirstMatchingRule.tryMatch", match);
-        return this.rule$
-        .flatMap(
-            (rule, i) => {
-                konsole.log(`Rule.first: trying rule #${i}`);
-                return rule.tryMatch(match)
-                    .do(m => konsole.log(`Rule.first: rule #${i} succeeded`, m));
-            },
-            1
-        )
-        .take(1) // so that we don't keep going through rules after we find one that matches
-    }
-}
-
-export class RuleWithPrependedMatcher<L extends Match = any, M extends Match = any> extends BaseRule<L> {
-    
-    // TO DO: let this take multiple matchers
-    constructor(private matcher: Matcher<L, M>, private rule: IRule<M>) {
-        super();
-    }
-
-    tryMatch(match: L): Observable<RuleResult> {
-        return matchize(this.matcher, match)
-            .flatMap((m: M) => this.rule.tryMatch(m));
-    }
-}
-
-export class RunRule<M extends Match = any> extends BaseRule<M> {
-    constructor(private handler: Handler<M>) {
-        super();
-    }
-
-    tryMatch(match: M): Observable<RuleResult> {
-        return toFilteredObservable(this.handler(match))
-        .map(_ => null);
-    }
-}
+export const run = <M extends Match = any>(handler: Handler<M>) => ({
+    tryMatch: (match: M) =>
+        toObservable(handler(match))
+        .map(_ => null)
+    } as IRule<M>);
 
 // These are left over from previous versions of the API and need to be updated to the latest hotness
 
@@ -253,22 +184,13 @@ export function rule<M extends Match = any, N extends Match = any, Z extends Mat
 export function rule<M extends Match = any, N extends Match = any, O extends Match = any, Z extends Match = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, handler: Handler<Z> | IRule<Z>): IRule<M>
 
 export function rule<M extends Match = any>(... args: (Predicate | Matcher | Handler | IRule)[]): IRule<M> {
-    const ruleOrHandler = args[args.length - 1] as Handler | IRule;
-    if (isRule(ruleOrHandler)) {
-        switch (args.length) {
-            case 1:
-                return ruleOrHandler;
-            case 2:
-                return ruleOrHandler.prependMatcher(args[0] as Matcher);
-            default:
-                return ruleOrHandler.prependMatcher(combineMatchers(... args.slice(0, args.length - 1) as Matcher[]));
-        }
+    const ruleOrHandler = ruleize(args[args.length - 1] as Handler | IRule);
+    switch (args.length) {
+        case 1:
+            return ruleOrHandler;
+        case 2:
+            return prependMatcher(args[0] as Matcher, ruleOrHandler);
+        default:
+            return prependMatcher(combineMatchers(... args.slice(0, args.length - 1) as Matcher[]), ruleOrHandler);
     }
-    return new SimpleRule(... args as Matcher[]) as IRule<M>;
 }
-
-export function first<M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]): IRule<M> {
-    return new FirstMatchingRule(... rules);
-}
-
-export const run = <M extends Match = any>(handler: Handler<M>) => new RunRule<M>(handler) as IRule<M>;

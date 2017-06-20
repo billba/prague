@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { IRule, RuleResult, BaseRule, SimpleRule, Matcher, Handler, Match, Observableable, toFilteredObservable, ruleize } from './Rules';
+import { IRule, RuleResult, simpleRule, Handler, Match, Observableable, toFilteredObservable, ruleize } from './Rules';
 import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
@@ -187,8 +187,28 @@ export class LuisModel {
     //          luis.rule('intent2', handler2)
     //      ).prependMatcher(luis.model())
 
-    best<M extends Match & ITextMatch = any>(luisRules: LuisRules<M>): IRule<M> {
-        return new BestMatchingLuisRule<M>(match => this.match(match), luisRules);
+    best<M extends Match & ITextMatch = any>(luisRules: LuisRules<M>) {
+        return {
+            tryMatch: (match: M) =>
+                toFilteredObservable(this.match(match))
+                    .flatMap(m =>
+                        Observable.from(m.luisResponse.intents)
+                        .flatMap(
+                            luisIntent =>
+                                Observable.of(luisRules[luisIntent.intent])
+                                .filter(rule => !!rule)
+                                .flatMap(rule =>
+                                    ruleize(rule).tryMatch({
+                                        ... match as any,
+                                        score: luisIntent.score,
+                                        ... entityFields(m.luisResponse.entities),
+                                        })
+                                ),
+                            1
+                        )
+                        .take(1) // stop with first intent that appears in the rules
+                    )
+        } as IRule<M>;
     }
 
     static findEntity(entities: LuisEntity[], type: string) {
@@ -201,34 +221,4 @@ export class LuisModel {
         .map(entity => entity.entity);
     }
 
-}
-
-class BestMatchingLuisRule<M extends Match & ITextMatch> extends BaseRule<M> {
-    constructor(
-        private matchModel: Matcher<M, M & { luisResponse: LuisResponse }>,
-        private luisRules: LuisRules<M>
-    ) {
-        super();
-    }
-
-    tryMatch(match: M): Observable<RuleResult> {
-        return toFilteredObservable(this.matchModel(match))
-            .flatMap(m =>
-                Observable.from(m.luisResponse.intents)
-                .flatMap(
-                    luisIntent =>
-                        Observable.of(this.luisRules[luisIntent.intent])
-                        .filter(rule => !!rule)
-                        .flatMap(rule =>
-                            ruleize(rule).tryMatch({
-                                ... match as any,
-                                score: luisIntent.score,
-                                ... entityFields(m.luisResponse.entities),
-                                })
-                        ),
-                    1
-                )
-                .take(1) // stop with first intent that appears in the rules
-            )
-    }
 }

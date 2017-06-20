@@ -1,4 +1,4 @@
-import { Match, IRule, BaseRule, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
+import { Match, IRule, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -87,24 +87,17 @@ export class Dialogs<M extends Match = any> {
 
     runChildIfActive<ANYMATCH extends Match = M, DIALOGRESPONSE extends object = any>(name: string, responder?: DialogResponder<ANYMATCH, DIALOGRESPONSE>): IRule<ANYMATCH>;
     runChildIfActive<ANYMATCH extends Match = M>(responders?: DialogResponders<ANYMATCH>): IRule<ANYMATCH>;
-    runChildIfActive<ANYMATCH extends Match = M>(... args: any[]): IRule<ANYMATCH> {
-        const dialogs = this.dialogs,
-            rootDialogInstance: RootDialogInstance<ANYMATCH> = this.rootDialogInstance;
+    runChildIfActive<ANYMATCH extends Match = M>(arg0: any, arg1?: any): IRule<ANYMATCH> {
+        const dialogResponders: DialogResponders<ANYMATCH> = arg0
+            ? arg1
+                ? { [arg0]: arg1 }
+                : typeof arg0 === "object"
+                    ? arg0
+                    : { [arg0]: () => {} }
+            : undefined;
 
-        return new class extends BaseRule<ANYMATCH & IDialogMatch> {
-            dialogResponders: DialogResponders<ANYMATCH>;
-
-            constructor(... args: any[]) {
-                super();
-                if (args.length === 1)
-                    this.dialogResponders = typeof args[0] === "object"
-                         ? args[0]
-                         : { [args[0]]: () => {} }
-                else if (args.length === 2)
-                    this.dialogResponders = { [args[0]]: args[1] };
-            }
-
-            tryMatch(match: ANYMATCH & IDialogMatch): Observable<RuleResult> {
+        return {
+            tryMatch: (match: ANYMATCH & IDialogMatch) => {
                 console.log("runIfActive.tryMatch", match);
 
                 let odi: Observable<DialogInstance>;
@@ -116,20 +109,20 @@ export class Dialogs<M extends Match = any> {
                         ... match as any,
                         dialogStack: [],
                     }
-                    odi = toObservable(rootDialogInstance.get(match));
+                    odi = toObservable(this.rootDialogInstance.get(match));
                 }
 
                 return odi
                     .filter(dialogInstance => !!dialogInstance)
                     .flatMap(dialogInstance => {
                         let dialogResponder: DialogResponder<ANYMATCH> = () => {};
-                        if (this.dialogResponders) {
-                            dialogResponder = this.dialogResponders[dialogInstance.name];
+                        if (dialogResponders) {
+                            dialogResponder = dialogResponders[dialogInstance.name];
                             if (!dialogResponder)
                                 return Observable.empty<RuleResult>();
                         }
 
-                        const dialog = dialogs[dialogInstance.name];
+                        const dialog = this.dialogs[dialogInstance.name];
                         if (!dialog) {
                             console.warn(`The stack references a dialog named "${dialogInstance.name}", which doesn't exist.`);
                             return Observable.empty<RuleResult>();
@@ -152,7 +145,7 @@ export class Dialogs<M extends Match = any> {
                         });
                     });
             }
-        }(... args) as IRule<ANYMATCH>;
+        } as IRule<ANYMATCH>;
     }
 
     matchRootDialog(match: M): M & IDialogRootMatch {

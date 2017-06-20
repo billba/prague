@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { IRule, Match, FirstMatchingRule, ITextMatch, konsole } from 'prague';
+import { IRule, Match, first, prependMatcher, ITextMatch, konsole } from 'prague';
 import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
@@ -136,14 +136,13 @@ export const chatRule = <M extends Match>(
         typing?:    IRule<M & IChatTypingMatch>,
         activity?:  IRule<M & IChatActivityMatch>,
     }
-) => 
-    new FirstMatchingRule<M & IChatActivityMatch>(
-        rules.message   && rules.message.prependMatcher(matchMessage),
-        rules.event     && rules.event.prependMatcher(matchEvent),
-        rules.typing    && rules.typing.prependMatcher(matchTyping),
+) =>
+    prependMatcher<M & IActivityMatch>(matchActivity(chat), first<M & IChatActivityMatch>(
+        rules.message   && prependMatcher(matchMessage, rules.message),
+        rules.event     && prependMatcher(matchEvent, rules.event),
+        rules.typing    && prependMatcher(matchTyping, rules.typing),
         rules.activity
-    )
-    .prependMatcher<M & IActivityMatch>(matchActivity(chat));
+    ));
 
 export const createChoice = (text: string, choices: string[]): Activity => ({
     type: 'message',

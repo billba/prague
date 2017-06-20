@@ -1,4 +1,4 @@
-import { IRule, IStateMatch, konsole } from 'prague';
+import { IRule, IStateMatch, prependMatcher, callActionIfMatch, konsole } from 'prague';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, chatRule } from 'prague-botframework';
 
 export * from 'prague';
@@ -17,16 +17,16 @@ export class BrowserBot<BOTDATA> {
         typing?:    IRule<IStateMatch<BOTDATA> & IChatTypingMatch  >,
         activity?:  IRule<IStateMatch<BOTDATA> & IChatActivityMatch>
     }) {
-        const rule = chatRule(this.chat, rules).prependMatcher<IActivityMatch>(match => ({
+        const rule = prependMatcher<IActivityMatch>(match => ({
             ... match as any,
             data: this.data
-        }));
+        }), chatRule(this.chat, rules));
 
         this.chat.activity$
-        .map(activity => ({ activity }))
+        .map(activity => ({ activity } as IActivityMatch))
         .do(match => konsole.log("activity", match.activity))
         .flatMap(
-            match => rule.callHandlerIfMatch(match),
+            match => callActionIfMatch(match, rule),
             1
         )
         .subscribe(
