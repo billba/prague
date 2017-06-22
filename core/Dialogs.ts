@@ -1,4 +1,4 @@
-import { Match, IRule, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
+import { Match, IRule, Handler, ruleize, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -167,7 +167,7 @@ export class Dialogs<M extends Match = any> {
         DIALOGDATA extends object = any
     >(
         name: string,
-        rule: IRule<M & IDialogMatch<DIALOGRESPONSE, DIALOGDATA>>,
+        rule: IRule<M & IDialogMatch<DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<DIALOGRESPONSE, DIALOGDATA>>,
         init: (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA> = () => ({} as DIALOGDATA)
     ): IDialog<M, DIALOGARGS, DIALOGRESPONSE> {
     
@@ -175,6 +175,8 @@ export class Dialogs<M extends Match = any> {
             console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
             return;
         }
+
+        const ruleT = ruleize(rule);
     
         this.dialogs[name] = {
             invoke: (name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) =>
@@ -184,7 +186,7 @@ export class Dialogs<M extends Match = any> {
             tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>) =>
                 toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
                     .flatMap(dialogData =>
-                        rule.tryMatch({
+                        ruleT.tryMatch({
                             ... match as any,
 
                             dialogData,
