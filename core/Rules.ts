@@ -16,10 +16,6 @@ export interface IRule<M extends Match = any> {
     tryMatch(match: M): Observable<RuleResult>;
 }
 
-const minMatch = {
-    score: Number.MIN_VALUE
-}
-
 export type Matcher<A extends Match = any, Z extends Match = any> = (match: A) => Observableable<Z>;
 
 export type Handler<Z extends Match = any> = (match: Z) => Observableable<any>;
@@ -95,10 +91,13 @@ export const simpleRule = <M extends Match = any>(handler: Handler<M>) => ({
     } as RuleResult)
 }) as IRule<M>;
 
-export const first = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) => {
-    const rule$ = Observable.from(rules)
+const filteredRule$ = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) =>
+    Observable.from(rules)
         .filter(rule => !!rule)
         .map(rule => ruleize(rule));
+
+export const first = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) => {
+    const rule$ = filteredRule$(... rules);
 
     return {
         tryMatch: (match: M) =>
@@ -111,6 +110,31 @@ export const first = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[
                 1
             )
             .take(1) // so that we don't keep going through rules after we find one that matches
+    } as IRule<M>;
+}
+
+const minRuleResult: RuleResult = {
+    score: 0,
+    action: () => console.log("This should never be called")
+}
+
+export const best = <M extends Match = any>(... rules: (IRule<M> | Handler<M>)[]) => {
+    const rule$ = filteredRule$(... rules);
+
+    return {
+        tryMatch: (match: M) =>
+            rule$.flatMap(
+                (rule, i) => {
+                    konsole.log(`Rule.best: trying rule #${i}`);
+                    return rule.tryMatch(match)
+                        .do(m => konsole.log(`Rule.best: rule #${i} succeeded`, m));
+                }
+            )
+            .reduce(
+                (prev, current) => Math.min(prev.score === undefined ? 1 : prev.score) > Math.min(current.score === undefined ? 1 : current.score) ? prev : current,
+                minRuleResult
+            )
+            // .takeWhile(ruleResult => ruleResult.score && ruleResult.score < 1)
     } as IRule<M>;
 }
 
@@ -127,29 +151,6 @@ export const run = <M extends Match = any>(handler: Handler<M>) => ({
     } as IRule<M>);
 
 // These are left over from previous versions of the API and need to be updated to the latest hotness
-
-// static best$<M extends Match = any>(rule$: Observable<Rule<M>>): Rule<M> {
-//     return new Rule<M>(
-//         (match: M) =>
-//             rule$
-//             .do(_ => konsole.log("Rule.best: trying rule"))
-//             .flatMap(rule =>
-//                 rule.recognize(match)
-//                 .map(match => ({
-//                     ... match,
-//                     handler: rule.handler
-//                 }))
-//             )
-//             .reduce<Match>((prev, current) => Math.min(prev.score || 1, 1) > Math.min(current.score || 1, 1) ? prev : current, minMatch)
-//             .takeWhile(match => match.score && match.score < 1),
-//         (match: M & { handler: GenericHandler }) =>
-//             match.handler(match)
-//     );
-// }
-
-// static best<M extends Match = any>(... rules: Rule<M>[]): Rule<M> {
-//     return Rule.first$(Observable.from(rules).filter(rule => !!rule));
-// }
 
 // export const everyMatch$ = <S>(rule$: Observable<Rule<S>>, scoreThreshold = 0) => (input) =>
 //     rule$
