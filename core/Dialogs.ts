@@ -13,6 +13,13 @@ export interface DialogRegistry<M extends Match = any> {
     [name: string]: IDialog<M>;
 }
 
+export interface IDialogRuleMatch<DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any> extends IDialogRootMatch {
+    dialogData: IDialogData<DIALOGDATA>;
+    dialogStack: DialogInstance[];
+    replaceThisDialog<DIALOGARGS = any>(name: string, args?: DIALOGARGS, response?: DIALOGRESPONSE): Promise<void>;
+    endThisDialog(response?: DIALOGRESPONSE): Promise<void>;
+}
+
 export interface IDialogRootMatch {
     beginChildDialog<DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS): Promise<void>;
     clearChildDialog(): Promise<void>;
@@ -31,9 +38,33 @@ export interface IDialogArgsMatch<DIALOGARGS extends object> {
     dialogArgs: DIALOGARGS;
 }
 
-export interface IDialog<M extends Match = any, DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> {
-    invoke(name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>): Observable<string>;
-    tryMatch(dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>): Observable<RuleResult>;
+export interface DialogStart<
+    M extends Match = any,
+    DIALOGARGS extends object = any,
+    DIALOGRESPONSE extends object = any,
+    DIALOGDATA extends object = any
+> {
+    (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>): Observableable<DIALOGDATA>;
+}
+
+export interface DialogResponder<M extends Match = any, DIALOGRESPONSE extends object = any> {
+    (match: M & IDialogResponderMatch<DIALOGRESPONSE>): Observableable<void>;
+}
+
+
+export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
+    dialogResponse: DIALOGRESPONSE;
+}
+
+export interface IDialog<
+    M extends Match = any,
+    DIALOGARGS extends object = any,
+    DIALOGRESPONSE extends object = any
+> {
+    (match: M): {
+        rule(handleResponse?: DialogResponder<M, DIALOGRESPONSE>): IRule<M & IDialogMatch<DIALOGRESPONSE>>;
+        activate(dialogArgs?: DIALOGARGS): Observable<void>;
+    }
 }
 
 export interface RootDialogInstance<M extends Match = any> {
@@ -41,20 +72,12 @@ export interface RootDialogInstance<M extends Match = any> {
     set: (match: M, rootDialogInstance?: DialogInstance) => Observableable<void>;
 }
 
-export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
-    dialogResponse: DIALOGRESPONSE;
-}
-
-export interface DialogResponder<M extends Match = any, DIALOGRESPONSE extends object = any> {
-    (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogResponderMatch<DIALOGRESPONSE>): Observableable<void>;
-}
-
 export interface DialogResponders<M extends Match = any> {
     [name: string]: DialogResponder<M>;
 }
 
 export interface LocalDialogInstances {
-    newInstance: <DIALOGDATA extends object = any>(name: string, dialogData: IDialogData<DIALOGDATA>) => Observableable<string>,
+    newInstance: <DIALOGDATA extends object = any>(name: string, dialogData: IDialogData<DIALOGDATA>) => Observableable<DialogInstance>,
     getDialogData: <DIALOGDATA extends object = any>(dialogInstance: DialogInstance) => Observableable<IDialogData<DIALOGDATA>>,
     setDialogData: <DIALOGDATA extends object = any>(dialogInstance: DialogInstance, dialogData?: IDialogData<DIALOGDATA>) => Observableable<void>
 }
@@ -166,49 +189,65 @@ export class Dialogs<M extends Match = any> {
         DIALOGRESPONSE extends object = any,
         DIALOGDATA extends object = any
     >(
-        name: string,
+        setInitialState: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA> = () => ({} as DIALOGDATA),
         rule: IRule<M & IDialogMatch<DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<DIALOGRESPONSE, DIALOGDATA>>,
-        init: (match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA> = () => ({} as DIALOGDATA)
+        localName: string,
+        remoteName?: string
     ): IDialog<M, DIALOGARGS, DIALOGRESPONSE> {
     
-        if (this.dialogs[name]) {
-            console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
+        if (this.dialogs[localName]) {
+            console.warn(`You attempted to add a dialog named "${localName}" but a dialog with that name already exists.`);
             return;
         }
 
         const ruleT = ruleize(rule);
     
-        this.dialogs[name] = {
-            invoke: (name: string, match: M & IDialogMatch<DIALOGRESPONSE> & IDialogArgsMatch<DIALOGARGS>) =>
-                toObservable(init(match))
-                    .flatMap(dialogData => toObservable(this.localDialogInstances.newInstance(name, dialogData))),
-
-            tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch<DIALOGRESPONSE>) =>
-                toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
+        const dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE> = (m: M) => ({
+            activate: (dialogArgs: DIALOGARGS) =>
+                toObservable(setInitialState({
+                    ... m as any,
+                    dialogArgs
+                } as M & IDialogArgsMatch<DIALOGARGS>))
                     .flatMap(dialogData =>
-                        ruleT.tryMatch({
-                            ... match as any,
+                        toObservable(this.localDialogInstances.newInstance(localName, dialogData))
+                            .flatMap(dialogInstance => Observable.of<void>(/* set dialog instance using m */))
+                    ),
 
-                            dialogData,
-                            dialogStack: [... match.dialogStack, dialogInstance],
+            rule: (handleResponse?: DialogResponder<M, DIALOGRESPONSE>) => ({
+                tryMatch: (match: M & IDialogMatch<DIALOGRESPONSE>) =>
+                    Observable.of<DialogInstance>() /* get dialog instance using m */
+                    .flatMap(dialogInstance => 
+                        toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
+                        .flatMap(dialogData =>
+                            ruleT.tryMatch({
+                                ... match as any,
 
-                            beginChildDialog: <DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS) =>
-                                this.invokeDialog(match, name, args)
-                                    .toPromise()
-                                    .then(dialogInstance => {
-                                        dialogData.childDialogInstance = dialogInstance;
-                                        return;
-                                    }),
-                            clearChildDialog: () => new Promise<void>(() => dialogData.childDialogInstance = undefined),
-                        })
-                        .map(ruleResult => ({
-                            ... ruleResult,
-                            action: () =>
-                                toObservable(ruleResult.action())
-                                    .flatMap(_ => toObservable(this.localDialogInstances.setDialogData(dialogInstance, dialogData)))
-                        }))
+                                dialogData,
+                                dialogStack: [... match.dialogStack, dialogInstance],
+
+                                // add endThisDialog and replaceThisDialog in here, per other branch
+                                beginChildDialog: <DIALOGARGS extends object = any>(name: string, args?: DIALOGARGS) =>
+                                    this.invokeDialog(match, name, args)
+                                        .toPromise()
+                                        .then(dialogInstance => {
+                                            dialogData.childDialogInstance = dialogInstance;
+                                            return;
+                                        }),
+                                clearChildDialog: () => new Promise<void>(() => dialogData.childDialogInstance = undefined),
+                            })
+                            .map(ruleResult => ({
+                                ... ruleResult,
+                                action: () =>
+                                    toObservable(ruleResult.action())
+                                        .flatMap(_ => toObservable(this.localDialogInstances.setDialogData(dialogInstance, dialogData)))
+                            } as RuleResult))
+                        )
                     )
-        }
+            } as IRule<M & IDialogMatch<DIALOGRESPONSE>>)
+        });
+
+        this.dialogs[localName] = dialog;
+        return dialog;
     }
 
     // addRemote<DIALOGARGS>(
