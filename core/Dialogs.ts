@@ -394,6 +394,8 @@ export class Dialogs<M extends Match = any> {
             // replaceThisDialog:// weird return stuff
         };
 
+        console.log("remoteTryMatch", match);
+
         return dialog(match)
             .rule({ name, instance })
             .tryMatch(match)
