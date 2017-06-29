@@ -51,9 +51,9 @@ export interface IDialog<
     }
 }
 
-export interface RootDialogInstance<M extends Match = any> {
-    get: (match: M) => Observableable<DialogInstance>;
-    set: (match: M, rootDialogInstance?: DialogInstance) => Observableable<void>;
+export interface RootDialogInstance {
+    get: (match: any) => Observableable<DialogInstance>;
+    set: (match: any, rootDialogInstance?: DialogInstance) => Observableable<void>;
 }
 
 export interface DialogResponders<M extends Match = any> {
@@ -66,12 +66,64 @@ export interface LocalDialogInstances {
     setDialogData: <DIALOGDATA extends object = any>(dialogInstance: DialogInstance, dialogData?: IDialogData<DIALOGDATA>) => Observableable<void>
 }
 
+
+export interface RemoteDialogProxy<M extends Match = any> {
+    matchLocalToRemote: (match: M) => Observableable<any>,
+    matchRemoteToLocal: (match: any) => Observableable<M>,
+    executeTasks: (tasks: any) => Observableable<any>,
+}
+
+export interface RemoteActivateRequest {
+    method: 'activate';
+    name: string;
+    match: any;
+    args: any;
+}
+
+export type RemoteActivateResponse = {
+    status: 'success';
+    instance: string;
+} | {
+    status: 'error';
+    error: string;
+}
+
+export interface RemoteTryMatchRequest {
+    method: 'tryMatch';
+    name: string;
+    instance: string;
+    match: any;
+}
+
+export type RemoteTryMatchResponse = {
+    status: 'result';
+    tasks?: any[];
+} | {
+    status: 'endThisDialog';
+    response?: any;
+} | {
+    status: 'replaceThisDialog';
+    response?: any;
+    name: string;
+    args?: string;
+} | {
+    status: 'matchless';
+} | {
+    status: 'error';
+    error: string;
+}
+
+export type RemoteRequest = RemoteActivateRequest | RemoteTryMatchRequest;
+
+export type RemoteResponse = RemoteActivateResponse | RemoteTryMatchResponse;
+
 export class Dialogs<M extends Match = any> {
     private dialogs: DialogRegistry<M> = {}
 
     constructor(
         private rootDialogInstance: RootDialogInstance,
         private localDialogInstances: LocalDialogInstances,
+        private remoteDialogProxy: RemoteDialogProxy<M>,
     ) {
     }
 
@@ -133,7 +185,7 @@ export class Dialogs<M extends Match = any> {
         localName: string,
         remoteName?: string
     ): IDialog<M, DIALOGARGS, DIALOGRESPONSE> {
-    
+
         if (this.dialogs[localName]) {
             console.warn(`You attempted to add a dialog named "${localName}" but a dialog with that name already exists.`);
             return;
@@ -182,9 +234,8 @@ export class Dialogs<M extends Match = any> {
                             })
                             .map(ruleResult => ({
                                 ... ruleResult,
-                                action: () =>
-                                    toObservable(ruleResult.action())
-                                        .flatMap(_ => toObservable(this.localDialogInstances.setDialogData(dialogInstance, dialogData)))
+                                action: () => toObservable(ruleResult.action())
+                                    .flatMap(_ => toObservable(this.localDialogInstances.setDialogData(dialogInstance, dialogData)))
                             } as RuleResult))
                         )
             } as IRule<M & IDialogMatch<M, DIALOGRESPONSE>>)
@@ -194,65 +245,171 @@ export class Dialogs<M extends Match = any> {
         return dialog;
     }
 
-    // addRemote<DIALOGARGS>(
-    //     name: string,
-    //     remoteUrl: string,
-    //     remoteName: string
-    // ): IDialog<M, DIALOGARGS> {
-    //     return {
-    //         invoke: (name: string, match: M & IDialogMatch & IDialogArgsMatch<DIALOGARGS>) =>
-    //             Observable.fromPromise(
-    //                     fetch(
-    //                         remoteUrl + "/invoke", {
-    //                             method: 'POST',
-    //                             body: {
-    //                                 name,
-    //                                 match // this needs to be transformed too!
-    //                             }
-    //                         }
-    //                     )
-    //                     .then(response => response.json())
-    //                 )
-    //                 .flatMap(json => {
-    //                     switch (json.status) {
-    //                         case 'success':
-    //                             return Observable.of(json.instance);
-    //                         case 'error':
-    //                             return Observable.throw(`RemoteDialog.invoke() returned error "${json.error}".`);
-    //                         default:
-    //                             return Observable.throw(`RemoteDialog.invoke() returned unexpected status "${json.status}".`);
-    //                     }
-    //                 }),
+    addRemote<
+        DIALOGARGS extends object = any,
+        DIALOGRESPONSE extends object = any,
+        DIALOGDATA extends object = any
+    >(
+        remoteUrl: string,
+        remoteName: string,
+        localName?: string,
+    ): IDialog<M> {
 
-    //         tryMatch: (dialogInstance: DialogInstance, match: M & IDialogMatch) =>
-    //             Observable.fromPromise(
-    //                     fetch(
-    //                         remoteUrl + "/tryMatch", {
-    //                             method: 'POST',
-    //                             body: {
-    //                                 name,
-    //                                 instance,
-    //                                 match: this.matchRemoteDialog(match)
-    //                             }
-    //                         }
-    //                     )
-    //                     .then(response => response.json())
-    //                 )
-    //                 .flatMap(json => {
-    //                     switch (json.status) {
-    //                         case 'end':
-    //                             // end dialog, then fall through
-    //                         case 'result':
-    //                             return observize(this.handleSuccessfulResponse(json.ruleResult));
-    //                         case 'matchless':
-    //                             return Observable.empty<void>();
-    //                         case 'error':
-    //                             return Observable.throw(`RemoteDialog.tryMatch() returned error "${json.error}".`);
-    //                         default:
-    //                             return Observable.throw(`RemoteDialog.tryMatch() returned unexpected status "${json.status}".`);
-    //                     }
-    //                 })
-    //     }
-    // }
+        localName = localName || remoteName;
 
+        if (this.dialogs[localName]) {
+            console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
+            return;
+        }
+
+        const dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE> = (m: M) => ({
+            activate: (dialogArgs: DIALOGARGS) =>
+                toObservable(this.remoteDialogProxy.matchLocalToRemote(m))
+                    .flatMap(match =>
+                        fetch(
+                            remoteUrl,
+                            {
+                                method: 'POST',
+                                headers: new Headers({
+                                    'Content-Type': 'application/json',
+                                    }),
+                                body: JSON.stringify({
+                                    method: 'activate',
+                                    name: remoteName,
+                                    args: dialogArgs,
+                                    match
+                                } as RemoteActivateRequest)
+                            }
+                        )
+                        .then(response => response.json() as Promise<RemoteActivateResponse>)
+                    )
+                    .flatMap(response => {
+                        switch (response.status) {
+                            case 'success':
+                                return Observable.of({
+                                    name: localName,
+                                    instance: response.instance as string
+                                } as DialogInstance);
+                            case 'error':
+                                return Observable.throw(`RemoteDialog.activate returned error "${response.error}".`);
+                            default:
+                                return Observable.throw(`RemoteDialog.activate returned unexpected status "${(response as any).status}".`);
+                        }
+                    }),
+
+            rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
+                tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
+                    toObservable(this.remoteDialogProxy.matchLocalToRemote(match))
+                        .flatMap(match =>
+                            fetch(
+                                remoteUrl,
+                                {
+                                    method: 'POST',
+                                    headers: new Headers({
+                                        'Content-Type': 'application/json',
+                                        }),
+                                    body: JSON.stringify({
+                                        method: 'tryMatch',
+                                        name: remoteName,
+                                        instance: dialogInstance.instance,
+                                        match
+                                    })
+                                }
+                            )
+                            .then(response => response.json() as Promise<RemoteTryMatchResponse>)
+                        )
+                        .flatMap<RemoteTryMatchResponse, RuleResult>(response => {
+                            switch (response.status) {
+                                case 'replaceThisDialog':
+                                    // end dialog, handle response, start new dialog
+                                    return Observable.empty<RuleResult>();
+                                case 'endThisDialog':
+                                    // end dialog, handle response
+                                    return Observable.empty<RuleResult>();
+                                case 'result':
+                                    return Observable.of({
+                                        action: () => this.remoteDialogProxy.executeTasks(response.tasks)
+                                    } as RuleResult);
+                                case 'matchless':
+                                    return Observable.empty<RuleResult>();
+                                case 'error':
+                                    return Observable.throw(`RemoteDialog.tryMatch returned error "${response.error}".`);
+                                default:
+                                    return Observable.throw(`RemoteDialog.tryMatch returned unexpected status "${(response as any).status}".`);
+                            }
+                        }),
+                }),
+        });
+
+        this.dialogs[localName] = dialog;
+        return dialog;
+    }
+
+    // These methods are used to serve up local dialogs remotely
+
+    remoteActivate(name: string, remoteMatch: any, dialogArgs: any): Observable<RemoteActivateResponse> {
+        const dialog = this.dialogs[name];
+        if (!dialog) {
+            return Observable.throw(`An attempt was made to activate a local dialog named ${name}. No such dialog exists.`);
+        }
+
+        return dialog({
+                ... this.matchRemoteToLocal(remoteMatch) as any,                    // dialog-specific 
+                ... this.remoteDialogProxy.matchRemoteToLocal(remoteMatch) as any,  // provided by recipe
+            })
+            .activate(dialogArgs)
+            .map(dialogInstance => ({
+                status: 'success'
+            } as RemoteActivateResponse))
+            .catch(error => Observable.of({
+                status: 'error',
+                error
+            } as RemoteActivateResponse));
+    }
+
+    private matchLocalToRemote(match: M & IDialogMatch): any {
+        return {
+            dialogStack: match.dialogStack,
+        }
+    }
+
+    private matchRemoteToLocal(match: any) {
+        return {
+            dialogStack: match.dialogStack as DialogInstance[],
+        } as M & IDialogMatch
+    }
+
+    remoteTryMatch(name: string, instance: string, remoteMatch: any): Observable<RemoteTryMatchResponse> {
+        const dialog = this.dialogs[name];
+        if (!dialog) {
+            return Observable.throw(`An attempt was made to activate a local dialog named ${name}. No such dialog exists.`);
+        }
+
+        const match: M & IDialogMatch = {
+            ... this.matchRemoteToLocal(remoteMatch) as any,                    // dialog-specific 
+            ... this.remoteDialogProxy.matchRemoteToLocal(remoteMatch) as any,  // provided by recipe
+            // beginChildDialog: // normal
+            // clearChildDialog: // normal
+            // endThisDialog:    // weird return stuff
+            // replaceThisDialog:// weird return stuff
+        };
+
+        return dialog(match)
+            .rule({ name, instance })
+            .tryMatch(match)
+            .map(ruleResult => {
+                if (!ruleResult)
+                    return {
+                        status: 'matchless'
+                    } as RemoteTryMatchResponse;
+                return {
+                    status: 'result'
+                } as RemoteTryMatchResponse;
+                // }
+            })
+            .catch(error => Observable.of({
+                status: 'error',
+                error
+            } as RemoteTryMatchResponse))
+    }
 }
