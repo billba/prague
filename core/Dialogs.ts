@@ -1,4 +1,4 @@
-import { Match, IRule, Handler, ruleize, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
+import { Match, IRule, Handler, ruleize, RuleResult, Observableable, toObservable } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -130,7 +130,8 @@ export class Dialogs<M extends Match = any> {
     runChildIfActive<ANYMATCH extends Match = M, DIALOGRESPONSE extends object = any>(dialogNamed?: IDialog<M, any, DIALOGRESPONSE>, responder: DialogResponder<ANYMATCH, DIALOGRESPONSE> = () => {}): IRule<ANYMATCH> {
         return {
             tryMatch: (match: ANYMATCH & IDialogMatch<ANYMATCH>) => {
-                console.log("runIfActive.tryMatch", match);
+
+                console.log("runChildIfActive", match);
 
                 let odi: Observable<DialogInstance>;
                 if (match.dialogStack) {
@@ -399,16 +400,20 @@ export class Dialogs<M extends Match = any> {
         return dialog(match)
             .rule({ name, instance })
             .tryMatch(match)
-            .map(ruleResult => {
-                if (!ruleResult)
-                    return {
-                        status: 'matchless'
-                    } as RemoteTryMatchResponse;
-                return {
-                    status: 'result'
-                } as RemoteTryMatchResponse;
-                // }
-            })
+            // add a sentinal value so that we can detect an empty sequence
+            .concat(Observable.of(-1))
+            // taking the first element gives us the result of tryMatch if there is one, the sentinal value otherwise
+            .take(1)
+            // testing the type of the result (instead of the value) lets TypeScript resolve the type ambiguity
+            .flatMap(ruleResult => typeof ruleResult === 'number'
+                ? Observable.of({
+                    status: 'matchless'
+                } as RemoteTryMatchResponse)
+                : toObservable(ruleResult.action())
+                    .map(_ => ({
+                        status: 'result'
+                    } as RemoteTryMatchResponse))
+            )
             .catch(error => Observable.of({
                 status: 'error',
                 error
