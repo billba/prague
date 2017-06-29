@@ -101,18 +101,18 @@ export interface RemoteTryMatchRequest {
 }
 
 export type RemoteTryMatchResponse = {
-    status: 'result';
-    tasks: any[];
+    status: 'match';
+    tasks: DialogTask[];
 } | {
     status: 'endThisDialog';
+    tasks: DialogTask[];
     response?: any;
-    tasks: any[];
 } | {
     status: 'replaceThisDialog';
+    tasks: DialogTask[];
     response?: any;
     name: string;
     args?: string;
-    tasks: any[];
 } | {
     status: 'matchless';
 } | {
@@ -334,7 +334,7 @@ export class Dialogs<M extends Match = any> {
                             if (response.status === 'matchless')
                                 return Observable.empty<RuleResult>();
 
-                            if (!['replaceThisDialog', 'endThisDialog', 'result'].includes(response.status)) {
+                            if (!['replaceThisDialog', 'endThisDialog', 'match'].includes(response.status)) {
                                 return Observable.throw(`RemoteDialog.tryMatch returned unexpected status "${response.status}".`);
                             }
 
@@ -423,11 +423,11 @@ export class Dialogs<M extends Match = any> {
             // testing the type of the result (instead of the value) lets TypeScript resolve the type ambiguity
             .flatMap(ruleResult => typeof ruleResult === 'number'
                 ? Observable.of({
-                    status: 'matchless'
-                } as RemoteTryMatchResponse)
+                        status: 'matchless'
+                    } as RemoteTryMatchResponse)
                 : toObservable(ruleResult.action())
                     .map(_ => ({
-                        status: 'result',
+                        status: 'match',
                         tasks
                     } as RemoteTryMatchResponse))
             )
