@@ -1,8 +1,6 @@
-import { Match, IRule, Handler, ruleize, RuleResult, Observableable, toObservable } from './Rules';
+import { Match, IRule, Handler, ruleize, RuleResult, Observableable, toObservable, toFilteredObservable } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
-
-const pragueRoot = 'pragueRoot';
 
 export interface DialogInstance {
     name: string;
@@ -18,7 +16,9 @@ export interface IDialogRootMatch<M extends Match = any> {
     clearChildDialog(): Promise<void>;
 }
 
-export type IDialogData<DIALOGDATA extends object> = { childDialogInstance?: DialogInstance } & DIALOGDATA;
+export type IDialogData<DIALOGDATA extends object> = DIALOGDATA & {
+    childDialogInstance?: DialogInstance;
+}
 
 export interface IDialogMatch<M extends Match = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any> extends IDialogRootMatch<M> {
     dialogData: IDialogData<DIALOGDATA>;
@@ -82,53 +82,10 @@ const isLocalDialog = <
     M extends Match = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
-    DIALOGDATA extends object = any,
+    DIALOGDATA extends object = any
 > (localOrRemoteDialog: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>)
 : localOrRemoteDialog is LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> =>
     (localOrRemoteDialog as any).rule !== undefined;
-
-/* TODO:
-    - examine each "run rule" case, make sure dialog stack methods are created correctly
-*/
-
-// Sample code
-
-import { first } from './Rules';
-
-interface Base extends Match {
-    foo: string;
-}
-
-interface Args {
-    cat: number;
-}
-
-interface Response {
-    dog: string;
-}
-
-interface Data {
-    isCat: boolean
-}
-
-const fooDialog: XDialog<Base, Args, Response, Data> = {
-    init: match => ({ isCat: false }),
-    rule: first(
-        m => console.log("does something"),
-        m => m.beginChildDialog(barDialog, { cat: "canary" })
-    )
-}
-
-const dialogs = new Dialogs<Base>();
-
-dialogs.add('foo', 'foobar', fooDialog);
-dialogs.add('foo', true, fooDialog);
-dialogs.add('foo', fooDialog);
-dialogs.add('foo', rule);
-dialogs.add('foo', init, rule);
-
-
-// End of sample code
 
 export interface RootDialogInstance {
     get: (match: any) => Observableable<DialogInstance>;
@@ -141,6 +98,7 @@ export interface DialogResponders<M extends Match = any> {
 
 export interface LocalDialogInstances {
     newInstance: <DIALOGDATA extends object = any>(name: string, dialogData: IDialogData<DIALOGDATA>) => Observableable<DialogInstance>,
+    deleteInstance: (dialogInstance: DialogInstance) => Observableable<void>,
     getDialogData: <DIALOGDATA extends object = any>(dialogInstance: DialogInstance) => Observableable<IDialogData<DIALOGDATA>>,
     setDialogData: <DIALOGDATA extends object = any>(dialogInstance: DialogInstance, dialogData?: IDialogData<DIALOGDATA>) => Observableable<void>
 }
@@ -153,7 +111,7 @@ export interface DialogTask {
 export interface RemoteDialogProxy<M extends Match = any> {
     matchLocalToRemote?: (match: M) => Observableable<any>,
     matchRemoteToLocal?: (match: any, tasks: DialogTask[]) => Observableable<M>,
-    executeTasks?: (match: M, tasks: DialogTask[]) => Observableable<any>,
+    executeTask?: (match: M, tasks: DialogTask) => Observableable<any>,
 }
 
 export interface RemoteActivateRequest {
@@ -183,16 +141,6 @@ export type RemoteTryMatchResponse = {
     status: 'match';
     tasks: DialogTask[];
 } | {
-    status: 'endThisDialog';
-    tasks: DialogTask[];
-    response?: any;
-} | {
-    status: 'replaceThisDialog';
-    tasks: DialogTask[];
-    response?: any;
-    name: string;
-    args?: string;
-} | {
     status: 'matchless';
 } | {
     status: 'error';
@@ -213,38 +161,48 @@ export class Dialogs<M extends Match = any> {
     ) {
     }
 
-    runChildIfActive<ANYMATCH extends Match = M, DIALOGRESPONSE extends object = any>(dialogNamed?: IDialog<M, any, DIALOGRESPONSE>, responder: DialogResponder<ANYMATCH, DIALOGRESPONSE> = () => {}): IRule<ANYMATCH> {
+    runChildIfActive<
+        ANYMATCH extends Match = M,
+        DIALOGRESPONSE extends object = any
+    >(
+        dialogOrName?: LocalOrRemoteDialog<M, any, DIALOGRESPONSE> | string,
+        dialogResponder: DialogResponder<ANYMATCH, DIALOGRESPONSE> = () => {}
+    ): IRule<ANYMATCH> {
         return {
             tryMatch: (match: ANYMATCH & IDialogMatch<ANYMATCH>) => {
 
-                console.log("runChildIfActive", match);
+                konsole.log("runChildIfActive", match);
 
                 let odi: Observable<DialogInstance>;
                 if (match.dialogStack) {
+                    if (!match.dialogData.childDialogInstance)
+                        return;
                     odi = Observable.of(match.dialogData.childDialogInstance);
                 } else {
-                    // This is being run from a non-dialog rule
+                    // This is being run from the "root" (a non-dialog rule)
                     match = {
                         ... match as any,
                         dialogStack: [],
                     }
-                    odi = toObservable(this.rootDialogInstance.get(match));
+                    odi = toFilteredObservable(this.rootDialogInstance.get(match));
                 }
 
+                konsole.log("runChildIfActive (active)", match);
+
                 return odi
-                    .filter(dialogInstance => !!dialogInstance)
                     .flatMap(dialogInstance => {
                         const dialog = this.dialogs[dialogInstance.name];
 
                         if (!dialog) {
-                            console.warn(`The stack references a dialog named "${dialogInstance.name}", which doesn't exist.`);
+                            konsole.warn(`The stack references a dialog named "${dialogInstance.name}", which doesn't exist.`);
                             return Observable.empty<RuleResult>();
                         }
 
-                        if (dialogNamed && dialogNamed !== dialog)
+                        // if a dialog is provided, only run that one
+                        if (dialogOrName && this.dialogize(dialogOrName) !== dialog)
                             return Observable.empty<RuleResult>();
-                        
-                        return dialog(match as any).rule(dialogInstance, responder as any).tryMatch(match as any);
+
+                        return this.tryMatch(dialog, match as any, dialogInstance, dialogResponder as any);
                     });
             }
         } as IRule<ANYMATCH>;
@@ -385,28 +343,46 @@ export class Dialogs<M extends Match = any> {
         return dialog;
     }
 
-    private dialogize(dialog: LocalOrRemoteDialog<M> | string): LocalOrRemoteDialog<M> {
-        if (typeof dialog !== 'string')
-            return dialog;
+    private dialogize(dialogOrName: LocalOrRemoteDialog<M> | string): LocalOrRemoteDialog<M> {
+        if (typeof dialogOrName !== 'string')
+            return dialogOrName;
 
-        const dialogT = this.dialogs[dialog];
+        const dialogT = this.dialogs[dialogOrName];
         if (dialogT)
             return dialogT;
         
-        console.warn(`You referenced a dialog named "${dialog}" but no such dialog exists.`)
+        console.warn(`You referenced a dialog named "${dialogOrName}" but no such dialog exists.`)
     }
 
-    private activate<DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, match: M, dialogArgs?: DIALOGARGS): Observable<DialogInstance> {
-        const dialog = this.dialogize(dialogOrName);
+    private nameize(dialogOrName: LocalOrRemoteDialog<M> | string): string {
+        return typeof dialogOrName === 'string'
+            ? dialogOrName
+            : dialogOrName.localName;
+    }
+
+    // called three ways:
+    // * by local code, to activate local dialog 
+    // * by local code, to activate remote proxy
+    // * by remote proxy, to activate local dialog
+
+    private activate<
+        DIALOGARGS extends object = any
+    >(
+        dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string,
+        match: M,
+        dialogArgs?: DIALOGARGS
+    ): Observable<DialogInstance> {
+
+        const dialog: LocalOrRemoteDialog<M, DIALOGARGS> = this.dialogize(dialogOrName);
 
         if (isLocalDialog(dialog)) {
             return toObservable(dialog.init({
                     ... match as any,
                     dialogArgs
-                } as M & IDialogArgsMatch<DIALOGARGS>))
+                }))
                     .flatMap(dialogData => toObservable(this.localDialogInstances.newInstance(dialog.localName, dialogData)));
         } else {
-            return toObservable(this.remoteDialogProxy.matchLocalToRemote(m))
+            return toObservable(this.matchLocalToRemote(match as any)) // TYPE CHECK
                 .flatMap(match =>
                     fetch(
                         dialog.remoteUrl,
@@ -430,7 +406,7 @@ export class Dialogs<M extends Match = any> {
                     if (response.status !== 'success')
                         return Observable.throw(`RemoteDialog.activate returned unexpected status "${(response as any).status}".`);
 
-                    return toObservable(this.remoteDialogProxy.executeTasks(match, response.tasks))
+                    return toObservable(this.executeTasks(match as any, response.tasks)) // TYPE CHECK
                         .map(_ => ({
                             name: dialog.localName,
                             instance: response.instance
@@ -439,12 +415,26 @@ export class Dialogs<M extends Match = any> {
         }
     }
 
-    private tryMatch<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> | string, match: M & IDialogMatch<DIALOGRESPONSE>, dialogInstance: DialogInstance): Observable<RuleResult> {
-        const dialog = this.dialogize(dialogOrName);
+    // called three ways:
+    // * by local code, to run local dialog 
+    // * by local code, to run remote proxy
+    // * by remote proxy, to run local dialog
+
+    private tryMatch<
+        DIALOGARGS extends object = any,
+        DIALOGRESPONSE extends object = any,
+        DIALOGDATA extends object = any
+    >(
+        dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> | string,
+        match: M & IDialogMatch<DIALOGRESPONSE>,
+        dialogInstance: DialogInstance,
+        dialogResponder: DialogResponder<M, DIALOGRESPONSE>
+    ) : Observable<RuleResult> {
+
+        const dialog: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> = this.dialogize(dialogOrName);
 
         if (isLocalDialog(dialog)) {
-            // rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
-            //     tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
+            konsole.log("tryMatch local", match);
             return toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
                 .flatMap(dialogData =>
                     dialog.rule.tryMatch({
@@ -453,20 +443,22 @@ export class Dialogs<M extends Match = any> {
                         dialogData,
                         dialogStack: [... match.dialogStack, dialogInstance],
 
-                        beginChildDialog: <DIALOGARGS extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS) =>
-                            dialog(match)
-                                .activate(args)
+                        beginChildDialog: <DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS) =>
+                            this.activate(dialogOrName, match, dialogArgs)
                                 .do(dialogInstance => match.dialogData.childDialogInstance = dialogInstance)
                                 .toPromise(),
-                        clearChildDialog: () => new Promise<void>(() => dialogData.childDialogInstance = undefined),
-                        replaceThisDialog: <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
+                        clearChildDialog: () => new Promise<void>((resolve) => {
+                            dialogData.childDialogInstance = undefined;
+                            resolve();
+                        }),
+                        replaceThisDialog: <DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE> | string, dialogArgs?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
                             toObservable(dialogResponder({
                                 ... match as any,
                                 dialogResponse
                             }))
                                 .toPromise()
-                                .then(() => match.beginChildDialog(dialog, args)),
-                        endThisDialog: <DIALOGRESPONSE extends object = any>(dialogResponse?: DIALOGRESPONSE) =>
+                                .then(() => match.beginChildDialog(dialogOrName as any, dialogArgs)), // TYPE CHECK
+                        endThisDialog: (dialogResponse?: DIALOGRESPONSE) =>
                             toObservable(dialogResponder({
                                 ... match as any,
                                 dialogResponse
@@ -481,9 +473,9 @@ export class Dialogs<M extends Match = any> {
                     } as RuleResult))
                 )
         } else {
-            // rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
-            //     tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
-            return toObservable(this.remoteDialogProxy.matchLocalToRemote(match))
+            konsole.log("tryMatch remote", match);
+            return toObservable(this.matchLocalToRemote(match))
+                .do(match => konsole.log("matchLocalToRemote", match))
                 .flatMap(match =>
                     fetch(
                         dialog.remoteUrl,
@@ -507,22 +499,13 @@ export class Dialogs<M extends Match = any> {
                     if (response.status === 'matchless')
                         return Observable.empty<RuleResult>();
 
-                    if (response.status !== 'replaceThisDialog' && response.status !== 'endThisDialog' && response.status !==  'match') {
+                    if (response.status !== 'match')
                         return Observable.throw(`RemoteDialog.tryMatch returned unexpected status "${(response as any).status}".`);
-                    }
-
-                    if (response.status === 'replaceThisDialog' || response.status === 'endThisDialog') {
-                        // end dialog, handle response
-                    }
-
-                    if (response.status === 'replaceThisDialog') {
-                        // start new dialog
-                    }
 
                     return Observable.of({
-                            action: () => response.tasks && response.tasks.length && this.remoteDialogProxy.executeTasks(match, response.tasks)
-                        } as RuleResult);
-                });
+                        action: () => this.executeTasks(match, response.tasks, dialogResponder)
+                    } as RuleResult);
+                })
         }
     }
 
@@ -532,14 +515,13 @@ export class Dialogs<M extends Match = any> {
         const tasks: DialogTask[] = [];
 
         return this.activate(
-            name, {
-                ... this.matchRemoteToLocal(remoteMatch) as any,                           // dialog-specific 
-                ... this.remoteDialogProxy.matchRemoteToLocal(remoteMatch, tasks) as any,  // provided by recipe
-            },
+            name,
+            this.matchRemoteToLocal(remoteMatch, tasks),
             dialogArgs
         )
             .map(dialogInstance => ({
                 status: 'success',
+                instance: dialogInstance.instance,
                 tasks
             } as RemoteActivateResponse))
             .catch(error => Observable.of({
@@ -550,31 +532,81 @@ export class Dialogs<M extends Match = any> {
 
     private matchLocalToRemote(match: M & IDialogMatch): any {
         return {
+            ... this.remoteDialogProxy.matchLocalToRemote(match),
             dialogStack: match.dialogStack,
         }
     }
 
-    private matchRemoteToLocal(match: any) {
+    private matchRemoteToLocal(match: any, tasks: DialogTask[]) {
         return {
+            ... this.remoteDialogProxy.matchRemoteToLocal(match, tasks) as any,
             dialogStack: match.dialogStack as DialogInstance[],
         } as M & IDialogMatch
+    }
+
+    private executeTasks(
+        match: M & IDialogRootMatch,
+        tasks: DialogTask[],
+        dialogResponder?: DialogResponder<M>
+    ): Observable<void> {
+        return Observable.from(tasks)
+            .flatMap(task => {
+                switch (task.method) {
+                    case 'beginChildDialog':
+                        return match.beginChildDialog(task.args.name, task.args.args);
+                    case 'clearChildDialog':
+                        return match.clearChildDialog();
+                    case 'responder':
+                        return dialogResponder
+                            ? toObservable(dialogResponder(task.args.response))
+                            : Observable.empty();
+                    default:
+                        return toObservable(this.remoteDialogProxy.executeTask(match, task));
+                }
+            });
     }
 
     remoteTryMatch(name: string, instance: string, remoteMatch: any): Observable<RemoteTryMatchResponse> {
         const tasks: DialogTask[] = [];
 
         const match: M & IDialogMatch = {
-            ... this.matchRemoteToLocal(remoteMatch) as any,                    // dialog-specific 
-            ... this.remoteDialogProxy.matchRemoteToLocal(remoteMatch, tasks) as any,  // provided by recipe
-            // beginChildDialog: // normal
-            // clearChildDialog: // normal
-            // endThisDialog:    // weird return stuff
-            // replaceThisDialog:// weird return stuff
+            ... this.matchRemoteToLocal(remoteMatch, tasks) as any,
+            beginChildDialog: (dialogOrName: LocalOrRemoteDialog<M> | string, dialogArgs?: any) =>
+                // will only be called by replaceThisDialog
+                new Promise<void>((resolve) => {
+                    tasks.push({
+                        method: 'beginChildDialog',
+                        args: {
+                            name: this.nameize(dialogOrName),
+                            args: dialogArgs
+                        }
+                    });
+                    resolve();
+                }),
+
+            clearChildDialog: () =>
+                // will only be called by endThisDialog
+                new Promise<void>((resolve) => {
+                    tasks.push({
+                        method: 'clearChildDialog'
+                    });
+                    resolve();
+                }),
         };
 
-        console.log("remoteTryMatch", match);
+        konsole.log("remoteTryMatch", match);
 
-        return this.tryMatch(name, match, { name, instance })
+        const dialogResponder = (match: M & IDialogResponderMatch) => {
+            tasks.push({
+                method: 'responder',
+                args: {
+                    response: match.dialogResponse
+                }
+            })
+        }
+
+        return this.tryMatch(name, match, { name, instance }, dialogResponder)
+            .do(ruleResult => konsole.log("ruleResult", ruleResult))
             // add a sentinal value so that we can detect an empty sequence
             .concat(Observable.of(-1))
             // taking the first element gives us the result of tryMatch if there is one, the sentinal value otherwise
@@ -593,6 +625,6 @@ export class Dialogs<M extends Match = any> {
             .catch(error => Observable.of({
                 status: 'error',
                 error
-            } as RemoteTryMatchResponse))
+            } as RemoteTryMatchResponse));
     }
 }
