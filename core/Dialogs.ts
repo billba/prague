@@ -10,11 +10,11 @@ export interface DialogInstance {
 }
 
 export interface DialogRegistry<M extends Match = any> {
-    [name: string]: IDialog<M>;
+    [name: string]: LocalOrRemoteDialog<M>;
 }
 
 export interface IDialogRootMatch<M extends Match = any> {
-    beginChildDialog<DIALOGARGS extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS): Promise<void>;
+    beginChildDialog<DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS): Promise<void>;
     clearChildDialog(): Promise<void>;
 }
 
@@ -23,8 +23,8 @@ export type IDialogData<DIALOGDATA extends object> = { childDialogInstance?: Dia
 export interface IDialogMatch<M extends Match = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any> extends IDialogRootMatch<M> {
     dialogData: IDialogData<DIALOGDATA>;
     dialogStack: DialogInstance[];
-    replaceThisDialog<DIALOGARGS extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS, response?: DIALOGRESPONSE): Promise<void>;
-    endThisDialog(response?: DIALOGRESPONSE): Promise<void>;
+    replaceThisDialog<DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE): Promise<void>;
+    endThisDialog(dialogResponse?: DIALOGRESPONSE): Promise<void>;
 }
 
 export interface IDialogArgsMatch<DIALOGARGS extends object> {
@@ -35,21 +35,100 @@ export interface DialogResponder<M extends Match = any, DIALOGRESPONSE extends o
     (match: M & IDialogResponderMatch<DIALOGRESPONSE>): Observableable<void>;
 }
 
-
 export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
     dialogResponse: DIALOGRESPONSE;
 }
 
-export interface IDialog<
+export interface XDialog<
     M extends Match = any,
     DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any
+    DIALOGRESPONSE extends object = any,
+    DIALOGDATA extends object = any,
 > {
-    (match: M): {
-        rule(dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>): IRule<M & IDialogMatch<M, DIALOGRESPONSE>>;
-        activate(dialogArgs?: DIALOGARGS): Observable<DialogInstance>;
-    }
+    init?: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA>,
+    rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>,
 }
+
+export interface LocalDialog<
+    M extends Match = any,
+    DIALOGARGS extends object = any,
+    DIALOGRESPONSE extends object = any,
+    DIALOGDATA extends object = any,
+> {
+    localName: string;
+    remoteName?: string;    // If defined, how it is named to the outside world, otherwise not exposed
+    init: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA>;
+    rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>;
+}
+
+export interface RemoteDialog<
+    M extends Match = any,
+    DIALOGARGS extends object = any,
+    DIALOGRESPONSE extends object = any,
+> {
+    remoteUrl: string;
+    localName: string;
+    remoteName: string;
+}
+
+export type LocalOrRemoteDialog<
+    M extends Match = any,
+    DIALOGARGS extends object = any,
+    DIALOGRESPONSE extends object = any,
+    DIALOGDATA extends object = any,
+> = LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> | RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>
+
+const isLocalDialog = <
+    M extends Match = any,
+    DIALOGARGS extends object = any,
+    DIALOGRESPONSE extends object = any,
+    DIALOGDATA extends object = any,
+> (localOrRemoteDialog: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>)
+: localOrRemoteDialog is LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> =>
+    (localOrRemoteDialog as any).rule !== undefined;
+
+/* TODO:
+    - examine each "run rule" case, make sure dialog stack methods are created correctly
+*/
+
+// Sample code
+
+import { first } from './Rules';
+
+interface Base extends Match {
+    foo: string;
+}
+
+interface Args {
+    cat: number;
+}
+
+interface Response {
+    dog: string;
+}
+
+interface Data {
+    isCat: boolean
+}
+
+const fooDialog: XDialog<Base, Args, Response, Data> = {
+    init: match => ({ isCat: false }),
+    rule: first(
+        m => console.log("does something"),
+        m => m.beginChildDialog(barDialog, { cat: "canary" })
+    )
+}
+
+const dialogs = new Dialogs<Base>();
+
+dialogs.add('foo', 'foobar', fooDialog);
+dialogs.add('foo', true, fooDialog);
+dialogs.add('foo', fooDialog);
+dialogs.add('foo', rule);
+dialogs.add('foo', init, rule);
+
+
+// End of sample code
 
 export interface RootDialogInstance {
     get: (match: any) => Observableable<DialogInstance>;
@@ -174,204 +253,291 @@ export class Dialogs<M extends Match = any> {
     matchRootDialog(match: M): M & IDialogRootMatch<M> {
         return {
             ... match as any,
-            beginChildDialog: <DIALOGARGS extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS) =>
-                dialog(match)
-                    .activate(args)
+            beginChildDialog: <DIALOGARGS extends object = any>(dialog: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS) =>
+                this.activate(dialog, match, dialogArgs)
                     .flatMap(dialogInstance => toObservable(this.rootDialogInstance.set(match, dialogInstance)))
                     .toPromise(),
             clearChildDialog: () => toObservable(this.rootDialogInstance.set(match)).toPromise()
         }
     }
 
-    addLocal<
-        DIALOGARGS extends object = any,
-        DIALOGRESPONSE extends object = any,
-        DIALOGDATA extends object = any
-    >(
-        setInitialState: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA> = () => ({} as DIALOGDATA),
-        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>,
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
         localName: string,
-        remoteName?: string
-    ): IDialog<M, DIALOGARGS, DIALOGRESPONSE> {
+        remoteName: string,
+        dialog: XDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        remoteable: boolean,
+        dialog: XDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        dialog: XDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        remoteName: string,
+        init: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA>,
+        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        remoteable: boolean,
+        init: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA>,
+        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        init: (match: M & IDialogArgsMatch<DIALOGARGS>) => Observableable<DIALOGDATA>,
+        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        remoteName: string,
+        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        remoteable: boolean,
+        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
+        localName: string,
+        rule: IRule<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>> | Handler<M & IDialogMatch<M, DIALOGRESPONSE, DIALOGDATA>>
+    ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+        localName: string,
+        remoteUrl: string,
+    ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
+
+    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+        localName: string,
+        remoteUrl: string,
+        remoteName: string
+    ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
+
+    add(... args: any[]) {
+
+        const localName: string = args[0];
+        let dialog: LocalOrRemoteDialog;
+
+        if (typeof args[1] === 'string' && (args.length === 2 || (args.length === 3 && typeof args[2] === 'string'))) {
+            // remote dialog
+            dialog = {
+                localName,
+                remoteUrl: args[1],
+                remoteName: (args.length === 3 && args[2]) || localName
+            }
+        } else {
+            // local dialog
+            let remoteName: string;
+            let init = () => ({});
+            let rule;
+            let dialogIndex = 2;
+
+            if (typeof args[1] === 'string') {
+                remoteName = args[1];
+            } else if (typeof args[1] === 'boolean') {
+                if (args[1] === true)
+                    remoteName = localName;
+            } else {
+                dialogIndex = 1;
+            }
+
+            if (args.length === dialogIndex + 2) {
+                // init + rule
+                init = args[dialogIndex];
+                rule = args[dialogIndex + 1];
+            } else if (args[dialogIndex].rule) {
+                // XDialog
+                init = args[dialogIndex].init;
+                rule = args[dialogIndex].rule;
+            } else {
+                // just rule (use default init)
+                rule = args[dialogIndex];
+            }
+
+            dialog = {
+                localName,
+                remoteName,
+                init,
+                rule: ruleize(rule),
+            }
+        }
 
         if (this.dialogs[localName]) {
             console.warn(`You attempted to add a dialog named "${localName}" but a dialog with that name already exists.`);
             return;
         }
 
-        const ruleT = ruleize(rule);
-
-        const dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE> = (m: M) => ({
-            activate: (dialogArgs: DIALOGARGS) =>
-                toObservable(setInitialState({
-                    ... m as any,
-                    dialogArgs
-                } as M & IDialogArgsMatch<DIALOGARGS>))
-                    .flatMap(dialogData => toObservable(this.localDialogInstances.newInstance(localName, dialogData))),
-
-            rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
-                tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
-                    toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
-                        .flatMap(dialogData =>
-                            ruleT.tryMatch({
-                                ... match as any,
-
-                                dialogData,
-                                dialogStack: [... match.dialogStack, dialogInstance],
-
-                                beginChildDialog: <DIALOGARGS extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS) =>
-                                    dialog(match)
-                                        .activate(args)
-                                        .do(dialogInstance => match.dialogData.childDialogInstance = dialogInstance)
-                                        .toPromise(),
-                                clearChildDialog: () => new Promise<void>(() => dialogData.childDialogInstance = undefined),
-                                replaceThisDialog: <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
-                                    toObservable(dialogResponder({
-                                        ... match as any,
-                                        dialogResponse
-                                    }))
-                                        .toPromise()
-                                        .then(() => match.beginChildDialog(dialog, args)),
-                                endThisDialog: <DIALOGRESPONSE extends object = any>(dialogResponse?: DIALOGRESPONSE) =>
-                                    toObservable(dialogResponder({
-                                        ... match as any,
-                                        dialogResponse
-                                    }))
-                                        .toPromise()
-                                        .then(() => match.clearChildDialog()),
-                            })
-                            .map(ruleResult => ({
-                                ... ruleResult,
-                                action: () => toObservable(ruleResult.action())
-                                    .flatMap(_ => toObservable(this.localDialogInstances.setDialogData(dialogInstance, dialogData)))
-                            } as RuleResult))
-                        )
-            } as IRule<M & IDialogMatch<M, DIALOGRESPONSE>>)
-        });
-
         this.dialogs[localName] = dialog;
+
         return dialog;
     }
 
-    addRemote<
-        DIALOGARGS extends object = any,
-        DIALOGRESPONSE extends object = any,
-        DIALOGDATA extends object = any
-    >(
-        remoteUrl: string,
-        remoteName: string,
-        localName?: string,
-    ): IDialog<M> {
+    private dialogize(dialog: LocalOrRemoteDialog<M> | string): LocalOrRemoteDialog<M> {
+        if (typeof dialog !== 'string')
+            return dialog;
 
-        localName = localName || remoteName;
+        const dialogT = this.dialogs[dialog];
+        if (dialogT)
+            return dialogT;
+        
+        console.warn(`You referenced a dialog named "${dialog}" but no such dialog exists.`)
+    }
 
-        if (this.dialogs[localName]) {
-            console.warn(`You attempted to add a dialog named "${name}" but a dialog with that name already exists.`);
-            return;
-        }
+    private activate<DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, match: M, dialogArgs?: DIALOGARGS): Observable<DialogInstance> {
+        const dialog = this.dialogize(dialogOrName);
 
-        const dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE> = (m: M) => ({
-            activate: (dialogArgs: DIALOGARGS) =>
-                toObservable(this.remoteDialogProxy.matchLocalToRemote(m))
-                    .flatMap(match =>
-                        fetch(
-                            remoteUrl,
-                            {
-                                method: 'POST',
-                                headers: new Headers({
-                                    'Content-Type': 'application/json',
-                                    }),
-                                body: JSON.stringify({
-                                    method: 'activate',
-                                    name: remoteName,
-                                    args: dialogArgs,
-                                    match
-                                } as RemoteActivateRequest)
-                            }
-                        )
-                        .then(response => response.json() as Promise<RemoteActivateResponse>)
-                    )
-                    .flatMap(response => {
-                        switch (response.status) {
-                            case 'success':
-                                return toObservable(this.remoteDialogProxy.executeTasks(m, response.tasks))
-                                    .map(_ => ({
-                                        name: localName,
-                                        instance: response.instance as string
-                                    } as DialogInstance));
-                            case 'error':
-                                return Observable.throw(`RemoteDialog.activate returned error "${response.error}".`);
-                            default:
-                                return Observable.throw(`RemoteDialog.activate returned unexpected status "${(response as any).status}".`);
+        if (isLocalDialog(dialog)) {
+            return toObservable(dialog.init({
+                    ... match as any,
+                    dialogArgs
+                } as M & IDialogArgsMatch<DIALOGARGS>))
+                    .flatMap(dialogData => toObservable(this.localDialogInstances.newInstance(dialog.localName, dialogData)));
+        } else {
+            return toObservable(this.remoteDialogProxy.matchLocalToRemote(m))
+                .flatMap(match =>
+                    fetch(
+                        dialog.remoteUrl,
+                        {
+                            method: 'POST',
+                            headers: new Headers({ 'Content-Type': 'application/json' }),
+                            body: JSON.stringify({
+                                method: 'activate',
+                                name: dialog.remoteName,
+                                args: dialogArgs,
+                                match
+                            } as RemoteActivateRequest)
                         }
-                    }),
+                    )
+                    .then(response => response.json() as Promise<RemoteActivateResponse>)
+                )
+                .flatMap(response => {
+                    if (response.status === 'error')
+                        return Observable.throw(`RemoteDialog.activate returned error "${response.error}".`);
 
-            rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
-                tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
-                    toObservable(this.remoteDialogProxy.matchLocalToRemote(match))
-                        .flatMap(match =>
-                            fetch(
-                                remoteUrl,
-                                {
-                                    method: 'POST',
-                                    headers: new Headers({
-                                        'Content-Type': 'application/json',
-                                        }),
-                                    body: JSON.stringify({
-                                        method: 'tryMatch',
-                                        name: remoteName,
-                                        instance: dialogInstance.instance,
-                                        match
-                                    })
-                                }
-                            )
-                            .then(response => response.json() as Promise<RemoteTryMatchResponse>)
-                        )
-                        .flatMap<RemoteTryMatchResponse, RuleResult>(response => {
-                            if (response.status === 'error')
-                                return Observable.throw(`RemoteDialog.tryMatch returned error "${response.error}".`);
+                    if (response.status !== 'success')
+                        return Observable.throw(`RemoteDialog.activate returned unexpected status "${(response as any).status}".`);
 
-                            if (response.status === 'matchless')
-                                return Observable.empty<RuleResult>();
+                    return toObservable(this.remoteDialogProxy.executeTasks(match, response.tasks))
+                        .map(_ => ({
+                            name: dialog.localName,
+                            instance: response.instance
+                        } as DialogInstance));
+                });
+        }
+    }
 
-                            if (!['replaceThisDialog', 'endThisDialog', 'match'].includes(response.status)) {
-                                return Observable.throw(`RemoteDialog.tryMatch returned unexpected status "${response.status}".`);
-                            }
+    private tryMatch<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> | string, match: M & IDialogMatch<DIALOGRESPONSE>, dialogInstance: DialogInstance): Observable<RuleResult> {
+        const dialog = this.dialogize(dialogOrName);
 
-                            if (response.status === 'replaceThisDialog' || response.status === 'endThisDialog') {
-                                // end dialog, handle response
-                            }
+        if (isLocalDialog(dialog)) {
+            // rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
+            //     tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
+            return toObservable(this.localDialogInstances.getDialogData<DIALOGDATA>(dialogInstance))
+                .flatMap(dialogData =>
+                    dialog.rule.tryMatch({
+                        ... match as any,
 
-                            if (response.status === 'replaceThisDialog') {
-                                // start new dialog
-                            }
+                        dialogData,
+                        dialogStack: [... match.dialogStack, dialogInstance],
 
-                            return Observable.of({
-                                    action: () => response.tasks && response.tasks.length && this.remoteDialogProxy.executeTasks(m, response.tasks)
-                                } as RuleResult);
-                        }),
-                }),
-        });
+                        beginChildDialog: <DIALOGARGS extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS) =>
+                            dialog(match)
+                                .activate(args)
+                                .do(dialogInstance => match.dialogData.childDialogInstance = dialogInstance)
+                                .toPromise(),
+                        clearChildDialog: () => new Promise<void>(() => dialogData.childDialogInstance = undefined),
+                        replaceThisDialog: <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(dialog: IDialog<M, DIALOGARGS>, args?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
+                            toObservable(dialogResponder({
+                                ... match as any,
+                                dialogResponse
+                            }))
+                                .toPromise()
+                                .then(() => match.beginChildDialog(dialog, args)),
+                        endThisDialog: <DIALOGRESPONSE extends object = any>(dialogResponse?: DIALOGRESPONSE) =>
+                            toObservable(dialogResponder({
+                                ... match as any,
+                                dialogResponse
+                            }))
+                                .toPromise()
+                                .then(() => match.clearChildDialog()),
+                    })
+                    .map(ruleResult => ({
+                        ... ruleResult,
+                        action: () => toObservable(ruleResult.action())
+                            .flatMap(_ => toObservable(this.localDialogInstances.setDialogData(dialogInstance, dialogData)))
+                    } as RuleResult))
+                )
+        } else {
+            // rule: (dialogInstance: DialogInstance, dialogResponder?: DialogResponder<M, DIALOGRESPONSE>) => ({
+            //     tryMatch: (match: M & IDialogMatch<M, DIALOGRESPONSE>) =>
+            return toObservable(this.remoteDialogProxy.matchLocalToRemote(match))
+                .flatMap(match =>
+                    fetch(
+                        dialog.remoteUrl,
+                        {
+                            method: 'POST',
+                            headers: new Headers({ 'Content-Type': 'application/json' }),
+                            body: JSON.stringify({
+                                method: 'tryMatch',
+                                name: dialog.remoteName,
+                                instance: dialogInstance.instance,
+                                match
+                            })
+                        }
+                    )
+                    .then(response => response.json() as Promise<RemoteTryMatchResponse>)
+                )
+                .flatMap<RemoteTryMatchResponse, RuleResult>(response => {
+                    if (response.status === 'error')
+                        return Observable.throw(`RemoteDialog.tryMatch returned error "${response.error}".`);
 
-        this.dialogs[localName] = dialog;
-        return dialog;
+                    if (response.status === 'matchless')
+                        return Observable.empty<RuleResult>();
+
+                    if (response.status !== 'replaceThisDialog' && response.status !== 'endThisDialog' && response.status !==  'match') {
+                        return Observable.throw(`RemoteDialog.tryMatch returned unexpected status "${(response as any).status}".`);
+                    }
+
+                    if (response.status === 'replaceThisDialog' || response.status === 'endThisDialog') {
+                        // end dialog, handle response
+                    }
+
+                    if (response.status === 'replaceThisDialog') {
+                        // start new dialog
+                    }
+
+                    return Observable.of({
+                            action: () => response.tasks && response.tasks.length && this.remoteDialogProxy.executeTasks(match, response.tasks)
+                        } as RuleResult);
+                });
+        }
     }
 
     // These methods are used to serve up local dialogs remotely
 
     remoteActivate(name: string, remoteMatch: any, dialogArgs: any): Observable<RemoteActivateResponse> {
-        const dialog = this.dialogs[name];
-        if (!dialog) {
-            return Observable.throw(`An attempt was made to activate a local dialog named ${name}. No such dialog exists.`);
-        }
-
         const tasks: DialogTask[] = [];
 
-        return dialog({
-                ... this.matchRemoteToLocal(remoteMatch) as any,                    // dialog-specific 
+        return this.activate(
+            name, {
+                ... this.matchRemoteToLocal(remoteMatch) as any,                           // dialog-specific 
                 ... this.remoteDialogProxy.matchRemoteToLocal(remoteMatch, tasks) as any,  // provided by recipe
-            })
-            .activate(dialogArgs)
+            },
+            dialogArgs
+        )
             .map(dialogInstance => ({
                 status: 'success',
                 tasks
@@ -395,11 +561,6 @@ export class Dialogs<M extends Match = any> {
     }
 
     remoteTryMatch(name: string, instance: string, remoteMatch: any): Observable<RemoteTryMatchResponse> {
-        const dialog = this.dialogs[name];
-        if (!dialog) {
-            return Observable.throw(`An attempt was made to activate a local dialog named ${name}. No such dialog exists.`);
-        }
-
         const tasks: DialogTask[] = [];
 
         const match: M & IDialogMatch = {
@@ -413,19 +574,17 @@ export class Dialogs<M extends Match = any> {
 
         console.log("remoteTryMatch", match);
 
-        return dialog(match)
-            .rule({ name, instance })
-            .tryMatch(match)
+        return this.tryMatch(name, match, { name, instance })
             // add a sentinal value so that we can detect an empty sequence
             .concat(Observable.of(-1))
             // taking the first element gives us the result of tryMatch if there is one, the sentinal value otherwise
             .take(1)
             // testing the type of the result (instead of the value) lets TypeScript resolve the type ambiguity
-            .flatMap(ruleResult => typeof ruleResult === 'number'
+            .flatMap(ruleResultOrSentinal => typeof ruleResultOrSentinal === 'number'
                 ? Observable.of({
                         status: 'matchless'
                     } as RemoteTryMatchResponse)
-                : toObservable(ruleResult.action())
+                : toObservable(ruleResultOrSentinal.action())
                     .map(_ => ({
                         status: 'match',
                         tasks
