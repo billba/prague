@@ -4,7 +4,7 @@
     "type": "git",
     "url": "git://git@github.com/billba/prague.git"
   },
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "rules-based app engine",
   "main": "dist/prague.js",
   "types": "dist/prague.d.ts",
@@ -17,7 +17,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^7.0.31",
-    "typescript": "^2.4.0-dev.20170610"
+    "typescript": "2.4.0"
   },
   "dependencies": {
     "isomorphic-fetch": "^2.2.1",

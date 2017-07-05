@@ -1,6 +1,6 @@
 {
   "name": "prague-botframework",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "rules-based app engine",
   "main": "dist/botframework.js",
   "types": "dist/botframework.d.ts",
@@ -12,11 +12,11 @@
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^2.4.0-dev.20170612"
+    "typescript": "2.4.0"
   },
   "dependencies": {
     "botframework-directlinejs": "^0.9.6",
-    "prague": "0.7.2",
+    "prague": "0.8.0",
     "rxjs": "^5.3.0"
   }
 }
