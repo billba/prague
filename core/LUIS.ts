@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { IRule, RuleResult, simpleRule, Handler, Match, Observableable, toFilteredObservable, ruleize } from './Rules';
+import { IRouter, Route, simpleRouter, Handler, Message, Observableable, toFilteredObservable, routerize } from './Rules';
 import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
@@ -36,8 +36,8 @@ export interface ILuisMatch {
     entityValues: (type: string) => string[]    
 }
 
-export interface LuisRules<M> {
-    [intent: string] : Handler<M & ILuisMatch> | IRule<M & ILuisMatch>
+export interface LuisRouters<M> {
+    [intent: string] : Handler<M & ILuisMatch> | IRouter<M & ILuisMatch>
 }
 
 interface TestData {
@@ -156,11 +156,11 @@ export class LuisModel {
             });
     }
 
-    public match<M extends ITextMatch = any>(match: M) {
-        return this.call(match.text)
+    public match<M extends ITextMatch = any>(message: M) {
+        return this.call(message.text)
             .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
             .map(luisResponse => ({
-                ... match as any, // remove "as any" when TypeScript fixes this bug
+                ... message as any, // remove "as any" when TypeScript fixes this bug
                 luisResponse: {
                     ... luisResponse,
                     intents: (luisResponse.intents || luisResponse.topScoringIntent && [luisResponse.topScoringIntent])
@@ -169,37 +169,21 @@ export class LuisModel {
             } as M & { luisResponse: LuisResponse}));
     }
 
-    // "classic" LUIS usage - for a given model, say what to do with each intent above a given threshold
-    // IMPORTANT: the order of rules is not important - the rule matching the *highest-ranked intent* will be executed
-    // Note that:
-    //      luis.best(
-    //          luis.rule('intent1', handler1),
-    //          luis.rule('intent2', handler2)
-    //      )
-    // is just a more efficient (and concise) version of:
-    //      Rule.first(
-    //          new Rule(luis.model(), luis.intent('intent1'), handler1)),
-    //          new Rule(luis.model(), luis.intent('intent2'), handler2))
-    //      )
-    // or:
-    //      Rule.first(
-    //          luis.rule('intent1', handler1),
-    //          luis.rule('intent2', handler2)
-    //      ).prependMatcher(luis.model())
+    // IMPORTANT: the order of rules is not important - the router matching the *highest-ranked intent* will be executed
 
-    best<M extends Match & ITextMatch = any>(luisRules: LuisRules<M>) {
+    best<M extends Message & ITextMatch = any>(luisRouters: LuisRouters<M>) {
         return {
-            tryMatch: (match: M) =>
-                toFilteredObservable(this.match(match))
+            getRoute: (message: M) =>
+                toFilteredObservable(this.match(message))
                     .flatMap(m =>
                         Observable.from(m.luisResponse.intents)
                         .flatMap(
                             luisIntent =>
-                                Observable.of(luisRules[luisIntent.intent])
-                                .filter(rule => !!rule)
-                                .flatMap(rule =>
-                                    ruleize(rule).tryMatch({
-                                        ... match as any,
+                                Observable.of(luisRouters[luisIntent.intent])
+                                .filter(router => !!router)
+                                .flatMap(router =>
+                                    routerize(router).getRoute({
+                                        ... message as any,
                                         score: luisIntent.score,
                                         ... entityFields(m.luisResponse.entities),
                                         })
@@ -208,7 +192,7 @@ export class LuisModel {
                         )
                         .take(1) // stop with first intent that appears in the rules
                     )
-        } as IRule<M>;
+        } as IRouter<M>;
     }
 
     static findEntity(entities: LuisEntity[], type: string) {

@@ -1,5 +1,5 @@
 import { konsole } from './Konsole';
-import { IRule, Handler, Match, rule } from './Rules';
+import { IRouter, Handler, Message, router } from './Rules';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 
@@ -8,24 +8,24 @@ export interface IChatPromptChoiceMatch {
 }
 
 export const matchChoice = (choices: string[]) =>
-    <M extends Match & ITextMatch = any>(match: M) => {
-        const choice = choices.find(choice => choice.toLowerCase() === match.text.toLowerCase());
+    <M extends Message & ITextMatch = any>(message: M) => {
+        const choice = choices.find(choice => choice.toLowerCase() === message.text.toLowerCase());
         return choice && {
-            ... match as any, // remove "as any" when TypeScript fixes this bug
+            ... message as any, // remove "as any" when TypeScript fixes this bug
             choice
         } as M & IChatPromptChoiceMatch
     }
 
-export const promptChoice = <M extends Match & ITextMatch = any>(choices: string[], ruleOrHandler: Handler<M & IChatPromptChoiceMatch> | IRule<M & IChatPromptChoiceMatch>) => {
-    return rule(matchChoice(choices), ruleOrHandler) as IRule<M>;
+export const promptChoice = <M extends Message & ITextMatch = any>(choices: string[], ruleOrHandler: Handler<M & IChatPromptChoiceMatch> | IRouter<M & IChatPromptChoiceMatch>) => {
+    return router(matchChoice(choices), ruleOrHandler) as IRouter<M>;
 }
 
 export const matchConfirm = () =>
-    <M extends Match & ITextMatch = any>(match: M) => {
-        const m = matchChoice(['Yes', 'No'])(match);
-        return m.choice === 'Yes' && match;
+    <M extends Message & ITextMatch = any>(message: M) => {
+        const m = matchChoice(['Yes', 'No'])(message);
+        return m.choice === 'Yes' && message;
     }
 
-export const promptConfirm = <M extends Match & ITextMatch = any>(ruleOrHandler: Handler<M> | IRule<M>) => {
-    return rule(matchConfirm(), ruleOrHandler) as IRule<M>;
+export const promptConfirm = <M extends Message & ITextMatch = any>(ruleOrHandler: Handler<M> | IRouter<M>) => {
+    return router(matchConfirm(), ruleOrHandler) as IRouter<M>;
 }

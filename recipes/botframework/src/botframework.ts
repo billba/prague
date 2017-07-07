@@ -1,8 +1,8 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { IRule, Match, first, prependMatcher, ITextMatch, konsole } from 'prague';
-import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
+import { IRouter, Message, first, prependMatcher, ITextMatch, konsole } from 'prague';
+import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message as DLMessage, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
@@ -65,7 +65,7 @@ export const getAddress = (activity: Activity): Address => ({
     channelId: activity.channelId
 });
 
-export interface IActivityMatch extends Match {
+export interface IActivityMatch extends Message {
     activity: Activity;
 }
 
@@ -77,7 +77,7 @@ export interface IChatActivityMatch extends IActivityMatch {
 }
 
 export interface IChatMessageMatch extends ITextMatch, IChatActivityMatch {
-    message: Message;
+    message: DLMessage;
 }
 
 export interface IChatEventMatch extends IChatActivityMatch {
@@ -88,13 +88,13 @@ export interface IChatTypingMatch extends IChatActivityMatch {
     typing: Typing
 }
 
-export const reply = <M extends IChatActivityMatch>(message: Activity | string) => (match: M) => match.reply(message);
+export const reply = <M extends IChatActivityMatch>(toSend: Activity | string) => (message: M) => message.reply(toSend);
 
-export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>(match: M) => {
-    const address = getAddress(match.activity);
+export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>(message: M) => {
+    const address = getAddress(message.activity);
 
     return {
-        ... match as any, // remove "as any" when TypeScript fixes this bug
+        ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatActivityMatch
         address,
@@ -103,38 +103,38 @@ export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>
     } as M & IChatActivityMatch;
 }
 
-export const matchMessage = <M extends IChatActivityMatch>(match: M) => 
-    match.activity.type === 'message' && {
-        ... match as any, // remove "as any" when TypeScript fixes this bug
+export const matchMessage = <M extends IChatActivityMatch>(message: M) => 
+    message.activity.type === 'message' && {
+        ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatMessageMatch
-        text: match.activity.text,
-        message: match.activity
+        text: message.activity.text,
+        message: message.activity
     } as M & ITextMatch & IChatMessageMatch;
 
-export const matchEvent = <M extends IChatActivityMatch>(match: M) => 
-    match.activity.type === 'event' && {
-        ... match as any, // remove "as any" when TypeScript fixes this bug
+export const matchEvent = <M extends IChatActivityMatch>(message: M) => 
+    message.activity.type === 'event' && {
+        ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatEventMatch
-        event: match.activity
+        event: message.activity
     } as M & ITextMatch & IChatEventMatch;
 
-export const matchTyping = <M extends IChatActivityMatch>(match: M) => 
-    match.activity.type === 'typing' && {
-        ... match as any, // remove "as any" when TypeScript fixes this bug
+export const matchTyping = <M extends IChatActivityMatch>(message: M) => 
+    message.activity.type === 'typing' && {
+        ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatTypingMatch
-        typing: match.activity
+        typing: message.activity
     } as M & ITextMatch & IChatEventMatch;
 
-export const chatRule = <M extends Match>(
+export const chatRouter = <M extends Message>(
     chat: UniversalChat,
     rules: {
-        message?:   IRule<M & IChatMessageMatch>,
-        event?:     IRule<M & IChatEventMatch>,
-        typing?:    IRule<M & IChatTypingMatch>,
-        activity?:  IRule<M & IChatActivityMatch>,
+        message?:   IRouter<M & IChatMessageMatch>,
+        event?:     IRouter<M & IChatEventMatch>,
+        typing?:    IRouter<M & IChatTypingMatch>,
+        activity?:  IRouter<M & IChatActivityMatch>,
     }
 ) =>
     prependMatcher<M & IActivityMatch>(matchActivity(chat), first<M & IChatActivityMatch>(

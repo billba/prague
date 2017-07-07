@@ -1,27 +1,26 @@
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 import { ITextMatch } from './Text';
-import { Match, IRule, rule, Handler, arrayize } from './Rules';
+import { Message, IRouter, router, Handler, arrayize } from './Rules';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
 export const matchRegExp = (intents: RegExp | RegExp[]) =>
-    <M extends Match & ITextMatch = any>(match) => 
+    <M extends Message & ITextMatch = any>(message: M) =>
         Observable.from(arrayize(intents))
-        .do(_ => konsole.log("RegExp.match matching", match))
-        .map(regexp => regexp.exec(match.text))
-        .do(groups => konsole.log("RegExp.match result", groups))
-        .filter(groups => groups && groups[0] === match.text)
+        .do(_ => konsole.log("matchRegExp matching", message))
+        .map(regexp => regexp.exec(message.text))
+        .do(groups => konsole.log("matchRegExp result", groups))
+        .filter(groups => groups && groups[0] === message.text)
         .take(1)
-        .do(groups => konsole.log("RegExp.match returning", groups))
+        .do(groups => konsole.log("matchRegExp returning", groups))
         .map(groups => ({
-            ... match as any, // remove "as any" when TypeScript fixes this bug,
+            ... message as any, // remove "as any" when TypeScript fixes this bug,
             groups
         } as M & IRegExpMatch));
 
 // Either call as re(intent, action) or re([intent, intent, ...], action)
-export const re = <M extends Match & ITextMatch = any>(intents: RegExp | RegExp[], ruleOrHandler: Handler<M & IRegExpMatch> | IRule<M & IRegExpMatch>) => {
-    return rule(matchRegExp(intents), ruleOrHandler) as IRule<M>;
-}
+export const re = <M extends Message & ITextMatch = any>(intents: RegExp | RegExp[], ruleOrHandler: Handler<M & IRegExpMatch> | IRouter<M & IRegExpMatch>) =>
+    router(matchRegExp(intents), ruleOrHandler) as IRouter<M>;
