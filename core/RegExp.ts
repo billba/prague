@@ -1,14 +1,14 @@
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 import { ITextMatch } from './Text';
-import { Message, IRouter, router, Handler, arrayize } from './Rules';
+import { IRouter, router, Handler, arrayize } from './Rules';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
 export const matchRegExp = (intents: RegExp | RegExp[]) =>
-    <M extends Message & ITextMatch = any>(message: M) =>
+    <M extends ITextMatch = any>(message: M) =>
         Observable.from(arrayize(intents))
         .do(_ => konsole.log("matchRegExp matching", message))
         .map(regexp => regexp.exec(message.text))
@@ -22,5 +22,5 @@ export const matchRegExp = (intents: RegExp | RegExp[]) =>
         } as M & IRegExpMatch));
 
 // Either call as re(intent, action) or re([intent, intent, ...], action)
-export const re = <M extends Message & ITextMatch = any>(intents: RegExp | RegExp[], ruleOrHandler: Handler<M & IRegExpMatch> | IRouter<M & IRegExpMatch>) =>
+export const re = <M extends ITextMatch = any>(intents: RegExp | RegExp[], ruleOrHandler: Handler<M & IRegExpMatch> | IRouter<M & IRegExpMatch>) =>
     router(matchRegExp(intents), ruleOrHandler) as IRouter<M>;

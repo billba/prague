@@ -1,4 +1,4 @@
-import { Message, IRouter, Handler, routerize, Route, Observableable, toObservable, toFilteredObservable } from './Rules';
+import { IRouter, Handler, routerize, Route, Observableable, toObservable, toFilteredObservable } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -7,11 +7,11 @@ export interface DialogInstance {
     instance: string;
 }
 
-export interface DialogRegistry<M extends Message = any> {
+export interface DialogRegistry<M extends object = any> {
     [name: string]: LocalOrRemoteDialog<M>;
 }
 
-export interface IDialogRootMatch<M extends Message = any> {
+export interface IDialogRootMatch<M extends object = any> {
     beginChildDialog<DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS): Promise<void>;
     clearChildDialog(): Promise<void>;
 }
@@ -20,7 +20,7 @@ export type IDialogData<DIALOGDATA extends object> = DIALOGDATA & {
     childDialogInstance?: DialogInstance;
 }
 
-export interface IDialogMatch<M extends Message = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any> extends IDialogRootMatch<M> {
+export interface IDialogMatch<M extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any> extends IDialogRootMatch<M> {
     dialogData: IDialogData<DIALOGDATA>;
     dialogStack: DialogInstance[];
     replaceThisDialog<DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE): Promise<void>;
@@ -31,7 +31,7 @@ export interface IDialogArgsMatch<DIALOGARGS extends object> {
     dialogArgs: DIALOGARGS;
 }
 
-export interface DialogResponder<M extends Message = any, DIALOGRESPONSE extends object = any> {
+export interface DialogResponder<M extends object = any, DIALOGRESPONSE extends object = any> {
     (message: M & IDialogResponderMatch<DIALOGRESPONSE>): Observableable<void>;
 }
 
@@ -40,7 +40,7 @@ export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
 }
 
 export interface XDialog<
-    M extends Message = any,
+    M extends object = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
     DIALOGDATA extends object = any,
@@ -50,7 +50,7 @@ export interface XDialog<
 }
 
 export interface LocalDialog<
-    M extends Message = any,
+    M extends object = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
     DIALOGDATA extends object = any,
@@ -62,7 +62,7 @@ export interface LocalDialog<
 }
 
 export interface RemoteDialog<
-    M extends Message = any,
+    M extends object = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
 > {
@@ -72,14 +72,14 @@ export interface RemoteDialog<
 }
 
 export type LocalOrRemoteDialog<
-    M extends Message = any,
+    M extends object = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
     DIALOGDATA extends object = any,
 > = LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> | RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>
 
 const isLocalDialog = <
-    M extends Message = any,
+    M extends object = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
     DIALOGDATA extends object = any
@@ -92,7 +92,7 @@ export interface RootDialogInstance {
     set: (message: any, rootDialogInstance?: DialogInstance) => Observableable<void>;
 }
 
-export interface DialogResponders<M extends Message = any> {
+export interface DialogResponders<M extends object = any> {
     [name: string]: DialogResponder<M>;
 }
 
@@ -108,7 +108,7 @@ export interface DialogTask {
     args?: any;
 }
 
-export interface RemoteDialogProxy<M extends Message = any> {
+export interface RemoteDialogProxy<M extends object = any> {
     matchLocalToRemote?: (message: M) => Observableable<any>,
     matchRemoteToLocal?: (message: any, tasks: DialogTask[]) => Observableable<M>,
     executeTask?: (message: M, tasks: DialogTask) => Observableable<any>,
@@ -151,7 +151,7 @@ export type RemoteRequest = RemoteActivateRequest | RemoteTryMatchRequest;
 
 export type RemoteResponse = RemoteActivateResponse | RemoteTryMatchResponse;
 
-export class Dialogs<M extends Message = any> {
+export class Dialogs<M extends object = any> {
     private dialogs: DialogRegistry<M> = {}
 
     constructor(
@@ -162,7 +162,7 @@ export class Dialogs<M extends Message = any> {
     }
 
     runChildIfActive<
-        ANYMATCH extends Message = M,
+        ANYMATCH extends object = M,
         DIALOGRESPONSE extends object = any
     >(
         dialogOrName?: LocalOrRemoteDialog<M, any, DIALOGRESPONSE> | string,

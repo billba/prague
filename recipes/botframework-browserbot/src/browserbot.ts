@@ -26,7 +26,7 @@ export class BrowserBot<BOTDATA> {
         .map(activity => ({ activity } as IActivityMatch))
         .do(message => konsole.log("activity", message.activity))
         .flatMap(
-            message => callActionIfMatch(message, router),
+            message => callActionIfMatch(router, message),
             1
         )
         .subscribe(

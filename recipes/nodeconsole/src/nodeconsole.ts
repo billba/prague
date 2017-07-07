@@ -1,5 +1,5 @@
 import readline = require('readline');
-import { IRouter, ITextMatch, konsole, callHandlerIfMatch } from 'prague';
+import { IRouter, ITextMatch, konsole, callActionIfMatch } from 'prague';
 
 export * from 'prague';
 
@@ -7,7 +7,7 @@ export interface INodeConsoleMatch extends ITextMatch {
     reply: (text: string) => void;
 }
 
-export const reply = <M extends INodeConsoleMatch>(message: string) => (message: M) => message.reply(message);
+export const reply = <M extends INodeConsoleMatch>(message: string) => (m: M) => m.reply(message);
 
 export const runNodeConsole = (router: IRouter<INodeConsoleMatch>) => {
     const rl = readline.createInterface({
@@ -15,7 +15,7 @@ export const runNodeConsole = (router: IRouter<INodeConsoleMatch>) => {
     });
 
     rl.on('line', (text: string) =>
-        callHandlerIfMatch({
+        callActionIfMatch(router, {
             text,
             reply: console.log
         })

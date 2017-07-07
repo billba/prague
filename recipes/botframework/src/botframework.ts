@@ -1,8 +1,8 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { IRouter, Message, first, prependMatcher, ITextMatch, konsole } from 'prague';
-import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message as DLMessage, CardAction } from 'botframework-directlinejs';
+import { IRouter, first, prependMatcher, ITextMatch, konsole } from 'prague';
+import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
 export interface ChatConnector {
@@ -65,7 +65,7 @@ export const getAddress = (activity: Activity): Address => ({
     channelId: activity.channelId
 });
 
-export interface IActivityMatch extends Message {
+export interface IActivityMatch {
     activity: Activity;
 }
 
@@ -77,7 +77,7 @@ export interface IChatActivityMatch extends IActivityMatch {
 }
 
 export interface IChatMessageMatch extends ITextMatch, IChatActivityMatch {
-    message: DLMessage;
+    message: Message;
 }
 
 export interface IChatEventMatch extends IChatActivityMatch {
@@ -128,7 +128,7 @@ export const matchTyping = <M extends IChatActivityMatch>(message: M) =>
         typing: message.activity
     } as M & ITextMatch & IChatEventMatch;
 
-export const chatRouter = <M extends Message>(
+export const chatRouter = <M extends object = any>(
     chat: UniversalChat,
     rules: {
         message?:   IRouter<M & IChatMessageMatch>,

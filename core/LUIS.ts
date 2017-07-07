@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { IRouter, Route, simpleRouter, Handler, Message, Observableable, toFilteredObservable, routerize } from './Rules';
+import { IRouter, Route, simpleRouter, Handler, Observableable, toFilteredObservable, routerize } from './Rules';
 import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
@@ -171,7 +171,7 @@ export class LuisModel {
 
     // IMPORTANT: the order of rules is not important - the router matching the *highest-ranked intent* will be executed
 
-    best<M extends Message & ITextMatch = any>(luisRouters: LuisRouters<M>) {
+    best<M extends ITextMatch = any>(luisRouters: LuisRouters<M>) {
         return {
             getRoute: (message: M) =>
                 toFilteredObservable(this.match(message))
