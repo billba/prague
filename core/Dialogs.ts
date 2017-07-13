@@ -202,7 +202,7 @@ export class Dialogs<M extends object = any> {
                         if (dialogOrName && this.dialogize(dialogOrName) !== dialog)
                             return Observable.empty<Route>();
 
-                        return this.tryMatch(dialog, message as any, dialogInstance, dialogResponder as any);
+                        return this.getRoute(dialog, message as any, dialogInstance, dialogResponder as any);
                     });
             }
         } as IRouter<ANYMATCH>;
@@ -420,7 +420,7 @@ export class Dialogs<M extends object = any> {
     // * by local code, to run remote proxy
     // * by remote proxy, to run local dialog
 
-    private tryMatch<
+    private getRoute<
         DIALOGARGS extends object = any,
         DIALOGRESPONSE extends object = any,
         DIALOGDATA extends object = any
@@ -605,7 +605,7 @@ export class Dialogs<M extends object = any> {
             })
         }
 
-        return this.tryMatch(name, message, { name, instance }, dialogResponder)
+        return this.getRoute(name, message, { name, instance }, dialogResponder)
             .do(ruleResult => konsole.log("ruleResult", ruleResult))
             // add a sentinal value so that we can detect an empty sequence
             .concat(Observable.of(-1))
