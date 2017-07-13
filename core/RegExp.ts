@@ -7,8 +7,8 @@ export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
-export const matchRegExp = (intents: RegExp | RegExp[]) =>
-    <M extends ITextMatch = any>(message: M) =>
+export const matchRegExp = <M extends ITextMatch = any>(intents: RegExp | RegExp[]) =>
+    (message: M) =>
         Observable.from(arrayize(intents))
         .do(_ => konsole.log("matchRegExp matching", message))
         .map(regexp => regexp.exec(message.text))
