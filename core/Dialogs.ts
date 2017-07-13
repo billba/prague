@@ -31,15 +31,15 @@ export interface IDialogArgsMatch<DIALOGARGS extends object> {
     dialogArgs: DIALOGARGS;
 }
 
-export interface DialogResponder<M extends object = any, DIALOGRESPONSE extends object = any> {
-    (message: M & IDialogResponderMatch<DIALOGRESPONSE>): Observableable<void>;
-}
-
-export interface IDialogResponderMatch<DIALOGRESPONSE extends object = object> {
+export interface IDialogResponseHandlerMatch<DIALOGRESPONSE extends object = object> {
     dialogResponse: DIALOGRESPONSE;
 }
 
-export interface XDialog<
+export interface DialogResponseHandler<M extends object = any, DIALOGRESPONSE extends object = any> {
+    (message: M & IDialogResponseHandlerMatch<DIALOGRESPONSE>): Observableable<void>;
+}
+
+export interface IDialog<
     M extends object = any,
     DIALOGARGS extends object = any,
     DIALOGRESPONSE extends object = any,
@@ -92,8 +92,8 @@ export interface RootDialogInstance {
     set: (message: any, rootDialogInstance?: DialogInstance) => Observableable<void>;
 }
 
-export interface DialogResponders<M extends object = any> {
-    [name: string]: DialogResponder<M>;
+export interface DialogResponseHandlers<M extends object = any> {
+    [name: string]: DialogResponseHandler<M>;
 }
 
 export interface LocalDialogInstances {
@@ -166,7 +166,7 @@ export class Dialogs<M extends object = any> {
         DIALOGRESPONSE extends object = any
     >(
         dialogOrName?: LocalOrRemoteDialog<M, any, DIALOGRESPONSE> | string,
-        dialogResponder: DialogResponder<ANYMATCH, DIALOGRESPONSE> = () => {}
+        dialogResponseHandler: DialogResponseHandler<ANYMATCH, DIALOGRESPONSE> = () => {}
     ): IRouter<ANYMATCH> {
         return {
             getRoute: (message: ANYMATCH & IDialogMatch<ANYMATCH>) => {
@@ -202,7 +202,7 @@ export class Dialogs<M extends object = any> {
                         if (dialogOrName && this.dialogize(dialogOrName) !== dialog)
                             return Observable.empty<Route>();
 
-                        return this.getRoute(dialog, message as any, dialogInstance, dialogResponder as any);
+                        return this.getRoute(dialog, message as any, dialogInstance, dialogResponseHandler as any);
                     });
             }
         } as IRouter<ANYMATCH>;
@@ -222,18 +222,18 @@ export class Dialogs<M extends object = any> {
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
         localName: string,
         remoteName: string,
-        dialog: XDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
+        dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
         localName: string,
         remoteable: boolean,
-        dialog: XDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
+        dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
         localName: string,
-        dialog: XDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
+        dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGDATA extends object = any>(
@@ -428,7 +428,7 @@ export class Dialogs<M extends object = any> {
         dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> | string,
         message: M & IDialogMatch<DIALOGRESPONSE>,
         dialogInstance: DialogInstance,
-        dialogResponder: DialogResponder<M, DIALOGRESPONSE>
+        dialogResponseHandler: DialogResponseHandler<M, DIALOGRESPONSE>
     ) : Observable<Route> {
 
         const dialog: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGDATA> = this.dialogize(dialogOrName);
@@ -452,14 +452,14 @@ export class Dialogs<M extends object = any> {
                             resolve();
                         }),
                         replaceThisDialog: <DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE> | string, dialogArgs?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
-                            toObservable(dialogResponder({
+                            toObservable(dialogResponseHandler({
                                 ... message as any,
                                 dialogResponse
                             }))
                                 .toPromise()
                                 .then(() => message.beginChildDialog(dialogOrName as any, dialogArgs)), // TYPE CHECK
                         endThisDialog: (dialogResponse?: DIALOGRESPONSE) =>
-                            toObservable(dialogResponder({
+                            toObservable(dialogResponseHandler({
                                 ... message as any,
                                 dialogResponse
                             }))
@@ -503,7 +503,7 @@ export class Dialogs<M extends object = any> {
                         return Observable.throw(`RemoteDialog.tryMatch returned unexpected status "${(response as any).status}".`);
 
                     return Observable.of({
-                        action: () => this.executeTasks(message, response.tasks, dialogResponder)
+                        action: () => this.executeTasks(message, response.tasks, dialogResponseHandler)
                     } as Route);
                 })
         }
@@ -547,7 +547,7 @@ export class Dialogs<M extends object = any> {
     private executeTasks(
         message: M & IDialogRootMatch,
         tasks: DialogTask[],
-        dialogResponder?: DialogResponder<M>
+        dialogResponseHandler?: DialogResponseHandler<M>
     ): Observable<void> {
         return Observable.from(tasks)
             .flatMap(task => {
@@ -556,9 +556,9 @@ export class Dialogs<M extends object = any> {
                         return message.beginChildDialog(task.args.name, task.args.args);
                     case 'clearChildDialog':
                         return message.clearChildDialog();
-                    case 'responder':
-                        return dialogResponder
-                            ? toObservable(dialogResponder(task.args.response))
+                    case 'handleResponse':
+                        return dialogResponseHandler
+                            ? toObservable(dialogResponseHandler(task.args.response))
                             : Observable.empty();
                     default:
                         return toObservable(this.remoteDialogProxy.executeTask(message, task));
@@ -596,16 +596,16 @@ export class Dialogs<M extends object = any> {
 
         konsole.log("remoteTryMatch", message);
 
-        const dialogResponder = (message: M & IDialogResponderMatch) => {
+        const dialogResponseHandler = (message: M & IDialogResponseHandlerMatch) => {
             tasks.push({
-                method: 'responder',
+                method: 'handleResponse',
                 args: {
                     response: message.dialogResponse
                 }
             })
         }
 
-        return this.getRoute(name, message, { name, instance }, dialogResponder)
+        return this.getRoute(name, message, { name, instance }, dialogResponseHandler)
             .do(ruleResult => konsole.log("ruleResult", ruleResult))
             // add a sentinal value so that we can detect an empty sequence
             .concat(Observable.of(-1))
