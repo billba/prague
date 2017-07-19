@@ -301,17 +301,17 @@ export class Dialogs<M extends object = any> {
         return dialog;
     }
 
-    getRouteFromDialogInstance<ANYMATCH extends object = any, DIALOGRESPONSE extends object = any>(
-        dialogOrName: LocalOrRemoteDialog<ANYMATCH, any, DIALOGRESPONSE> | string,
+    getRouteFromDialogInstance<DIALOGRESPONSE extends object = any>(
+        dialogOrName: LocalOrRemoteDialog<M, any, DIALOGRESPONSE> | string,
         dialogInstance: DialogInstance,
-        m: ANYMATCH,
-        dialogResponseHandler?: DialogResponseHandler<ANYMATCH, DIALOGRESPONSE>
+        m: M,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Observable<Route>;
 
-    getRouteFromDialogInstance<ANYMATCH extends object = any>(
+    getRouteFromDialogInstance(
         dialogInstance: DialogInstance,
-        m: ANYMATCH,
-        dialogResponseHandler?: DialogResponseHandler<ANYMATCH>
+        m: M,
+        dialogResponseHandler?: DialogResponseHandler<M>
     ): Observable<Route>;
 
     getRouteFromDialogInstance(): Observable<Route> {
