@@ -302,17 +302,10 @@ export class Dialogs<M extends object = any> {
     }
 
     getRouteFromDialogInstance<ANYMATCH extends object = any, DIALOGRESPONSE extends object = any>(
-        dialog: LocalOrRemoteDialog<ANYMATCH, any, DIALOGRESPONSE>,
+        dialogOrName: LocalOrRemoteDialog<ANYMATCH, any, DIALOGRESPONSE> | string,
         dialogInstance: DialogInstance,
         m: ANYMATCH,
         dialogResponseHandler?: DialogResponseHandler<ANYMATCH, DIALOGRESPONSE>
-    ): Observable<Route>;
-
-    getRouteFromDialogInstance<ANYMATCH extends object = any>(
-        dialogName: string,
-        dialogInstance: DialogInstance,
-        m: ANYMATCH,
-        dialogResponseHandler?: DialogResponseHandler<ANYMATCH>
     ): Observable<Route>;
 
     getRouteFromDialogInstance<ANYMATCH extends object = any>(
