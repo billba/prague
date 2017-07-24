@@ -11,7 +11,7 @@ type B = IChatMessageMatch;
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run } from 'prague';
+import { IRouter, first, best, ifMatch, run, simpleRouter } from 'prague';
 
 // Regular Expressions
 
@@ -37,50 +37,34 @@ const dialogs = new Dialogs<B>({
             rootDialogInstance = rdi;
         }
     } 
-    // {
-    //     matchLocalToRemote: (match: B) => ({
-    //         activity: match.activity,
-    //         text: match.text,
-    //         message: match.message,
-    //         address: match.address,
-    //         data: match.data,
-    //     }),
-    //     matchRemoteToLocal: (match, tasks) => ({
-    //         activity: match.activity,
-    //         text: match.text,
-    //         message: match.message,
-    //         address: match.address,
-    //         data: match.data,
-    //         reply: (message: any) => tasks.push({
-    //             method: 'reply',
-    //             args: {
-    //                 message
-    //             }
-    //         })
-    //     } as any),
-    //     executeTask: (match, task) => {
-    //         switch (task.method) {
-    //             case 'reply':
-    //                 match.reply(task.args.message);
-    //                 break;
-    //             default:
-    //                 console.warn(`Remote dialog added task "${task.method}" but no such task exists.`)
-    //                 break;
-    //         }
-    //     },
-    // }
 );
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const setAlarm = dialogs.add(
+    'setAlarm',
+    (dialog, m) => m.reply("let's set an alarm"),
+    (dialog) => first(
+        ifMatchRE(/alarm/, m => m.reply("alarm stuff"))
+    )
+)
 
 const rootDialog = dialogs.add(
     'root',
     (dialog) => first(
-        m => m.reply("That is alarming.")
+        ifMatchRE(/set alarm/i, m => dialog.activate('setAlarm')),
+        dialog.routeTo('setAlarm'),
+        ifMatchRE(/delete alarm/i, m => m.reply("let's delete an alarm")),
+        ifMatchRE(/list alarms/i, m => m.reply("let's list the alarms")),
+        m => m.reply("Hi... I'm the alarm bot sample. I can set new alarms or delete existing ones.")
     )
 )
 
-const appRule: IRouter<B> = dialogs.routeToRoot('root');
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const appRouter: IRouter<B> = dialogs.routeToRoot('root');
 
 browserBot.run({
-    message: appRule
+    message: appRouter,
 });
 

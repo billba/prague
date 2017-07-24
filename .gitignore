@@ -9,3 +9,7 @@ dist
 samples/simple-dialog/public/bot.js
 
 samples/simple-dialog/public/bot.js.map
+
+samples/alarmbot/public/bot.js
+
+samples/alarmbot/public/bot.js.map
