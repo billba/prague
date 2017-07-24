@@ -581,6 +581,8 @@ export class Dialogs<M extends object = any> {
 
         console.log("createDialogInstance");
         const localOrRemoteDialog = this.localOrRemoteDialog(dialogOrName);
+        if (!localOrRemoteDialog)
+            return Observable.empty();
 
         if (isLocalDialog(localOrRemoteDialog)) {
             if (!localOrRemoteDialog.constructor)
@@ -595,7 +597,7 @@ export class Dialogs<M extends object = any> {
             return toObservable(localOrRemoteDialog.constructor(dialogConstructorHelper, m, dialogArgs))
                 .flatMap(_ => {
                     if (ended)
-                        return Observable.of(undefined);
+                        return Observable.empty();
                     return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
                         state: dialogConstructorHelper.state,
                     } as DialogState))
@@ -759,6 +761,7 @@ export class Dialogs<M extends object = any> {
         m: M,
         args?: DIALOGARGS
     ) {
+        console.log("createRoot", dialogOrName, m);
         return toObservable(this.createDialogInstance(dialogOrName, m, args))
             .flatMap(dialogInstance =>
                 toObservable(this.rootDialogInstance.set(m, dialogInstance))
@@ -771,23 +774,23 @@ export class Dialogs<M extends object = any> {
         dialogOrName?: DialogOrName<M, DIALOGARGS>,
         args?: DIALOGARGS
     ): IRouter<M> {
+        console.log("routeToRoot")
         return {
             getRoute: (m: M) =>
                 toObservable(this.rootDialogInstance.get(m))
                     .flatMap(dialogInstance => {
-                        if (!dialogInstance) {
-                             if (!dialogOrName) {
-                                console.warn("You attempted to route to a root dialog, but bo root dialog has been created. You need to call dialogs.createRoot or name a dialog to create.");
-                                return Observable.empty<DialogInstance>();
-                             }
+                        if (dialogInstance)
+                            return Observable.of(dialogInstance);
 
-                            return this.createRoot(dialogOrName, m, args);
-                        }
+                        if (!dialogOrName) {
+                            console.warn("You attempted to route to a root dialog, but bo root dialog has been created. You need to call dialogs.createRoot or name a dialog to create.");
+                            return Observable.empty<DialogInstance>();
+                            }
 
-                        return Observable.of(dialogInstance);
+                        return this.createRoot(dialogOrName, m, args);
                     })
                     .flatMap(dialogInstance => {
-                        console.log("routeToRoot", dialogInstance);
+                        console.log("routeToRoot dialogInstance", dialogInstance);
                         return this.getRouteFromDialogInstance(dialogInstance, m, undefined, () => {
                             console.warn("An attempt was made to end or replace the root dialog. The root dialog cannot be ended or replaced.");
                             return false;
@@ -848,12 +851,11 @@ export class Dialogs<M extends object = any> {
                 dialogResponse?: any
             ): Promise<void> => {
                 console.log("dialog.end")
-                return (end(dialogResponse)
+                return end(dialogResponse)
                     ? toObservable(dialogResponseHandler(dialogResponse))
                         // .flatMap(_ => toObservable(this.destroyDialogInstance(dialogInstance)))
-                    : Observable.of<void>()
-                )
-                    .toPromise()
+                        .toPromise()
+                    : Promise.resolve();
             },
 
             // stack
@@ -862,19 +864,18 @@ export class Dialogs<M extends object = any> {
                 dialogOrName: DialogOrName<M>,
                 args?: any,
             ): Promise<void> => {
-                console.log("dialog.replace", args)
+                console.log("dialog.replace", dialogOrName, args)
                 return end() && replace
                     ? replace(dialogOrName, args)
-                    : new Promise(resolve => resolve())
+                    : Promise.resolve();
             },
 
             setChild: (... args): Promise<void> => {
                 console.log("dialog.setChild", args)
-                if (args.length === 1 && args[0].instance !== undefined)
-                    return new Promise((resolve) => {
-                        dialogState.child = args[0];
-                        resolve();
-                    });
+                if (args[0].instance !== undefined) {
+                    dialogState.child = args[0];
+                    return Promise.resolve();
+                }
 
                 return this.createDialogInstance(args[0], m, ... args.slice(1))
                     .map(dialogInstance => {
@@ -917,7 +918,7 @@ export class Dialogs<M extends object = any> {
                 dialogArgs?: any,
                 dialogResponseHandler?: DialogResponseHandler<M>
             ): Promise<void> => {
-                console.log("dialog.activate", dialogOrName)
+                console.log("dialog.activate", dialogOrName, dialogArgs, dialogResponseHandler)
                 return this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler)
                     .map(dialogInstance => {
                         if (!dialogState.activeDialogs)
@@ -939,7 +940,7 @@ export class Dialogs<M extends object = any> {
                 dialogOrName: DialogOrName<M>
             ): boolean => {
                 console.log("dialog.isActive", dialogOrName)
-                return dialogState.activeDialogs && dialogState.activeDialogs[nameize(dialogOrName)] !== undefined;
+                return dialogState.activeDialogs !== undefined && dialogState.activeDialogs[nameize(dialogOrName)] !== undefined;
             },
 
             routeTo: (
@@ -950,7 +951,7 @@ export class Dialogs<M extends object = any> {
                 const name = nameize(dialogOrName);
                 return {
                     getRoute: (m: M) => dialogState.activeDialogs && dialogState.activeDialogs[name]
-                        ? this.getRouteFromDialogInstance(dialogState.activeDialogs[name], m, undefined, (dialogResponse) => {
+                        ? this.getRouteFromDialogInstance(dialogState.activeDialogs[name], m, dialogResponseHandler, (dialogResponse) => {
                                 if (dialogState.activeDialogs)
                                     dialogState.activeDialogs[name] = undefined;
                                 return true;
@@ -1026,115 +1027,4 @@ export class Dialogs<M extends object = any> {
     //     }
     // }
 
-// import { first, ifMatch } from './Rules';
-// import { ifMatchRE, matchRE } from './RegExp';
 
-// interface GameBot {
-//     text: string;
-//     reply (text: string): void;
-// }
-
-// interface GameArgs {
-//     foo: string;
-// }
-
-// interface GameState {
-//     score: number;
-// }
-
-// interface GameResponse {
-//     score: number
-// }
-
-// const dialogs = new Dialogs<GameBot>({}, {});
-
-
-// const not = (promise: Promise<boolean>): Promise<boolean> => promise.then(f => !f);
-
-// let di: DialogInstance;
-
-// const aDialog = dialogs.add<{ cat: string }>(
-//     'adialog',
-//     (dialog, m, args) => ({ foo: args.cat }),
-//     (dialog) => m => m.reply("hi there")
-// )
-
-// const stockPrompt = dialogs.add (
-//     'stock',
-//     (dialog, m, args) => {
-//         m.reply("What stock would you like to check out?");
-//     },
-//     (dialog) => first(
-//         m => m.reply(`The stock price for ${m.text} is $97.60`),
-//         m => dialog.createInstance(aDialog, { canaery: 5 }),
-//     )
-// )
-
-// const stockReply = m => m.reply(`The stock price for ${m.dialogResponse} is $97.60`);
-
-// const gameDialog = dialogs.add <GameArgs, GameResponse, GameState> (
-//     'game',
-//     (dialog, message, args) => {
-//         return dialog.endThisDialog();
-//         // return { dialogState: { score: 0 } };
-//     },
-//     (dialog) => first(
-//         dialog.routeToChild(),
-//         dialog.routeTo(stockPrompt, stockReply),
-
-        
-//         ifMatchRE(/stock/, m => dialog.activate(stockPrompt, {}, stockReply))
-//     )
-// )
-
-// const foo: IRouter<GameBot> = first(
-//     dialogs.routeToRoot(gameDialog, { bar: "cat" }),
-// )
-
-// // BIG PROBLEM
-
-// // If stacked dialogs don't return values - and they can't -- then how do we do prompts?
-// // Like, how do prompts "return" a value to the dialog without setting state? Or is that the answer?
-
-// // A QUESTION
-
-// // What do we pass to init()? It seems like we want it to have "dialog.end" but is there anything else it could reasonable need?
-
-// interface ICascade {
-//     next: () => void;
-// }
-
-// const cascade = (
-//     init: DialogConstructor,
-//     functions: (dialog: DialogRouterHelper) => (cascade: ICascade) => any[]
-// ) => {
-
-// }
-
-
-
-// dialogs.add(cascade(
-//     (dialog, m, args) => {},
-//     (dialog) => (cascade) => [
-//         m => m.reply("How ya doing?"),
-//         m => {},
-//         m => {}
-//     ]
-// ))
-
-
-
-// // MY CURRENT IDEA
-
-// // The dialog response is structured:
-
-// interface DialogResponse<DIALOGRESPONSE> {
-//     replace: {
-//         dialogOrName: DialogOrName;
-//         args: any
-//     };
-//     response: DIALOGRESPONSE;
-// }
-
-// // How does the core "routeToInstance" function stop?
-// // It has to provide a handler, otherwise it doesn't stop`
