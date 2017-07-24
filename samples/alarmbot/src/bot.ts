@@ -41,19 +41,37 @@ const dialogs = new Dialogs<B>({
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const setAlarm = dialogs.add(
+interface AlarmState {
+    title: string,
+    time: Date
+}
+
+const setAlarm = (alarmState: AlarmState) => {
+
+}
+
+const setAlarmDialog = dialogs.add<AlarmState, AlarmState, AlarmState>(
     'setAlarm',
-    (dialog, m) => m.reply("let's set an alarm"),
+    (dialog, m) => m.reply("Let's set an alarm. What do you want to call it?"),
     (dialog) => first(
-        ifMatchRE(/alarm/, m => m.reply("alarm stuff"))
+        ifMatchRE(/help/, m => {}),
+        ifMatch(_ => !dialog.state.title, m => {
+            dialog.state.title = m.text;
+            m.reply("For when shall I set the alarm?");
+        }),
+        ifMatch(_ => !dialog.state.time, m => {
+            dialog.state.time = new Date(m.text);
+            m.reply(`Great, I set an alarm called ${dialog.state.title} for ${dialog.state.time.toString()}.`);
+            return dialog.end({ title: dialog.state.title, time: dialog.state.time });
+        })
     )
 )
 
 const rootDialog = dialogs.add(
     'root',
     (dialog) => first(
-        ifMatchRE(/set alarm/i, m => dialog.activate('setAlarm')),
-        dialog.routeTo('setAlarm'),
+        ifMatchRE(/set alarm/i, m => dialog.activate(setAlarmDialog, m => {})),
+        dialog.routeTo('setAlarm', m => setAlarm(m.dialogResponse)),
         ifMatchRE(/delete alarm/i, m => m.reply("let's delete an alarm")),
         ifMatchRE(/list alarms/i, m => m.reply("let's list the alarms")),
         m => m.reply("Hi... I'm the alarm bot sample. I can set new alarms or delete existing ones.")
