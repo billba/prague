@@ -148,7 +148,7 @@ export interface LocalDialog<
     DIALOGSTATE extends object = any,
 > {
     localName: string;
-    remoteName?: string;    // If defined, how it is named to the outside world, otherwise not exposed
+    remoteName: string;    // How it is named to the outside world (might be same as localName)
     constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
     router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>;
 }
@@ -169,10 +169,6 @@ export type LocalOrRemoteDialog<
     DIALOGRESPONSE extends object = any,
     DIALOGSTATE extends object = any,
 > = LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE> | RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>
-
-export interface DialogRegistry<M extends object = any> {
-    [name: string]: LocalOrRemoteDialog<M>;
-}
 
 const isLocalDialog = <
     M extends object = any,
@@ -207,10 +203,10 @@ export interface LocalDialogInstances {
     setDialogState: (dialogInstance: DialogInstance, dialogState?: any) => Observableable<void>
 }
 
-export interface DialogTask {
-    method: string;
-    args?: any;
-}
+// export interface DialogTask {
+//     method: string;
+//     args?: any;
+// }
 
 // export interface RemoteDialogProxy<M extends object = any> {
 //     matchLocalToRemote?: (message: M) => Observableable<any>,
@@ -279,7 +275,10 @@ export const inMemoryDialogInstances: LocalDialogInstances = {
 }
 
 export class Dialogs<M extends object = any> {
-    private dialogRegistry: DialogRegistry<M> = {}
+
+     private dialogRegistry: {
+         [name: string]: LocalOrRemoteDialog<M>;
+      } = {}
 
     constructor(
         private rootDialogInstance: RootDialogInstance,
