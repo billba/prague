@@ -1,4 +1,4 @@
-## More Complex
+## More on Routing
 
 Let's add a new pattern to respond if the user introduces themselves. We'll use another shortcut function called `matchRE`, for testing regular expressions. 
 

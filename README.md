@@ -35,13 +35,14 @@ Prague is a low-level framework. If you want to build an app you will want to us
 
 # Tutorial
 
-[Simple routing logic](docs/Simple.md)
-[More on routing logic](docs/MoreRouters.md)
+[Simple routing](docs/Simple.md)
+[More on routing](docs/MoreRouters.md)
 [State and routing](docs/State.md)
+[Dialog](docs/Dialogs.md)
 
 ## To be written
 
-[Dialog](docs/Dialogs.md)
+[More on Dialogs](docs/MoreDialogs.md)
 [Prompts](docs/Prompts.md)
 [Async](docs/Async.md)
 [Natural Language](docs/NLP.md)
