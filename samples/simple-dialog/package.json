@@ -17,8 +17,9 @@
     "source-map-loader": "^0.2.1",
     "typescript": "^2.4.0-dev.20170612",
     "webpack": "^2.3.2"
-  },
+},
   "dependencies": {
-    "prague-botframework-browserbot": "0.10.0"
+    "prague": "^0.10.1",
+    "prague-botframework-browserbot": "^0.10.1"
   }
 }

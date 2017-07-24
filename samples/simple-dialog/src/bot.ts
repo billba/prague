@@ -1,8 +1,5 @@
-import { IStateMatch, ChatState } from 'prague-botframework-browserbot';
-
-let rootDialogInstance: DialogInstance;
-
-import { UniversalChat, WebChatConnector, BrowserBot, IChatMessageMatch } from 'prague-botframework-browserbot';
+import { UniversalChat, WebChatConnector, IChatMessageMatch } from 'prague-botframework';
+import { BrowserBot } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
@@ -14,15 +11,15 @@ type B = IChatMessageMatch;
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run } from 'prague-botframework-browserbot';
+import { IRouter, first, best, ifMatch, run } from 'prague';
 
 // Regular Expressions
 
-import { matchRE, ifMatchRE } from 'prague-botframework-browserbot';
+import { matchRE, ifMatchRE } from 'prague';
 
 // LUIS
 
-import { LuisModel } from 'prague-botframework-browserbot';
+import { LuisModel } from 'prague';
 
 // WARNING: don't check your LUIS id/key in to your repo!
 
@@ -30,7 +27,9 @@ const luis = new LuisModel('id', 'key');
 
 // Dialogs
 
-import { RootDialogInstance, DialogInstance, LocalDialogInstances, Dialogs } from 'prague-botframework-browserbot'
+import { RootDialogInstance, DialogInstance, Dialogs } from 'prague'
+
+let rootDialogInstance: DialogInstance;
 
 const dialogs = new Dialogs<B>({
         get: (match) => rootDialogInstance,
@@ -72,26 +71,6 @@ const dialogs = new Dialogs<B>({
     // }
 );
 
-dialogs.add(
-    'friend',
-    (dialog) => first(
-        ifMatchRE(/hi/i, m => {
-            m.reply("hello, friend!");
-            return dialog.replace('stock');
-        })
-    )
-)
-
-dialogs.add(
-    'stock',
-    (dialog) => first(
-        ifMatchRE(/msft/i, m => {
-            m.reply("MSFT is trading at one million dollars");
-            return dialog.replace('friend');
-        })
-    )
-)
-
 interface GameState {
     num: number,
     guesses: number
@@ -112,12 +91,6 @@ const gameDialog = dialogs.add<GameArgs, {}, GameState>(
         }
     },
     (dialog) => first(
-        ifMatchRE(/stock/, m => dialog.setChild('stock')),
-        dialog.routeToChild(),
-        ifMatchRE(/end/, m => {
-            m.reply("boring conversation anyway - LUKE WE'RE GONNA HAVE COMPANY");
-            return dialog.end();
-        }),
         ifMatchRE(/\d+/, m => {
             const guess = parseInt(m.groups[0]);
             if (guess === dialog.state.num) {

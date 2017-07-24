@@ -1,9 +1,6 @@
 import { IRouter, IStateMatch, prependMatcher, routeMessage, konsole } from 'prague';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, chatRouter } from 'prague-botframework';
 
-export * from 'prague';
-export * from 'prague-botframework';
-
 export class BrowserBot<BOTDATA> {
     constructor(
         private chat: UniversalChat,
