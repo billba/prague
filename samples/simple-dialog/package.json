@@ -19,6 +19,6 @@
     "webpack": "^2.3.2"
   },
   "dependencies": {
-    "prague-botframework-browserbot": "../../recipes/botframework-browserbot"
+    "prague-botframework-browserbot": "0.10.0"
   }
 }
