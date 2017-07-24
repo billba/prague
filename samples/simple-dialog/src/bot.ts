@@ -18,7 +18,7 @@ import { IRouter, first, best, ifMatch, run } from 'prague-botframework-browserb
 
 // Regular Expressions
 
-import { matchRE, ifMatchRE, IRegExpMatch } from 'prague-botframework-browserbot';
+import { matchRE, ifMatchRE } from 'prague-botframework-browserbot';
 
 // LUIS
 
@@ -72,6 +72,26 @@ const dialogs = new Dialogs<B>({
     // }
 );
 
+dialogs.add(
+    'friend',
+    (dialog) => first(
+        ifMatchRE(/hi/i, m => {
+            m.reply("hello, friend!");
+            return dialog.replace('stock');
+        })
+    )
+)
+
+dialogs.add(
+    'stock',
+    (dialog) => first(
+        ifMatchRE(/msft/i, m => {
+            m.reply("MSFT is trading at one million dollars");
+            return dialog.replace('friend');
+        })
+    )
+)
+
 interface GameState {
     num: number,
     guesses: number
@@ -92,6 +112,12 @@ const gameDialog = dialogs.add<GameArgs, {}, GameState>(
         }
     },
     (dialog) => first(
+        ifMatchRE(/stock/, m => dialog.setChild('stock')),
+        dialog.routeToChild(),
+        ifMatchRE(/end/, m => {
+            m.reply("boring conversation anyway - LUKE WE'RE GONNA HAVE COMPANY");
+            return dialog.end();
+        }),
         ifMatchRE(/\d+/, m => {
             const guess = parseInt(m.groups[0]);
             if (guess === dialog.state.num) {
@@ -125,9 +151,6 @@ const rootDialog = dialogs.add(
 )
 
 const appRule: IRouter<B> = dialogs.routeToRoot('root');
-// first(
-//     m => m.reply("hey")
-// )
 
 browserBot.run({
     message: appRule

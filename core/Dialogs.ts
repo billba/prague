@@ -429,7 +429,8 @@ export class Dialogs<M extends object = any> {
         dialogInstance: DialogInstance,
         m: M,
         dialogResponseHandler: DialogResponseHandler<M> = () => {},
-        end: (dialogResponse?: any) => boolean = () => true
+        end: (dialogResponse?: any) => boolean = () => true,
+        replace?: (dialogOrName: DialogOrName, args?: any) => Promise<void>
     ): Observable<Route> {
 
         // A small optimization - if the provided DialogInstance is null or undefined, no match but also no error
@@ -448,7 +449,7 @@ export class Dialogs<M extends object = any> {
             konsole.log("getRouteFromDialogInstance local", m);
             return toObservable(this.localDialogInstances.getDialogState(dialogInstance))
                 .flatMap(dialogState =>
-                    localOrRemoteDialog.router(this.createDialogRouterHelper(dialogInstance, m, dialogState, dialogResponseHandler, end))
+                    localOrRemoteDialog.router(this.createDialogRouterHelper(dialogInstance, m, dialogState, dialogResponseHandler, end, replace))
                         .getRoute(m)
                         .map(route => ({
                             ... route,
@@ -813,8 +814,10 @@ export class Dialogs<M extends object = any> {
         m: M,
         dialogState: DialogState,
         dialogResponseHandler: DialogResponseHandler<M>,
-        end: (dialogResponse?: any) => boolean
+        end: (dialogResponse?: any) => boolean = () => true,
+        replace?: (dialogOrName: DialogOrName, args?: any) => Promise<void>
     ): DialogRouterHelper {
+        console.log("creating dialogRouterHelper", dialogInstance, dialogState, dialogInstances);
 
         return {
 
@@ -827,11 +830,13 @@ export class Dialogs<M extends object = any> {
                 dialogArgs?: any,
                 dialogResponseHandler?: DialogResponseHandler
             ): Promise<DialogInstance> => {
+                console.log("dialog.createInstance", dialogOrName)
                 return this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler)
                     .toPromise();
             },
 
             routeToInstance: (... args): IRouter<M> => {
+                console.log("dialog.routeToInstance", args)
                 const i = args[0].instance !== undefined ? 0 : 1;
                 return {
                     getRoute: (m: M) => 
@@ -842,6 +847,7 @@ export class Dialogs<M extends object = any> {
             end: (
                 dialogResponse?: any
             ): Promise<void> => {
+                console.log("dialog.end")
                 return (end(dialogResponse)
                     ? toObservable(dialogResponseHandler(dialogResponse))
                         // .flatMap(_ => toObservable(this.destroyDialogInstance(dialogInstance)))
@@ -852,28 +858,25 @@ export class Dialogs<M extends object = any> {
 
             // stack
 
-            replace:  (
+            replace: (
                 dialogOrName: DialogOrName<M>,
                 args?: any,
             ): Promise<void> => {
-                return end()
-                    ? this.createDialogInstance(args[0], args[1])
-                        // Also need to destory the old instance here
-                        .map(dialogInstance => {
-                            dialogState.child = dialogInstance;
-                        })
-                        .toPromise()
-                    : new Promise(resolve => resolve());
+                console.log("dialog.replace", args)
+                return end() && replace
+                    ? replace(dialogOrName, args)
+                    : new Promise(resolve => resolve())
             },
 
             setChild: (... args): Promise<void> => {
-                if (args.length === 1)
+                console.log("dialog.setChild", args)
+                if (args.length === 1 && args[0].instance !== undefined)
                     return new Promise((resolve) => {
                         dialogState.child = args[0];
                         resolve();
                     });
 
-                return this.createDialogInstance(args[0], m, args[1], ... args.slice(2))
+                return this.createDialogInstance(args[0], m, ... args.slice(1))
                     .map(dialogInstance => {
                         dialogState.child = dialogInstance;
                     })
@@ -881,18 +884,28 @@ export class Dialogs<M extends object = any> {
             },
 
             clearChild: (): void => {
+                console.log("dialog.clearChild")
                 dialogState.child = undefined;
             },
 
             routeToChild: (): IRouter<M> => {
+                console.log("dialog.routeToChild")
                 return {
                     getRoute: (m: M) => dialogState.child
-                        ? this.getRouteFromDialogInstance(dialogState.child, m, undefined, (dialogResponse) => {
-                                dialogState.child = undefined;
-                                if (dialogResponse !== undefined)
-                                    console.warn(`Stacked dialog ${dialogState.child.name} returned a response. It was ignored.`);
-                                return true;
-                            })
+                        ? this.getRouteFromDialogInstance(dialogState.child, m, undefined,
+                                (dialogResponse) => {
+                                    dialogState.child = undefined;
+                                    if (dialogResponse !== undefined)
+                                        console.warn(`Stacked dialog ${dialogState.child.name} returned a response. It was ignored.`);
+                                    return true;
+                                },
+                                (dialogOrName, args) =>
+                                    this.createDialogInstance(dialogOrName, m, args)
+                                        .map(dialogInstance => {
+                                            dialogState.child = dialogInstance;
+                                        })
+                                        .toPromise()
+                            )
                         : Observable.empty()
                 }
             },
@@ -904,7 +917,7 @@ export class Dialogs<M extends object = any> {
                 dialogArgs?: any,
                 dialogResponseHandler?: DialogResponseHandler<M>
             ): Promise<void> => {
-                console.log("dialog.activate", dialogOrName, dialogInstance, dialogState)
+                console.log("dialog.activate", dialogOrName)
                 return this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler)
                     .map(dialogInstance => {
                         if (!dialogState.activeDialogs)
@@ -917,6 +930,7 @@ export class Dialogs<M extends object = any> {
             deactivate: (
                 dialogOrName: DialogOrName<M>
             ): void => {
+                console.log("dialog.deactivate", dialogOrName)
                 if (dialogState.activeDialogs)
                     dialogState.activeDialogs[nameize(dialogOrName)] = undefined;
             },
@@ -924,6 +938,7 @@ export class Dialogs<M extends object = any> {
             isActive: (
                 dialogOrName: DialogOrName<M>
             ): boolean => {
+                console.log("dialog.isActive", dialogOrName)
                 return dialogState.activeDialogs && dialogState.activeDialogs[nameize(dialogOrName)] !== undefined;
             },
 
@@ -931,7 +946,7 @@ export class Dialogs<M extends object = any> {
                 dialogOrName: DialogOrName<M>,
                 dialogResponseHandler?: DialogResponseHandler<M>
             ): IRouter<M> => {
-                console.log("dialog.routeTo", dialogOrName, dialogInstance, dialogState, dialogInstances)
+                console.log("dialog.routeTo", dialogOrName)
                 const name = nameize(dialogOrName);
                 return {
                     getRoute: (m: M) => dialogState.activeDialogs && dialogState.activeDialogs[name]
@@ -942,9 +957,7 @@ export class Dialogs<M extends object = any> {
                             })
                         : Observable.empty()
                 }
-
             }
-
 
         } 
     }

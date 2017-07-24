@@ -5,3 +5,7 @@ npm-debug.log
 notes.md
 dist
 .DS_Store
+
+samples/simple-dialog/public/bot.js
+
+samples/simple-dialog/public/bot.js.map
