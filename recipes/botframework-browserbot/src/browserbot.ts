@@ -1,4 +1,4 @@
-import { IRouter, IStateMatch, prependMatcher, callActionIfMatch, konsole } from 'prague';
+import { IRouter, IStateMatch, prependMatcher, routeMessage, konsole } from 'prague';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, chatRouter } from 'prague-botframework';
 
 export * from 'prague';
@@ -26,7 +26,7 @@ export class BrowserBot<BOTDATA> {
         .map(activity => ({ activity } as IActivityMatch))
         .do(message => konsole.log("activity", message.activity))
         .flatMap(
-            message => callActionIfMatch(router, message),
+            message => routeMessage(router, message),
             1
         )
         .subscribe(

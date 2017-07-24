@@ -1,5 +1,5 @@
 import { konsole } from './Konsole';
-import { IRouter, Handler, router } from './Rules';
+import { IRouter, Handler, ifMatch } from './Rules';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 
@@ -17,7 +17,7 @@ export const matchChoice = (choices: string[]) =>
     }
 
 export const promptChoice = <M extends ITextMatch = any>(choices: string[], ruleOrHandler: Handler<M & IChatPromptChoiceMatch> | IRouter<M & IChatPromptChoiceMatch>) => {
-    return router(matchChoice(choices), ruleOrHandler) as IRouter<M>;
+    return ifMatch(matchChoice(choices), ruleOrHandler) as IRouter<M>;
 }
 
 export const matchConfirm = () =>
@@ -27,5 +27,5 @@ export const matchConfirm = () =>
     }
 
 export const promptConfirm = <M extends ITextMatch = any>(ruleOrHandler: Handler<M> | IRouter<M>) => {
-    return router(matchConfirm(), ruleOrHandler) as IRouter<M>;
+    return ifMatch(matchConfirm(), ruleOrHandler) as IRouter<M>;
 }
