@@ -36,12 +36,14 @@ export const toObservable = <T>(t: Observableable<T>) => {
     return Observable.of(t);
 }
 
-export function isRouter<M extends object = any>(r: IRouter<M> | Handler<M>): r is IRouter<M> {
-    return ((r as any).getRoute !== undefined);
+export type RouterOrHandler<M extends object = any> = IRouter<M> | Handler<M>;
+
+export function isRouter<M extends object = any>(routerOrHandler: RouterOrHandler<M>): routerOrHandler is IRouter<M> {
+    return ((routerOrHandler as any).getRoute !== undefined);
 }
 
-export const routerize = <M extends object = any>(r: IRouter<M> | Handler<M>) => {
-    return isRouter(r) ? r : simpleRouter(r);
+export const routerize = <M extends object = any>(routerOrHandler: RouterOrHandler<M>) => {
+    return isRouter(routerOrHandler) ? routerOrHandler : simpleRouter(routerOrHandler);
 }
 
 export const matchize = <M extends object = any>(matcher: Matcher<M>, message: M) => {
@@ -85,17 +87,17 @@ export const simpleRouter = <M extends object = any>(handler: Handler<M>) => ({
     } as Route)
 }) as IRouter<M>;
 
-const filteredRouter$ = <M extends object = any>(... routers: (IRouter<M> | Handler<M>)[]) =>
-    Observable.from(routers)
-        .filter(router => !!router)
-        .map(router => routerize(router));
+const filteredRouter$ = <M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]) =>
+    Observable.from(routersOrHandlers)
+        .filter(routerOrHandler => !!routerOrHandler)
+        .map(routerOrHandler => routerize(routerOrHandler));
 
-export const first = <M extends object = any>(... routers: (IRouter<M> | Handler<M>)[]) => {
-    const router = filteredRouter$(... routers);
+export const first = <M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]) => {
+    const router$ = filteredRouter$(... routersOrHandlers);
 
     return {
         getRoute: (message: M) =>
-            router.flatMap(
+            router$.flatMap(
                 (router, i) => {
                     konsole.log(`first: trying router #${i}`);
                     return router.getRoute(message)
@@ -112,12 +114,12 @@ const minRoute: Route = {
     action: () => console.log("This should never be called")
 }
 
-export const best = <M extends object = any>(... routers: (IRouter<M> | Handler<M>)[]) => {
-    const router = filteredRouter$(... routers);
+export const best = <M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]) => {
+    const router$ = filteredRouter$(... routersOrHandlers);
 
     return {
         getRoute: (message: M) =>
-            router.flatMap(
+            router$.flatMap(
                 (router, i) => {
                     konsole.log(`best: trying router #${i}`);
                     return router.getRoute(message)
@@ -164,8 +166,8 @@ export function ifMatch<M extends object = any, N extends object = any, Z extend
 export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>, p3: Predicate<Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
 export function ifMatch<M extends object = any, N extends object = any, O extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
 
-export function ifMatch<M extends object = any>(... args: (Predicate | Matcher | Handler | IRouter)[]): IRouter<M> {
-    const router = routerize(args[args.length - 1] as Handler | IRouter);
+export function ifMatch<M extends object = any>(... args: (Predicate | Matcher | RouterOrHandler)[]): IRouter<M> {
+    const router = routerize(args[args.length - 1] as RouterOrHandler);
     switch (args.length) {
         case 1:
             return router;
