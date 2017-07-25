@@ -36,39 +36,7 @@ const dialogs = new Dialogs<B>({
         set: (match, rdi) => {
             rootDialogInstance = rdi;
         }
-    } 
-    // {
-    //     matchLocalToRemote: (match: B) => ({
-    //         activity: match.activity,
-    //         text: match.text,
-    //         message: match.message,
-    //         address: match.address,
-    //         data: match.data,
-    //     }),
-    //     matchRemoteToLocal: (match, tasks) => ({
-    //         activity: match.activity,
-    //         text: match.text,
-    //         message: match.message,
-    //         address: match.address,
-    //         data: match.data,
-    //         reply: (message: any) => tasks.push({
-    //             method: 'reply',
-    //             args: {
-    //                 message
-    //             }
-    //         })
-    //     } as any),
-    //     executeTask: (match, task) => {
-    //         switch (task.method) {
-    //             case 'reply':
-    //                 match.reply(task.args.message);
-    //                 break;
-    //             default:
-    //                 console.warn(`Remote dialog added task "${task.method}" but no such task exists.`)
-    //                 break;
-    //         }
-    //     },
-    // }
+    }
 );
 
 interface GameState {
@@ -116,9 +84,8 @@ const gameDialog = dialogs.add<GameArgs, {}, GameState>(
 
 const rootDialog = dialogs.add(
     'root',
-    (dialog) => first(
+    (dialog) => dialog.first(
         ifMatchRE(/start game/, m => dialog.activate('game')),
-        dialog.routeTo('game'),
         m => m.reply("Type 'start game' to start the game")
     )
 )

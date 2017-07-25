@@ -79,9 +79,8 @@ Now we need to add logic to start the game and keep it going. We do this with a 
 ```typescript
 let rootRouter: DialogRouter<M>
 
-rootRouter = (dialog) => first(
+rootRouter = (dialog) => dialog.first(
     ifMatchRE(/start game/, m => dialog.activate('game')),
-    dialog.routeTo('game'),
     m => m.reply("Type 'start game' to start the game")
 )
 
@@ -93,13 +92,12 @@ dialogs.add(
 
 This dialog doesn't set any initial state so it doesn't require a constructor.
 
-If you squint you can see the rest of our original game logic:
+If you squint you can see most of the rest of our original game logic:
 
 1. Initiate the game when the user types 'start game'
-2. Route subsequent messages to the game logic
-3. Catch-all to help users
+2. Catch-all to help users
 
-If you guessed that `dialog.activate('game')` calls `gameConstructor`, you're absolutely correct. Similarly, `dialog.routeTo('game')` calls `gameRouter`, but only if the game dialog has been activated. And if that dialog's router calls `dialog.end()` then it is deactivated, returning everything to its original state.
+If you guessed that `dialog.activate('game')` calls `gameConstructor`, you're absolutely correct. Once the game dialog has been activated, `dialog.first` will first attempt to route messages to `gameRouter`. And if that dialog's router calls `dialog.end()` then it is deactivated, returning everything to its original state.
 
 Finally we route to this dialog from our application router:
 
