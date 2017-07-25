@@ -143,6 +143,14 @@ export interface DialogRouter<
     (dialog: DialogRouterHelper<M, DIALOGRESPONSE, DIALOGSTATE>): IRouter<M>;
 }
 
+export interface DialogRouterOrHandler<
+    M extends object = any,
+    DIALOGRESPONSE extends object = any,
+    DIALOGSTATE extends object = any
+> {
+    (dialog: DialogRouterHelper<M, DIALOGRESPONSE, DIALOGSTATE>): RouterOrHandler<M>;
+    
+}
 export interface IDialog<
     M extends object = any,
     DIALOGARGS extends object = any,
@@ -150,7 +158,7 @@ export interface IDialog<
     DIALOGSTATE extends object = any,
 > {
     constructor?: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
-    router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>,
+    routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>,
 }
 
 export interface LocalDialog<
@@ -333,37 +341,37 @@ export class Dialogs<M extends object = any> {
         localName: string,
         remoteName: string,
         constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
-        router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>
+        routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
         localName: string,
         remoteable: boolean,
         constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
-        router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>
+        routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
         localName: string,
         constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
-        router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>
+        routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
         localName: string,
         remoteName: string,
-        router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>
+        routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
         localName: string,
         remoteable: boolean,
-        router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>
+        routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
         localName: string,
-        router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>
+        routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
     add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
@@ -394,7 +402,7 @@ export class Dialogs<M extends object = any> {
             // local dialog
             let remoteName: string;
             let constructor = () => {};
-            let router;
+            let routerOrHandler: DialogRouterOrHandler;
             let dialogIndex = 1;
 
             if (typeof args[0] === 'string') {
@@ -409,21 +417,21 @@ export class Dialogs<M extends object = any> {
             if (args.length === dialogIndex + 2) {
                 // init + router
                 constructor = args[dialogIndex];
-                router = args[dialogIndex + 1];
+                routerOrHandler = args[dialogIndex + 1];
             } else if (args[dialogIndex].router) {
                 // IDialog
                 constructor = args[dialogIndex].constructor;
-                router = args[dialogIndex].router;
+                routerOrHandler = args[dialogIndex].routerOrHandler;
             } else {
                 // just router (use default init)
-                router = args[dialogIndex];
+                routerOrHandler = args[dialogIndex];
             }
 
             dialog = {
                 localName,
                 remoteName,
                 constructor,
-                router,
+                router: dialog => routerize(routerOrHandler(dialog))
             }
         }
 

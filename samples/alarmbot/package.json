@@ -19,7 +19,7 @@
     "webpack": "^2.3.2"
 },
   "dependencies": {
-    "prague": "0.10.2",
+    "prague": "^0.10.3",
     "prague-botframework-browserbot": "^0.10.1"
   }
 }
