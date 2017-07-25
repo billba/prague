@@ -1,4 +1,4 @@
-import { IRouter, Handler, routerize, Route, Observableable, toObservable, toFilteredObservable } from './Rules';
+import { IRouter, Handler, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -31,6 +31,8 @@ export interface DialogConstructorHelper<
 > {
     state: DIALOGSTATE;
 
+    routeMessage(m: M): Promise<void>;
+
     end(dialogResponse?: DIALOGRESPONSE): Promise<void>;
 }
 
@@ -48,7 +50,7 @@ export interface DialogRouterHelper<
         dialogArgs?: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Promise<DialogInstance>;
-    
+
     // destroyInstance(
     //     dialogInstance: DialogInstance
     // ): Promise<void>;
@@ -64,6 +66,11 @@ export interface DialogRouterHelper<
         dialogInstance: DialogInstance,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
+
+    // call this from within a dialog to route the given message through the router
+    routeMessage(m: M): Promise<void>;
+
+    first<M extends object = any>(... routers: (IRouter<M> | Handler<M>)[]): IRouter<M>;
 
     // call this from within a dialog to signal its end and (optionally) pass a response to the dialog response handler
     end(
@@ -94,13 +101,13 @@ export interface DialogRouterHelper<
 
     // activation
 
-    activate<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
+    activate <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         args?: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Promise<void>;
 
-    activate<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
+    activate <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         dialogResponseHandler: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Promise<void>;
@@ -281,9 +288,9 @@ export const inMemoryDialogInstances: LocalDialogInstances = {
 
 export class Dialogs<M extends object = any> {
 
-     private dialogRegistry: {
-         [name: string]: LocalOrRemoteDialog<M>;
-      } = {}
+    private dialogRegistry: {
+        [name: string]: LocalOrRemoteDialog<M>;
+    } = {}
 
     constructor(
         private rootDialogInstance: RootDialogInstance,
@@ -301,7 +308,7 @@ export class Dialogs<M extends object = any> {
         const localOrRemoteDialog = this.dialogRegistry[dialogOrName];
         if (localOrRemoteDialog)
             return localOrRemoteDialog;
-        
+
         console.warn(`You referenced a dialog named "${dialogOrName}" but no such dialog exists.`)
     }
 
@@ -609,7 +616,7 @@ export class Dialogs<M extends object = any> {
                         state: dialogConstructorHelper.state,
                     } as DialogState))
                 });
-        } 
+        }
         // else {
         //     return toObservable(this.matchLocalToRemote(message as any)) // TYPE CHECK
         //         .flatMap(message =>
@@ -792,7 +799,7 @@ export class Dialogs<M extends object = any> {
                         if (!dialogOrName) {
                             console.warn("You attempted to route to a root dialog, but bo root dialog has been created. You need to call dialogs.createRoot or name a dialog to create.");
                             return Observable.empty<DialogInstance>();
-                            }
+                        }
 
                         return this.createRoot(dialogOrName, m, args);
                     })
@@ -803,15 +810,19 @@ export class Dialogs<M extends object = any> {
                             return false;
                         })
                     })
-            }
+        }
     }
 
-    private createDialogConstructorHelper (
+    private createDialogConstructorHelper(
         m: M,
         dialogResponseHandler: DialogResponseHandler<M>,
     ): DialogConstructorHelper {
         return {
             state: {},
+
+            routeMessage: (m: M): Promise<void> => {
+                return Promise.resolve();
+            },
 
             end: (dialogResponse: object = {}): Promise<void> => {
                 console.log("ending dialog with response", dialogResponse, dialogResponseHandler);
@@ -824,7 +835,7 @@ export class Dialogs<M extends object = any> {
         }
     }
 
-    private createDialogRouterHelper (
+    private createDialogRouterHelper(
         dialogInstance: DialogInstance,
         m: M,
         dialogState: DialogState,
@@ -833,6 +844,45 @@ export class Dialogs<M extends object = any> {
         replace?: (dialogOrName: DialogOrName, args?: object) => Promise<void>
     ): DialogRouterHelper {
         console.log("creating dialogRouterHelper", dialogInstance, dialogState, dialogInstances);
+
+        const routeToChild = (): IRouter<M> => ({
+            getRoute: (m: M) => {
+                console.log("dialog.routeToChild.getRoute");
+                return dialogState.child
+                    ? this.getRouteFromDialogInstance(dialogState.child, m, undefined,
+                        (dialogResponse) => {
+                            dialogState.child = undefined;
+                            if (dialogResponse !== undefined)
+                                console.warn(`Stacked dialog ${dialogState.child.name} returned a response. It was ignored.`);
+                            return true;
+                        },
+                        (dialogOrName, args) =>
+                            this.createDialogInstance(dialogOrName, m, args)
+                                .map(dialogInstance => {
+                                    dialogState.child = dialogInstance;
+                                })
+                                .toPromise()
+                    )
+                    : Observable.empty();
+            }
+        });
+
+        const routeTo = (
+            dialogOrName: DialogOrName<M>,
+            dialogResponseHandler?: DialogResponseHandler<M>
+        ): IRouter<M> => ({
+            getRoute: (m: M) => {
+                console.log("dialog.routeTo().getRoute", dialogOrName);
+                const name = nameize(dialogOrName);
+                return dialogState.activeDialogs && dialogState.activeDialogs[name]
+                    ? this.getRouteFromDialogInstance(dialogState.activeDialogs[name], m, dialogResponseHandler, (dialogResponse) => {
+                        if (dialogState.activeDialogs)
+                            dialogState.activeDialogs[name] = undefined;
+                        return true;
+                    })
+                    : Observable.empty();
+            }
+        });
 
         return {
 
@@ -859,6 +909,20 @@ export class Dialogs<M extends object = any> {
                 }
             }),
 
+            routeMessage: (m: M): Promise<void> => {
+                return Promise.resolve();
+            },
+
+            first: (... routers: (IRouter<M> | Handler<M>)[]): IRouter<M> => {
+                return first(
+                    routeToChild(),
+                    ... dialogState.activeDialogs
+                        ? Object.keys(dialogState.activeDialogs).map(name => routeTo(name))
+                        : [],
+                    ... routers
+                );
+            },
+            
             end: (
                 dialogResponse: object = {}
             ): Promise<void> => {
@@ -904,27 +968,7 @@ export class Dialogs<M extends object = any> {
                 dialogState.child = undefined;
             },
 
-            routeToChild: (): IRouter<M> => ({
-                getRoute: (m: M) => {
-                    console.log("dialog.routeToChild.getRoute");
-                    return dialogState.child
-                        ? this.getRouteFromDialogInstance(dialogState.child, m, undefined,
-                                (dialogResponse) => {
-                                    dialogState.child = undefined;
-                                    if (dialogResponse !== undefined)
-                                        console.warn(`Stacked dialog ${dialogState.child.name} returned a response. It was ignored.`);
-                                    return true;
-                                },
-                                (dialogOrName, args) =>
-                                    this.createDialogInstance(dialogOrName, m, args)
-                                        .map(dialogInstance => {
-                                            dialogState.child = dialogInstance;
-                                        })
-                                        .toPromise()
-                            )
-                        : Observable.empty();
-                }
-            }),
+            routeToChild,
 
             // activation
 
@@ -972,26 +1016,11 @@ export class Dialogs<M extends object = any> {
                 return dialogState.activeDialogs !== undefined && dialogState.activeDialogs[nameize(dialogOrName)] !== undefined;
             },
 
-            routeTo: (
-                dialogOrName: DialogOrName<M>,
-                dialogResponseHandler?: DialogResponseHandler<M>
-            ): IRouter<M> => ({
-                getRoute: (m: M) => {
-                    console.log("dialog.routeTo().getRoute", dialogOrName);
-                    const name = nameize(dialogOrName);
-                    return dialogState.activeDialogs && dialogState.activeDialogs[name]
-                        ? this.getRouteFromDialogInstance(dialogState.activeDialogs[name], m, dialogResponseHandler, (dialogResponse) => {
-                                if (dialogState.activeDialogs)
-                                    dialogState.activeDialogs[name] = undefined;
-                                return true;
-                            })
-                        : Observable.empty();
-                }
-            })
+            routeTo
 
-        } 
+        }
     }
-    
+
 }
 
 

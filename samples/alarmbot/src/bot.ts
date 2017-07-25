@@ -47,7 +47,7 @@ interface AlarmState {
 }
 
 const setAlarm = (alarmState: AlarmState) => {
-
+    // set alarm here
 }
 
 const setAlarmDialog = dialogs.add<AlarmState, AlarmState, AlarmState>(
@@ -61,17 +61,17 @@ const setAlarmDialog = dialogs.add<AlarmState, AlarmState, AlarmState>(
         }),
         ifMatch(_ => !dialog.state.time, m => {
             dialog.state.time = new Date(m.text);
+            setAlarm(dialog.state);
             m.reply(`Great, I set an alarm called ${dialog.state.title} for ${dialog.state.time.toString()}.`);
-            return dialog.end({ title: dialog.state.title, time: dialog.state.time });
+            return dialog.end();
         })
     )
 )
 
 const rootDialog = dialogs.add(
     'root',
-    (dialog) => first(
-        ifMatchRE(/set alarm/i, m => dialog.activate(setAlarmDialog, m => {})),
-        dialog.routeTo('setAlarm', m => setAlarm(m.dialogResponse)),
+    (dialog) => dialog.first(
+        ifMatchRE(/set alarm/i, m => dialog.activate(setAlarmDialog)),
         ifMatchRE(/delete alarm/i, m => m.reply("let's delete an alarm")),
         ifMatchRE(/list alarms/i, m => m.reply("let's list the alarms")),
         m => m.reply("Hi... I'm the alarm bot sample. I can set new alarms or delete existing ones.")
