@@ -1,4 +1,4 @@
-import { IRouter, Handler, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Rules';
+import { IRouter, RouterOrHandler, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -70,7 +70,7 @@ export interface DialogRouterHelper<
     // call this from within a dialog to route the given message through the router
     routeMessage(m: M): Promise<void>;
 
-    first<M extends object = any>(... routers: (IRouter<M> | Handler<M>)[]): IRouter<M>;
+    first<M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M>;
 
     // call this from within a dialog to signal its end and (optionally) pass a response to the dialog response handler
     end(
@@ -602,11 +602,11 @@ export class Dialogs<M extends object = any> {
                 return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName));
 
             let ended = false;
-            const shim = (dialogResponse) => {
-                ended = true;
-                return dialogResponseHandler(dialogResponse);
-            }
-            const dialogConstructorHelper = this.createDialogConstructorHelper(m, shim);
+            const dialogConstructorHelper = this.createDialogConstructorHelper(m, (dialogResponse) => {
+                    ended = true;
+                    return dialogResponseHandler(dialogResponse);
+                }
+            );
             return toObservable(localOrRemoteDialog.constructor(dialogConstructorHelper, m, dialogArgs))
                 .flatMap(_ => {
                     console.log("dialog ended", ended);
@@ -797,7 +797,7 @@ export class Dialogs<M extends object = any> {
                             return Observable.of(dialogInstance);
 
                         if (!dialogOrName) {
-                            console.warn("You attempted to route to a root dialog, but bo root dialog has been created. You need to call dialogs.createRoot or name a dialog to create.");
+                            console.warn("You attempted to route to a root dialog, but no root dialog has been created. You need to call dialogs.createRoot or name a dialog to create.");
                             return Observable.empty<DialogInstance>();
                         }
 
@@ -913,13 +913,13 @@ export class Dialogs<M extends object = any> {
                 return Promise.resolve();
             },
 
-            first: (... routers: (IRouter<M> | Handler<M>)[]): IRouter<M> => {
+            first: (... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M> => {
                 return first(
                     routeToChild(),
                     ... dialogState.activeDialogs
                         ? Object.keys(dialogState.activeDialogs).map(name => routeTo(name))
                         : [],
-                    ... routers
+                    ... routersOrHandlers
                 );
             },
             
