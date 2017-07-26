@@ -13,3 +13,7 @@ samples/simple-dialog/public/bot.js.map
 samples/alarmbot/public/bot.js
 
 samples/alarmbot/public/bot.js.map
+
+samples/scaffold/public/bot.js
+
+samples/scaffold/public/bot.js.map
