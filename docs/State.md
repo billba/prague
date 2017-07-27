@@ -11,7 +11,7 @@ let state: {
 }
 
 router = first(
-    ifMatchRE('start game', m => {
+    ifMatchRE(/start game/, m => {
         m.reply("Guess a number between 1 and 50. You have 10 guesses.");
         state = {
             num: Math.floor(Math.random() * 50),

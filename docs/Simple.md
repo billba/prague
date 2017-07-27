@@ -39,7 +39,7 @@ Let's start in classic style:
 import { simpleRouter } from 'prague';
 
 router = simpleRouter(
-    m => m.reply("Hello, World"
+    m => m.reply("Hello, World")
 );
 ```
 
