@@ -7,9 +7,9 @@ export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
-export const matchRE = <M extends ITextMatch = any>(intents: RegExp | RegExp[]) =>
+export const matchRE = <M extends ITextMatch = any>(... intents: RegExp[]) =>
     (message: M) =>
-        Observable.from(arrayize(intents))
+        Observable.from(intents)
         .do(_ => konsole.log("matchRegExp matching", message))
         .map(regexp => regexp.exec(message.text))
         .do(groups => konsole.log("matchRegExp result", groups))
@@ -22,5 +22,5 @@ export const matchRE = <M extends ITextMatch = any>(intents: RegExp | RegExp[]) 
         } as M & IRegExpMatch));
 
 // Either call as ifRE(intent, action) or ifRE([intent, intent, ...], action)
-export const ifMatchRE = <M extends ITextMatch = any>(intents: RegExp | RegExp[], ruleOrHandler: Handler<M & IRegExpMatch> | IRouter<M & IRegExpMatch>) =>
-    ifMatch(matchRE(intents), ruleOrHandler) as IRouter<M>;
+export const ifMatchRE = <M extends ITextMatch = any>(intent: RegExp, ruleOrHandler: Handler<M & IRegExpMatch> | IRouter<M & IRegExpMatch>) =>
+    ifMatch(matchRE(intent), ruleOrHandler) as IRouter<M>;
