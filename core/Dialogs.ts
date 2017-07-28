@@ -1,4 +1,4 @@
-import { IRouter, RouterOrHandler, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Rules';
+import { IRouter, RouterOrHandler, Predicate, Matcher, matchize, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Rules';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -8,7 +8,7 @@ export interface DialogInstance {
 }
 
 export interface IDialogResponseHandlerMatch<DIALOGRESPONSE extends object = object> {
-    dialogResponse: DIALOGRESPONSE;
+    readonly dialogResponse: DIALOGRESPONSE;
 }
 
 export interface DialogResponseHandler<M extends object = any, DIALOGRESPONSE extends object = any> {
@@ -29,11 +29,10 @@ export interface DialogConstructorHelper<
     DIALOGRESPONSE extends object = any,
     DIALOGSTATE extends object = any
 > {
+    readonly args: DIALOGARGS;
     state: DIALOGSTATE;
-
-    routeMessage(m: M): Promise<void>;
-
-    end(dialogResponse?: DIALOGRESPONSE): Promise<void>;
+    routeMessage(m: M): void;
+    end(dialogResponse?: DIALOGRESPONSE): void;
 }
 
 export interface DialogRouterHelper<
@@ -67,37 +66,34 @@ export interface DialogRouterHelper<
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
 
-    // call this from within a dialog to route the given message through the router
-    routeMessage(m: M): Promise<void>;
-
-    first<M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M>;
+    // first<M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M>;
 
     // call this from within a dialog to signal its end and (optionally) pass a response to the dialog response handler
     end(
         dialogResponse?: DIALOGRESPONSE
     ): Promise<void>;
 
-    // stack
+    // // stack
 
-    // call this from within a dialog to signal its end and ask the parent dialog to begin another dialog
-    replace <DIALOGARGS extends object = any> (
-        dialogOrName: DialogOrName<M, DIALOGARGS>,
-        args?: DIALOGARGS,
-    ): Promise<void>;
+    // // call this from within a dialog to signal its end and ask the parent dialog to begin another dialog
+    // replace <DIALOGARGS extends object = any> (
+    //     dialogOrName: DialogOrName<M, DIALOGARGS>,
+    //     args?: DIALOGARGS,
+    // ): Promise<void>;
 
-    setChild(
-        dialogInstance: DialogInstance
-    ): Promise<void>;
+    // setChild(
+    //     dialogInstance: DialogInstance
+    // ): Promise<void>;
 
-    // shorthand for createInstance(...).then(di => setChild(di))
-    setChild <DIALOGARGS extends object = any> (
-        dialogOrName: DialogOrName<M, DIALOGARGS>,
-        args?: DIALOGARGS,
-    ): Promise<void>;
+    // // shorthand for createInstance(...).then(di => setChild(di))
+    // setChild <DIALOGARGS extends object = any> (
+    //     dialogOrName: DialogOrName<M, DIALOGARGS>,
+    //     args?: DIALOGARGS,
+    // ): Promise<void>;
 
-    clearChild(): void;
+    // clearChild(): void;
 
-    routeToChild(): IRouter<M>;
+    // routeToChild(): IRouter<M>;
 
     // activation
 
@@ -120,10 +116,62 @@ export interface DialogRouterHelper<
         dialogOrName: DialogOrName<M>
     ): boolean;
 
-    routeTo <DIALOGRESPONSE extends object = any> (
-        dialogOrName: DialogOrName<M, DIALOGRESPONSE>,
+    routeToActive <DIALOGRESPONSE extends object = any> (
+        dialogOrName: DialogOrName<M, any, DIALOGRESPONSE>,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
+
+    routeToActive <DIALOGRESPONSE extends object = any> (
+        dialogOrName: DialogOrName<M, any, DIALOGRESPONSE>,
+        tag: string,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
+    // "just works"
+
+    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        predicate: Predicate<M>,
+        args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
+    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, N extends object = any>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        matcher: Matcher<M, N>,
+        args?: DIALOGARGS | ((n: N) => Observableable<DIALOGARGS>),
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
+    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        args: DIALOGARGS,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
+    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        tag: string,
+        predicate: Predicate<M>,
+        args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
+    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, N extends object = any>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        tag: string,
+        matcher: Matcher<M, N>,
+        args?: DIALOGARGS | ((n: N) => Observableable<DIALOGARGS>),
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
+    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        tag: string,
+        args: DIALOGARGS,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): IRouter<M>;
+
 }
 
 export interface DialogConstructor<
@@ -132,7 +180,7 @@ export interface DialogConstructor<
     DIALOGRESPONSE extends object = any,
     DIALOGSTATE extends object = any
 > {
-    (dialog: DialogConstructorHelper<M, DIALOGRESPONSE, DIALOGSTATE>, message: M, args?: DIALOGARGS): Observableable<void>;
+    (dialog: DialogConstructorHelper<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>, message: M): Observableable<void>;
 }
 
 export interface DialogRouter<
@@ -206,7 +254,7 @@ export type DialogOrName<
     DIALOGSTATE extends object = any,
 > = LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE> | string;
 
-export const nameize = (dialogOrName: DialogOrName): string =>
+export const localName = (dialogOrName: DialogOrName): string =>
     typeof dialogOrName === 'string'
         ? dialogOrName
         : dialogOrName.localName;
@@ -401,7 +449,7 @@ export class Dialogs<M extends object = any> {
         } else {
             // local dialog
             let remoteName: string;
-            let constructor = () => {};
+            let constructor;
             let routerOrHandler: DialogRouterOrHandler;
             let dialogIndex = 1;
 
@@ -445,14 +493,111 @@ export class Dialogs<M extends object = any> {
         return dialog;
     }
 
+    private createDialogInstance(
+        dialogOrName: DialogOrName<M>,
+        m: M,
+        dialogArgs?: object,
+        dialogResponseHandler: DialogResponseHandler<M> = () => {}
+    ): Observable<DialogInstance> {
+
+        console.log("createDialogInstance", dialogOrName, m, dialogArgs, dialogResponseHandler);
+        const localOrRemoteDialog = this.localOrRemoteDialog(dialogOrName);
+        if (!localOrRemoteDialog)
+            return Observable.empty();
+
+        if (isLocalDialog(localOrRemoteDialog)) {
+            if (!localOrRemoteDialog.constructor)
+                return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
+                    state: {},
+                    activeDialogs: {}
+                }));
+
+            let dialogResponse;
+            let messageToRoute: M;
+    
+            const dialogConstructorHelper: DialogConstructorHelper = {
+                args: dialogArgs,
+                state: {},
+                end: (_dialogResponse: object) => {
+                    dialogResponse = _dialogResponse || {};
+                },
+                routeMessage: (_messageToRoute: M) => {
+                    messageToRoute = _messageToRoute;
+                }
+            }
+
+            return toObservable(localOrRemoteDialog.constructor(dialogConstructorHelper, m))
+                .flatMap(_ => {
+                    console.log("createDialogInstance constructor response", dialogResponse, messageToRoute);
+                    if (dialogResponse) {
+                        // Dialog ended in constructor. Do handle the response, don't create a dialog.
+                        return toObservable(dialogResponseHandler(dialogResponse))
+                            .flatMap(_ => Observable.empty());
+                    }
+
+                    return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
+                                state: dialogConstructorHelper.state,
+                                activeDialogs: {},
+                            } as DialogState))
+                        .flatMap(dialogInstance => messageToRoute
+                            ? this.getRouteFromDialogInstance(dialogInstance, messageToRoute, dialogResponseHandler,
+                                    (dialogResponse) => {
+                                        dialogInstance = undefined;
+                                        return true;
+                                    }
+                                )
+                                .flatMap(route =>
+                                    toObservable(route.action())
+                                        .map(_ => dialogInstance)
+                                        .filter(dialogInstance => !!dialogInstance)
+                                )
+                                    
+                            : Observable.of(dialogInstance)
+                        )
+                });
+        }
+        // else {
+        //     return toObservable(this.matchLocalToRemote(message as any)) // TYPE CHECK
+        //         .flatMap(message =>
+        //             fetch(
+        //                 dialog.remoteUrl,
+        //                 {
+        //                     method: 'POST',
+        //                     headers: new Headers({ 'Content-Type': 'application/json' }),
+        //                     body: JSON.stringify({
+        //                         method: 'activate',
+        //                         name: dialog.remoteName,
+        //                         args: dialogArgs,
+        //                         message
+        //                     } as RemoteActivateRequest)
+        //                 }
+        //             )
+        //             .then(response => response.json() as Promise<RemoteActivateResponse>)
+        //         )
+        //         .flatMap(response => {
+        //             if (response.status === 'error')
+        //                 return Observable.throw(`RemoteDialog.activate returned error "${response.error}".`);
+
+        //             if (response.status !== 'success')
+        //                 return Observable.throw(`RemoteDialog.activate returned unexpected status "${(response as any).status}".`);
+
+        //             return toObservable(this.executeTasks(message as any, response.tasks)) // TYPE CHECK
+        //                 .map(_ => ({
+        //                     name: dialog.localName,
+        //                     instanceId: response.instance
+        //                 } as DialogInstance));
+        //         });
+        // }
+    }
+
     private getRouteFromDialogInstance(
         dialogInstance: DialogInstance,
         m: M,
         dialogResponseHandler: DialogResponseHandler<M> = () => {},
         end: (dialogResponse?: object) => boolean = () => true,
-        replace?: (dialogOrName: DialogOrName, args?: object) => Promise<void>
+        // replace?: (dialogOrName: DialogOrName, args?: object) => Promise<void>
     ): Observable<Route> {
-        console.log("getRouteFromDialogInstance", dialogInstance, m, dialogResponseHandler, end, replace);
+        console.log("getRouteFromDialogInstance", dialogInstance, m, dialogResponseHandler, end); // , replace);
 
         // A small optimization - if the provided DialogInstance is null or undefined, no match but also no error
         // This allows the developer to use a variable initialized to undefined
@@ -470,7 +615,7 @@ export class Dialogs<M extends object = any> {
             konsole.log("getRouteFromDialogInstance local", m);
             return toObservable(this.localDialogInstances.getDialogState(dialogInstance))
                 .flatMap(dialogState =>
-                    localOrRemoteDialog.router(this.createDialogRouterHelper(dialogInstance, m, dialogState, dialogResponseHandler, end, replace))
+                    localOrRemoteDialog.router(this.createDialogRouterHelper(dialogInstance, m, dialogState, dialogResponseHandler, end)) // , replace))
                         .getRoute(m)
                         .map(route => ({
                             ... route,
@@ -593,71 +738,6 @@ export class Dialogs<M extends object = any> {
     //     }
     // }
 
-    private createDialogInstance(
-        dialogOrName: DialogOrName<M>,
-        m: M,
-        dialogArgs?: object,
-        dialogResponseHandler: DialogResponseHandler<M> = () => {}
-    ): Observable<DialogInstance> {
-
-        console.log("createDialogInstance", dialogOrName, m, dialogArgs, dialogResponseHandler);
-        const localOrRemoteDialog = this.localOrRemoteDialog(dialogOrName);
-        if (!localOrRemoteDialog)
-            return Observable.empty();
-
-        if (isLocalDialog(localOrRemoteDialog)) {
-            if (!localOrRemoteDialog.constructor)
-                return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName));
-
-            let ended = false;
-            const dialogConstructorHelper = this.createDialogConstructorHelper(m, (dialogResponse) => {
-                    ended = true;
-                    return dialogResponseHandler(dialogResponse);
-                }
-            );
-            return toObservable(localOrRemoteDialog.constructor(dialogConstructorHelper, m, dialogArgs))
-                .flatMap(_ => {
-                    console.log("dialog ended", ended);
-                    if (ended)
-                        return Observable.empty();
-                    return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
-                        state: dialogConstructorHelper.state,
-                    } as DialogState))
-                });
-        }
-        // else {
-        //     return toObservable(this.matchLocalToRemote(message as any)) // TYPE CHECK
-        //         .flatMap(message =>
-        //             fetch(
-        //                 dialog.remoteUrl,
-        //                 {
-        //                     method: 'POST',
-        //                     headers: new Headers({ 'Content-Type': 'application/json' }),
-        //                     body: JSON.stringify({
-        //                         method: 'activate',
-        //                         name: dialog.remoteName,
-        //                         args: dialogArgs,
-        //                         message
-        //                     } as RemoteActivateRequest)
-        //                 }
-        //             )
-        //             .then(response => response.json() as Promise<RemoteActivateResponse>)
-        //         )
-        //         .flatMap(response => {
-        //             if (response.status === 'error')
-        //                 return Observable.throw(`RemoteDialog.activate returned error "${response.error}".`);
-
-        //             if (response.status !== 'success')
-        //                 return Observable.throw(`RemoteDialog.activate returned unexpected status "${(response as any).status}".`);
-
-        //             return toObservable(this.executeTasks(message as any, response.tasks)) // TYPE CHECK
-        //                 .map(_ => ({
-        //                     name: dialog.localName,
-        //                     instanceId: response.instance
-        //                 } as DialogInstance));
-        //         });
-        // }
-    }
 
     // These methods are used to serve up local dialogs remotely
 
@@ -778,13 +858,13 @@ export class Dialogs<M extends object = any> {
     //         } as RemoteTryMatchResponse));
     // }
 
-    createRoot <DIALOGARGS extends object = any> (
+    setRoot <DIALOGARGS extends object = any> (
         dialogOrName: DialogOrName<M, DIALOGARGS>,
         m: M,
-        args?: DIALOGARGS
+        dialogArgs?: DIALOGARGS
     ) {
-        console.log("createRoot", dialogOrName, m);
-        return toObservable(this.createDialogInstance(dialogOrName, m, args))
+        console.log("setRoot", dialogOrName, m, dialogArgs);
+        return toObservable(this.createDialogInstance(dialogOrName, m, dialogArgs))
             .flatMap(dialogInstance =>
                 toObservable(this.rootDialogInstance.set(m, dialogInstance))
                     .map(_ => dialogInstance)
@@ -794,52 +874,50 @@ export class Dialogs<M extends object = any> {
 
     routeToRoot <DIALOGARGS extends object = any> (
         dialogOrName?: DialogOrName<M, DIALOGARGS>,
-        args?: DIALOGARGS
+        dialogArgs?: DIALOGARGS
     ): IRouter<M> {
-        console.log("routeToRoot")
+        console.log("routeToRoot", dialogOrName, dialogArgs);
+
+        const end = () => {
+            console.warn("An attempt was made to end the root dialog. The root dialog cannot be ended.");
+            return false;
+        }
+
         return {
             getRoute: (m: M) =>
                 toObservable(this.rootDialogInstance.get(m))
                     .flatMap(dialogInstance => {
-                        if (dialogInstance)
-                            return Observable.of(dialogInstance);
+                        if (dialogInstance) {
+                            console.log("routeToRoot dialogInstance", dialogInstance);
+                            return this.getRouteFromDialogInstance(dialogInstance, m, undefined, end);
+                        }
 
                         if (!dialogOrName) {
                             console.warn("You attempted to route to a root dialog, but no root dialog has been created. You need to call dialogs.createRoot or name a dialog to create.");
-                            return Observable.empty<DialogInstance>();
+                            return Observable.empty();
                         }
 
-                        return this.createRoot(dialogOrName, m, args);
-                    })
-                    .flatMap(dialogInstance => {
-                        console.log("routeToRoot dialogInstance", dialogInstance);
-                        return this.getRouteFromDialogInstance(dialogInstance, m, undefined, () => {
-                            console.warn("An attempt was made to end or replace the root dialog. The root dialog cannot be ended or replaced.");
-                            return false;
-                        })
+                        return Observable.of({
+                            action: () => toObservable(this.setRoot(dialogOrName, m, dialogArgs))
+                                .do(di => console.log("routeToRoot: setRoot returned dialogInstance", di))
+                                .flatMap(dialogInstance => this.getRouteFromDialogInstance(dialogInstance, m, undefined, end))
+                                .flatMap(route => toObservable(route.action()))
+                        } as Route);
                     })
         }
     }
 
     private createDialogConstructorHelper(
         m: M,
-        dialogResponseHandler: DialogResponseHandler<M>,
+        args: object,
+        end: (dialogResponse: object) => Promise<void>,
+        routeMessage: (m: M) => void
     ): DialogConstructorHelper {
         return {
+            args,
             state: {},
-
-            routeMessage: (m: M): Promise<void> => {
-                return Promise.resolve();
-            },
-
-            end: (dialogResponse: object = {}): Promise<void> => {
-                console.log("ending dialog with response", dialogResponse, dialogResponseHandler);
-                return toObservable(dialogResponseHandler({
-                    ... m as any,
-                    dialogResponse
-                }))
-                    .toPromise();
-            }
+            routeMessage,
+            end
         }
     }
 
@@ -849,51 +927,119 @@ export class Dialogs<M extends object = any> {
         dialogState: DialogState,
         dialogResponseHandler: DialogResponseHandler<M>,
         end: (dialogResponse?: object) => boolean = () => true,
-        replace?: (dialogOrName: DialogOrName, args?: object) => Promise<void>
+        // replace?: (dialogOrName: DialogOrName, args?: object) => Promise<void>
     ): DialogRouterHelper {
-        console.log("creating dialogRouterHelper", dialogInstance, dialogState, dialogInstances);
+        console.log("creating dialogRouterHelper", dialogInstance, m, dialogState, dialogInstances, dialogResponseHandler, end) // , replace);
 
-        const routeToChild = (): IRouter<M> => ({
+        // const routeToChild = (): IRouter<M> => ({
+        //     getRoute: (m: M) => {
+        //         console.log("dialog.routeToChild.getRoute");
+        //         return dialogState.child
+        //             ? this.getRouteFromDialogInstance(dialogState.child, m, undefined,
+        //                 (dialogResponse) => {
+        //                     dialogState.child = undefined;
+        //                     if (dialogResponse !== undefined)
+        //                         console.warn(`Stacked dialog ${dialogState.child.name} returned a response. It was ignored.`);
+        //                     return true;
+        //                 },
+        //                 (dialogOrName, args) =>
+        //                     this.createDialogInstance(dialogOrName, m, args)
+        //                         .map(dialogInstance => {
+        //                             dialogState.child = dialogInstance;
+        //                         })
+        //                         .toPromise()
+        //             )
+        //             : Observable.empty();
+        //     }
+        // });
+
+        const routeToActive = (
+            dialogOrName: DialogOrName<M>,
+            ... args,
+        ): IRouter<M> => ({
             getRoute: (m: M) => {
-                console.log("dialog.routeToChild.getRoute");
-                return dialogState.child
-                    ? this.getRouteFromDialogInstance(dialogState.child, m, undefined,
-                        (dialogResponse) => {
-                            dialogState.child = undefined;
-                            if (dialogResponse !== undefined)
-                                console.warn(`Stacked dialog ${dialogState.child.name} returned a response. It was ignored.`);
+                console.log("dialog.routeToActive().getRoute", dialogOrName);
+
+                let tag = "default";
+                let i = 0;
+
+                if (args.length && typeof args[0] === 'string') {
+                    tag = args[0];
+                    i = 1;
+                }
+
+                const instanceName = localName(dialogOrName) + '@@@' + tag;
+                const dialogResponseHandler: DialogResponseHandler<M> = args[i];
+    
+                return toFilteredObservable(dialogState.activeDialogs[instanceName])
+                    .flatMap(dialogInstance =>
+                        this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
+                            dialogState.activeDialogs[instanceName] = undefined;
                             return true;
-                        },
-                        (dialogOrName, args) =>
-                            this.createDialogInstance(dialogOrName, m, args)
-                                .map(dialogInstance => {
-                                    dialogState.child = dialogInstance;
-                                })
-                                .toPromise()
-                    )
-                    : Observable.empty();
+                        })
+                    );
             }
         });
 
         const routeTo = (
             dialogOrName: DialogOrName<M>,
-            dialogResponseHandler?: DialogResponseHandler<M>
+            ... args
         ): IRouter<M> => ({
             getRoute: (m: M) => {
-                console.log("dialog.routeTo().getRoute", dialogOrName);
-                const name = nameize(dialogOrName);
-                return dialogState.activeDialogs && dialogState.activeDialogs[name]
-                    ? this.getRouteFromDialogInstance(dialogState.activeDialogs[name], m, dialogResponseHandler, (dialogResponse) => {
-                        if (dialogState.activeDialogs)
-                            dialogState.activeDialogs[name] = undefined;
+                console.log("dialog.routeTo().getRoute", dialogOrName, ...args);
+                const dialog = this.localOrRemoteDialog(dialogOrName);
+                if (!dialog)
+                    return Observable.empty();
+
+                let tag = 'default';
+                let iArg = 0;
+
+                if (typeof args[0] === 'string') {
+                    tag = args[0];
+                    iArg = 1;
+                }
+
+                const instanceName = dialog.localName + '@@@' + tag;
+                const dialogInstance = dialogState.activeDialogs[instanceName];
+
+                let predicateOrMatcher: Predicate<M> | Matcher<M>; 
+
+                if (args.length >= iArg + 1 && typeof args[iArg] === 'function') {
+                    predicateOrMatcher = args[iArg];
+                    iArg++;
+                }
+
+                let getDialogArgs: (n) => object = () => ({});
+                if (args.length >= iArg + 1) {
+                    getDialogArgs = typeof args[iArg] === 'function'
+                        ? args[iArg]
+                        : () => args[iArg];
+                }
+
+                const dialogResponseHandler = args.length === iArg + 2 ? args[iArg + 1] : undefined;
+
+                console.log("dialog.routeTo() derived args", instanceName, dialogInstance, predicateOrMatcher, getDialogArgs, dialogResponseHandler);
+
+                if (dialogInstance)
+                    // dialog already active - route the message
+                    return this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
+                        dialogState.activeDialogs[instanceName] = undefined;
                         return true;
-                    })
-                    : Observable.empty();
+                    });
+
+                return matchize(predicateOrMatcher, m)
+                    .map(n => ({
+                        action: () => toObservable(getDialogArgs(n))
+                            .do(dialogArgs => console.log("dialog.routeTo() dialog args", dialogArgs))
+                            .flatMap(dialogArgs => this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler))
+                            .do(dialogInstance => {
+                                dialogState.activeDialogs[instanceName] = dialogInstance;
+                            })
+                    } as Route));
             }
         });
 
         return {
-
             // core
 
             state: dialogState.state,
@@ -917,19 +1063,15 @@ export class Dialogs<M extends object = any> {
                 }
             }),
 
-            routeMessage: (m: M): Promise<void> => {
-                return Promise.resolve();
-            },
-
-            first: (... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M> => {
-                return first(
-                    routeToChild(),
-                    ... dialogState.activeDialogs
-                        ? Object.keys(dialogState.activeDialogs).map(name => routeTo(name))
-                        : [],
-                    ... routersOrHandlers
-                );
-            },
+            // first: (... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M> => {
+            //     return first(
+            //         routeToChild(),
+            //         ... dialogState.activeDialogs
+            //             ? Object.keys(dialogState.activeDialogs).map(name => routeToActive(name))
+            //             : [],
+            //         ... routersOrHandlers
+            //     );
+            // },
             
             end: (
                 dialogResponse: object = {}
@@ -945,38 +1087,38 @@ export class Dialogs<M extends object = any> {
                     : Promise.resolve();
             },
 
-            // stack
+            // // stack
 
-            replace: (
-                dialogOrName: DialogOrName<M>,
-                args?: object,
-            ): Promise<void> => {
-                console.log("dialog.replace", dialogOrName, args)
-                return end() && replace
-                    ? replace(dialogOrName, args)
-                    : Promise.resolve();
-            },
+            // replace: (
+            //     dialogOrName: DialogOrName<M>,
+            //     args?: object,
+            // ): Promise<void> => {
+            //     console.log("dialog.replace", dialogOrName, args)
+            //     return end() && replace
+            //         ? replace(dialogOrName, args)
+            //         : Promise.resolve();
+            // },
 
-            setChild: (... args): Promise<void> => {
-                console.log("dialog.setChild", args)
-                if (args[0].instanceId !== undefined) {
-                    dialogState.child = args[0];
-                    return Promise.resolve();
-                }
+            // setChild: (... args): Promise<void> => {
+            //     console.log("dialog.setChild", args)
+            //     if (args[0].instanceId !== undefined) {
+            //         dialogState.child = args[0];
+            //         return Promise.resolve();
+            //     }
 
-                return this.createDialogInstance(args[0], m, ... args.slice(1))
-                    .map(dialogInstance => {
-                        dialogState.child = dialogInstance;
-                    })
-                    .toPromise();
-            },
+            //     return this.createDialogInstance(args[0], m, ... args.slice(1))
+            //         .map(dialogInstance => {
+            //             dialogState.child = dialogInstance;
+            //         })
+            //         .toPromise();
+            // },
 
-            clearChild: (): void => {
-                console.log("dialog.clearChild")
-                dialogState.child = undefined;
-            },
+            // clearChild: (): void => {
+            //     console.log("dialog.clearChild")
+            //     dialogState.child = undefined;
+            // },
 
-            routeToChild,
+            // routeToChild,
 
             // activation
 
@@ -1002,8 +1144,6 @@ export class Dialogs<M extends object = any> {
 
                 return this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler)
                     .map(dialogInstance => {
-                        if (!dialogState.activeDialogs)
-                            dialogState.activeDialogs = {};
                         dialogState.activeDialogs[dialogInstance.name] = dialogInstance;
                     })
                     .toPromise();
@@ -1013,17 +1153,20 @@ export class Dialogs<M extends object = any> {
                 dialogOrName: DialogOrName<M>
             ): void => {
                 console.log("dialog.deactivate", dialogOrName)
-                if (dialogState.activeDialogs)
-                    dialogState.activeDialogs[nameize(dialogOrName)] = undefined;
+                dialogState.activeDialogs[localName(dialogOrName)] = undefined;
             },
 
             isActive: (
                 dialogOrName: DialogOrName<M>
             ): boolean => {
                 console.log("dialog.isActive", dialogOrName)
-                return dialogState.activeDialogs !== undefined && dialogState.activeDialogs[nameize(dialogOrName)] !== undefined;
+                return dialogState.activeDialogs[localName(dialogOrName)] !== undefined;
             },
 
+            routeToActive,
+
+            // "just works"
+    
             routeTo
 
         }

@@ -45,17 +45,17 @@ interface GameState {
 }
 
 interface GameArgs {
-    upperLimit: number;
-    numGuesses: number;
+    upperLimit?: number;
+    numGuesses?: number;
 }
 
 const gameDialog = dialogs.add<GameArgs, {}, GameState>(
     'game',
-    (dialog, m, args = { upperLimit: 50, numGuesses: 10}) => {
-        m.reply(`Guess a number between 1 and ${args.upperLimit}. You have ${args.numGuesses} guesses.`);
+    (dialog, m) => {
+        m.reply(`Guess a number between 1 and ${dialog.args.upperLimit}. You have ${dialog.args.numGuesses} guesses.`);
         dialog.state = {
-            num: Math.floor(Math.random() * args.upperLimit),
-            guesses: args.numGuesses
+            num: Math.floor(Math.random() * (dialog.args.upperLimit || 50)),
+            guesses: (dialog.args.numGuesses || 10)
         }
     },
     (dialog) => first(
@@ -84,8 +84,8 @@ const gameDialog = dialogs.add<GameArgs, {}, GameState>(
 
 const rootDialog = dialogs.add(
     'root',
-    (dialog) => dialog.first(
-        ifMatchRE(/start game/, m => dialog.activate('game')),
+    (dialog) => first(
+        dialog.routeTo(gameDialog, matchRE(/start game/i)),
         m => m.reply("Type 'start game' to start the game")
     )
 )
