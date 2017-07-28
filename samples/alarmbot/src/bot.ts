@@ -112,7 +112,7 @@ const setAlarmDialog = dialogs.add<AlarmState, AlarmState, AlarmState>(
 const rootDialog = dialogs.add(
     'root',
     (dialog) => first(
-        dialog.routeTo(setAlarmDialog, matchRE(/set (?:an ){0,1}alarm(?: (?:named|called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmState)),
+        dialog.routeTo(setAlarmDialog, matchRE(/set (?:an ){0,1}alarm(?: (?:named |called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmState)),
         // dialog.routeTo('deleteAlarm', matchRE(/delete alarm/i)),
         // dialog.routeTo('listAlarms', matchRE(/list alarms/i)),
         ifMatchRE(/help/, m => m.reply("global help")),
