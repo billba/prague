@@ -56,6 +56,8 @@ const postMessage = <M extends object = any>(m: M) => {
 const postRoutingEvent = <M extends IActivityMatch = any>(m: M) =>
     postMessage(routingEvent(m));
 
+import { throwRoute, catchRoute } from 'prague';
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 interface AlarmState {
@@ -115,7 +117,6 @@ const rootDialog = dialogs.add(
         dialog.routeTo(setAlarmDialog, matchRE(/set (?:an ){0,1}alarm(?: (?:named |called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmState)),
         // dialog.routeTo('deleteAlarm', matchRE(/delete alarm/i)),
         // dialog.routeTo('listAlarms', matchRE(/list alarms/i)),
-        ifMatchRE(/help/, m => m.reply("global help")),
         m => m.reply("Hi... I'm the alarm bot sample. I can set new alarms, delete existing ones, and list the ones you have.")
     )
 )

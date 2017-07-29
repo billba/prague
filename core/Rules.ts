@@ -5,6 +5,7 @@ export type Observableable<T> = T | Observable<T> | Promise<T>;
 
 export interface Route {
     score?: number;
+    thrown?: true;
     action: () => Observableable<any>;
 }
 
@@ -237,3 +238,16 @@ export function branchMatch<M extends object = any>(
 //     } as IRouter<M>;
 // }
 
+const thrownRoute: Route = {
+    thrown: true,
+    action: () => {}
+};
+
+export const throwRoute = <M extends object = any>(): IRouter<M> => ({
+    getRoute: (m: M) => Observable.of(thrownRoute)
+});
+
+export const catchRoute = <M extends object = any>(router: IRouter<M>): IRouter<M> => ({
+    getRoute: (m: M) => router.getRoute(m)
+        .filter(route => !route.thrown)
+})
