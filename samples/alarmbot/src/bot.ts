@@ -87,7 +87,7 @@ const timeDialog = dialogs.add<{}, { time: string } >(
 const setAlarmDialog = dialogs.add<AlarmInfo, AlarmInfo, AlarmInfo>(
     'setAlarm',
     (dialog, m) => {
-        dialog.state = { ... dialog.args };
+        dialog.state = dialog.args;
         if (!dialog.state.title || !dialog.state.time)
             m.reply("Okay, let's set a new alarm.");
         return dialog.routeMessage(m);
