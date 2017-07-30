@@ -17,7 +17,7 @@ export interface DialogResponseHandler<M extends object = any, DIALOGRESPONSE ex
 
 export interface DialogState<DIALOGSTATE extends object = any> {
     state: DIALOGSTATE,
-    child: DialogInstance,
+    // child: DialogInstance,
     activeDialogs: {
         [name: string]: DialogInstance;
     }
@@ -334,7 +334,9 @@ export const inMemoryDialogInstances: LocalDialogInstances = {
         };
     },
     destroyInstance: (dialogInstance) => {
-        dialogInstances[dialogInstance.name][dialogInstance.instanceId] = undefined;
+        delete dialogInstances[dialogInstance.name][dialogInstance.instanceId];
+        if (dialogInstances[dialogInstance.name].length === 0)
+            delete dialogInstances[dialogInstance.name];
     },
     getDialogState: (dialogInstance) => ({ ... dialogInstances[dialogInstance.name][dialogInstance.instanceId] }),
     setDialogState: (dialogInstance, dialogData?) => {
@@ -505,12 +507,14 @@ export class Dialogs<M extends object = any> {
         if (!localOrRemoteDialog)
             return Observable.empty();
 
+        const initialDialogState: DialogState = {
+            state: {},
+            activeDialogs: {}
+        };
+
         if (isLocalDialog(localOrRemoteDialog)) {
             if (!localOrRemoteDialog.constructor)
-                return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
-                    state: {},
-                    activeDialogs: {}
-                }));
+                return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, initialDialogState));
 
             let dialogResponse;
             let messageToRoute: M;
@@ -535,10 +539,7 @@ export class Dialogs<M extends object = any> {
                             .flatMap(_ => Observable.empty());
                     }
 
-                    return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
-                                state: dialogConstructorHelper.state,
-                                activeDialogs: {},
-                            } as DialogState))
+                    return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, initialDialogState))
                         .flatMap(dialogInstance => messageToRoute
                             ? this.getRouteFromDialogInstance(dialogInstance, messageToRoute, dialogResponseHandler,
                                     (dialogResponse) => {
@@ -551,7 +552,6 @@ export class Dialogs<M extends object = any> {
                                         .map(_ => dialogInstance)
                                         .filter(dialogInstance => !!dialogInstance)
                                 )
-                                    
                             : Observable.of(dialogInstance)
                         )
                 });
@@ -974,7 +974,7 @@ export class Dialogs<M extends object = any> {
                 return toFilteredObservable(dialogState.activeDialogs[instanceName])
                     .flatMap(dialogInstance =>
                         this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
-                            dialogState.activeDialogs[instanceName] = undefined;
+                            delete dialogState.activeDialogs[instanceName];
                             return true;
                         })
                     );
@@ -1023,7 +1023,7 @@ export class Dialogs<M extends object = any> {
                 if (dialogInstance)
                     // dialog already active - route the message
                     return this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
-                        dialogState.activeDialogs[instanceName] = undefined;
+                        delete dialogState.activeDialogs[instanceName];
                         return true;
                     });
 
@@ -1153,7 +1153,7 @@ export class Dialogs<M extends object = any> {
                 dialogOrName: DialogOrName<M>
             ): void => {
                 console.log("dialog.deactivate", dialogOrName)
-                dialogState.activeDialogs[localName(dialogOrName)] = undefined;
+                delete dialogState.activeDialogs[localName(dialogOrName)];
             },
 
             isActive: (
