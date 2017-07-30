@@ -70,23 +70,29 @@ browserBot.start();
 
 interface AlarmInfo {
     title?: string,
-    time?: Date
+    time?: string
 }
 
-const setAlarm = (alarmState: AlarmInfo) => {
+const alarms: {
+    [title: string]: string;
+} = {}
 
+const setAlarm = (info: AlarmInfo) => {
+    alarms[info.title] = info.time;
 }
 
-const deleteAlarm = (title: string) => {
-
+const deleteAlarm = (title: string): AlarmInfo => {
+    const alarm = getAlarm(title);
+    delete alarms[title];
+    return alarm;
 }
 
-const getAlarms = () => {
+const getAlarms = () =>
+    Object.entries(alarms).map(([title, time]) => ({ title, time} as AlarmInfo));
 
-}
-
-const getAlarm = (title: string) => {
-    
+const getAlarm = (title: string): AlarmInfo => {
+    const time = alarms[title];
+    return time && { title, time };
 }
 
 ////////////////////////////// Bot Logic //////////////////////////////////
@@ -98,11 +104,11 @@ const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChat
 
 const rootDialog = dialogs.add(
     'root',
-    (dialog, m) => m.reply("Hi... I'm the alarm bot sample. I can set new alarms, delete existing ones, and list the ones you have."),
+    (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
     (dialog) => first(
-        dialog.routeTo(setAlarmDialog,matchRE(/set (?:an ){0,1}alarm(?: (?:named |called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmInfo)),
-        dialog.routeTo('deleteAlarm', matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called )(.*)){0,1}/i)),
-        dialog.routeTo('listAlarms', matchRE(/list alarms/i)),
+        dialog.routeTo(setAlarmDialog, matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i), m => ({ title: m.groups[1] } as AlarmInfo)),
+        dialog.routeTo(deleteAlarmDialog, matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i), m => ({ title: m.groups[1] } as AlarmInfo)),
+        dialog.routeTo(listAlarmsDialog, matchRE(/list (?:the ){0,1}alarms/i)),
         m => m.reply("I don't think I know how to do that.")
     )
 )
@@ -111,42 +117,85 @@ const setAlarmDialog = dialogs.add<AlarmInfo, AlarmInfo, AlarmInfo>(
     'setAlarm',
     (dialog, m) => {
         dialog.state = dialog.args;
-        if (!dialog.state.title || !dialog.state.time)
-            m.reply("Okay, let's set a new alarm.");
+        if (dialog.args.title && getAlarm(dialog.args.title)) {
+            m.reply("I'm sorry, that name is taken.");
+            dialog.state.title = undefined;
+        }
         return dialog.routeMessage(m);
     },
     (dialog) => first(
-        dialog.routeTo(titleDialog, _ => !dialog.state.title, {}, m => {
-            dialog.state.title = m.dialogResponse.title;
+        dialog.routeTo(titleDialog, _ => !dialog.state.title, { prompt: "What shall I call the alarm?" }, m => {
+            if (getAlarm(m.dialogResponse.title))
+                m.reply("I'm sorry, that name is taken.")
+            else
+                dialog.state.title = m.dialogResponse.title;
             return reroute(m);
         }),
         dialog.routeTo(timeDialog, _ => !dialog.state.time, {}, m => {
-            dialog.state.time = new Date(m.dialogResponse.time);
+            dialog.state.time = m.dialogResponse.time;
             return reroute(m);
         }),
         m => {
             setAlarm(dialog.state);
-            m.reply(`Great, I set an alarm called ${dialog.state.title} for ${dialog.state.time.toString()}.`);
+            m.reply(`Okay, I set an alarm called ${dialog.state.title} for ${dialog.state.time.toString()}.`);
             return dialog.end();
         }
     )
 );
 
-
-const titleDialog = dialogs.add<{}, { title: string } >(
+const titleDialog = dialogs.add<{ prompt: string }, { title: string } >(
     'getTitle',
     (dialog, m) =>
-        m.reply("What shall I call the alarm?"),
-    (dialog) => first(
-        ifMatch(m => dialog.end({ title: m.text }))
-    )
+        m.reply(dialog.args.prompt),
+    (dialog) => m =>
+        dialog.end({ title: m.text })
 )
 
 const timeDialog = dialogs.add<{}, { time: string } >(
     'getTime',
     (dialog, m) =>
         m.reply("For when shall I set the alarm?"),
+    (dialog) => m =>
+        dialog.end({ time: m.text })
+)
+
+const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
+    'deleteAlarm',
+    (dialog, m) => {
+        if (dialog.args.title)
+            if (!getAlarm(dialog.args.title))
+                m.reply(`I'm sorry, I couldn't find an alarm called ${dialog.args.title}.`);
+            else
+                dialog.state.title = dialog.args.title;
+        return dialog.routeMessage(m);
+    },
     (dialog) => first(
-        ifMatch(m => dialog.end({ time: m.text }))
+        dialog.routeTo(titleDialog, _ => !dialog.state.title, { prompt: "What is the name of the alarm to delete?" }, m => {
+            if (!getAlarm(m.dialogResponse.title))
+                m.reply(`I'm sorry, I couldn't find an alarm called ${m.dialogResponse.title}.`);
+            else    
+                dialog.state.title = m.dialogResponse.title;
+            return reroute(m);
+        }),
+        m => {
+            const alarm = deleteAlarm(dialog.state.title);
+            m.reply(`I have deleted the alarm named ${alarm.title} for ${alarm.time}`);
+            return dialog.end();
+        },
     )
+)
+
+const listAlarmsDialog = dialogs.add(
+    'listAlarms',
+    (dialog, m) => {
+        const alarms = getAlarms();
+        console.log("alarms", alarms);
+        if (alarms && alarms.length) {
+            m.reply("Here are the alarms you have set:");
+            alarms.forEach(alarm => m.reply(`${alarm.title} for ${alarm.time}`));
+        } else
+            m.reply("There are currently no alarms set.");
+        return dialog.end();
+    },
+    undefined
 )
