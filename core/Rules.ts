@@ -51,6 +51,7 @@ export const matchize = <M extends object = any>(matcher: Matcher<M>, message: M
     // we want to allow any matcher to be a predicate (return a boolean)
     // if so, the 'falsey' case will be filtered out by toFilteredObservable,
     // so we just need to catch the case where it is precisely true
+    konsole.log("matchize", matcher, message);
     return toFilteredObservable(matcher(message))
         .map(m => typeof m === 'boolean' ? message : m);
 }
@@ -61,15 +62,29 @@ export const routeMessage = <M extends object = any>(router: IRouter<M>, message
         .flatMap(route => toObservable(route.action()))
         .do(_ => konsole.log("handle: called action"));
 
-export function matchAll<M extends object = any, N extends object = any>(m1: Matcher<M, N>): Matcher<M, N>
-export function matchAll<M extends object = any, N extends object = any, O extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>): Matcher<M, O>
-export function matchAll<M extends object = any, N extends object = any, O extends object = any, P extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, P>): Matcher<M, P>
-export function matchAll<M extends object = any, N extends object = any, O extends object = any, P extends object = any, Q extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, P>, m4: Matcher<P, Q>): Matcher<M, Q>
-export function matchAll<M extends object = any>(... matchers: Matcher[]): Matcher<M, any>
-export function matchAll<M extends object = any>(... args: Matcher[]): Matcher<M, any> {
-    konsole.log("matchAll", args);
-    return m =>
-        Observable.from(args)
+export function matchAll<M extends object = any>(p1: Predicate<M>): Matcher<M>
+export function matchAll<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>): Matcher<M, Z>
+
+export function matchAll<M extends object = any>(p1: Predicate<M>, p2: Predicate<M>): Matcher<M>
+export function matchAll<M extends object = any, Z extends object = any>(p1: Predicate<M>, m2: Matcher<M, Z>,): Matcher<M, Z>
+export function matchAll<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, p2: Predicate<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>): Matcher<M, Z>
+
+export function matchAll<M extends object = any>(p1: Predicate<M>, p2: Predicate<M>, p3: Predicate<M>): Matcher<M>
+export function matchAll<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, p2: Predicate<Z>, p3: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, Z extends object = any>(p1: Matcher<M>, m2: Matcher<M, Z>, p3: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, Z extends object = any>(p1: Predicate<M>, p2: Predicate<M>, m3: Matcher<M, Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, N extends object = any, Z extends object = any>(p1: Predicate<M>, m2: Matcher<M, N>, m3: Matcher<N, Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, p2: Predicate<N>, m3: Matcher<N, Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>, p3: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
+export function matchAll<M extends object = any, N extends object = any, O extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>): Matcher<M, Z>
+
+export function matchAll<M extends object = any>(... matchersOrPredicates: (Matcher|Predicate)[]): Matcher<M>
+
+export function matchAll<M extends object = any>(... args: Matcher[]): Matcher<M> {
+    return m => {
+        konsole.log("matchAll", args, m)
+        return Observable.from(args)
         .reduce<Matcher, Observable<any>>(
             (prevObservable, currentMatcher, i) =>
                 prevObservable
@@ -79,7 +94,9 @@ export function matchAll<M extends object = any>(... args: Matcher[]): Matcher<M
                         .do(result => konsole.log("result", result));
                 }),
             Observable.of(m)
-        );
+        )
+        .mergeAll();
+    }
 }
 
 export function matchAny<M extends object = any>(... predicatesOrMatchers: (Predicate<M> | Matcher<M>)[]): Matcher<M> {
@@ -151,7 +168,7 @@ export const prependMatcher = <L extends object = any, M extends object = any>(m
 export const run = <M extends object = any>(handler: Handler<M>) => ({
     getRoute: (message: M) =>
         toObservable(handler(message))
-        .map(_ => null)
+            .filter(_ => false)
     } as IRouter<M>);
 
 export interface Predicate<M extends object = any> {
@@ -160,22 +177,25 @@ export interface Predicate<M extends object = any> {
 
 export function ifMatch<M extends object = any>(handler: Handler<M> | IRouter<M>): IRouter<M>
 
-export function ifMatch<M extends object = any>(p1: Predicate<M>, handler: Handler<M> | IRouter<M>): IRouter<M>
-export function ifMatch<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
+export function ifMatch<M extends object = any>(p1: Predicate<M>, routerOrHandler: RouterOrHandler<M>): IRouter<M>
+export function ifMatch<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
 
-export function ifMatch<M extends object = any, Z extends object = any>(p1: Predicate<M>, m2: Matcher<M, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, p2: Predicate<Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
+export function ifMatch<M extends object = any>(p1: Predicate<M>, p2: Matcher<M>, routerOrHandler: RouterOrHandler<M>): IRouter<M>
+export function ifMatch<M extends object = any, Z extends object = any>(p1: Predicate<M>, m2: Matcher<M, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, p2: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
 
-export function ifMatch<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, p2: Predicate<Z>, p3: Predicate<Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, Z extends object = any>(p1: Matcher<M>, m2: Matcher<M, Z>, p3: Predicate<Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, Z extends object = any>(p1: Predicate<M>, p2: Predicate<M>, m3: Matcher<M, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(p1: Predicate<M>, m2: Matcher<M, N>, m3: Matcher<N, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, p2: Predicate<N>, m3: Matcher<N, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>, p3: Predicate<Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
-export function ifMatch<M extends object = any, N extends object = any, O extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, handler: Handler<Z> | IRouter<Z>): IRouter<M>
+export function ifMatch<M extends object = any>(p1: Predicate<M>, p2: Predicate<M>, p3: Predicate<M>, routerOrHandler: RouterOrHandler<M>): IRouter<M>
+export function ifMatch<M extends object = any, Z extends object = any>(m1: Matcher<M, Z>, p2: Predicate<Z>, p3: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, Z extends object = any>(p1: Matcher<M>, m2: Matcher<M, Z>, p3: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, Z extends object = any>(p1: Predicate<M>, p2: Predicate<M>, m3: Matcher<M, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(p1: Predicate<M>, m2: Matcher<M, N>, m3: Matcher<N, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, p2: Predicate<N>, m3: Matcher<N, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, N extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, Z>, p3: Predicate<Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
+export function ifMatch<M extends object = any, N extends object = any, O extends object = any, Z extends object = any>(m1: Matcher<M, N>, m2: Matcher<N, O>, m3: Matcher<O, Z>, routerOrHandler: RouterOrHandler<Z>): IRouter<M>
 
 export function ifMatch<M extends object = any>(... args: (Predicate | Matcher | RouterOrHandler)[]): IRouter<M> {
+    konsole.log("ifMatch", args);
     const router = routerize(args[args.length - 1] as RouterOrHandler);
     switch (args.length) {
         case 1:
