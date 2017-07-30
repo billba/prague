@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { IRouter, first, prependMatcher, ITextMatch, konsole } from 'prague';
+import { IRouter, first, prependMatcher, ITextMatch, konsole, ifMatch, RouterOrHandler } from 'prague';
 import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
@@ -103,30 +103,30 @@ export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>
     } as M & IChatActivityMatch;
 }
 
-export const matchMessage = <M extends IChatActivityMatch>(message: M) => 
+export const matchMessage = () => <M extends IChatActivityMatch>(message: M) => 
     message.activity.type === 'message' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatMessageMatch
         text: message.activity.text,
         message: message.activity
-    } as M & ITextMatch & IChatMessageMatch;
+    } as M & IChatMessageMatch;
 
-export const matchEvent = <M extends IChatActivityMatch>(message: M) => 
+export const matchEvent = () => <M extends IChatActivityMatch>(message: M) => 
     message.activity.type === 'event' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatEventMatch
         event: message.activity
-    } as M & ITextMatch & IChatEventMatch;
+    } as M & IChatEventMatch;
 
-export const matchTyping = <M extends IChatActivityMatch>(message: M) => 
+export const matchTyping = () => <M extends IChatActivityMatch>(message: M) => 
     message.activity.type === 'typing' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatTypingMatch
         typing: message.activity
-    } as M & ITextMatch & IChatEventMatch;
+    } as M & IChatTypingMatch;
 
 export const chatRouter = <M extends object = any>(
     chat: UniversalChat,
@@ -138,9 +138,9 @@ export const chatRouter = <M extends object = any>(
     }
 ) =>
     prependMatcher<M & IActivityMatch>(matchActivity(chat), first<M & IChatActivityMatch>(
-        rules.message   && prependMatcher(matchMessage, rules.message),
-        rules.event     && prependMatcher(matchEvent, rules.event),
-        rules.typing    && prependMatcher(matchTyping, rules.typing),
+        rules.message   && prependMatcher(matchMessage(), rules.message),
+        rules.event     && prependMatcher(matchEvent(), rules.event),
+        rules.typing    && prependMatcher(matchTyping(), rules.typing),
         rules.activity
     ));
 
