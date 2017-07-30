@@ -1,4 +1,4 @@
-import { UniversalChat, WebChatConnector, IChatMessageMatch, IChatActivityMatch, matchMessage, matchEvent } from 'prague-botframework';
+import { UniversalChat, WebChatConnector, IChatMessageMatch, IChatActivityMatch, routeChatActivity } from 'prague-botframework';
 import { BrowserBot, matchStartEvent } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
@@ -71,7 +71,7 @@ const titleDialog = dialogs.add<{}, { title: string } >(
     (dialog, m) =>
         m.reply("What shall I call the alarm?"),
     (dialog) => first(
-        ifMatch(matchMessage(), m => dialog.end({ title: m.text }))
+        ifMatch(m => dialog.end({ title: m.text }))
     )
 )
 
@@ -80,7 +80,7 @@ const timeDialog = dialogs.add<{}, { time: string } >(
     (dialog, m) =>
         m.reply("For when shall I set the alarm?"),
     (dialog) => first(
-        ifMatch(matchMessage(), m => dialog.end({ time: m.text }))
+        ifMatch(m => dialog.end({ time: m.text }))
     )
 )
 
@@ -116,13 +116,14 @@ const rootDialog = dialogs.add(
         dialog.routeTo(setAlarmDialog,matchRE(/set (?:an ){0,1}alarm(?: (?:named |called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmInfo)),
         // dialog.routeTo('deleteAlarm', matchRE(/delete alarm/i)),
         // dialog.routeTo('listAlarms', matchRE(/list alarms/i)),
+        m => m.reply("I don't think I know how to do that.")
     )
 )
 
-const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = first(
-    ifMatch(matchStartEvent(), m => dialogs.setRoot(rootDialog, m as any)),
-    ifMatch(matchMessage(), dialogs.routeToRoot()),
-);
+const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
+    event: ifMatch(m => m.event.name === 'name', m => dialogs.setRoot(rootDialog, m as any)),
+    message: dialogs.routeToRoot(),
+});
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
