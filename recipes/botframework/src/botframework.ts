@@ -128,21 +128,20 @@ export const matchTyping = () => <M extends IChatActivityMatch>(message: M) =>
         typing: message.activity
     } as M & IChatTypingMatch;
 
-export const chatRouter = <M extends object = any>(
-    chat: UniversalChat,
+export const routeChatActivity = <M extends IChatActivityMatch = any>(
     rules: {
         message?:   IRouter<M & IChatMessageMatch>,
         event?:     IRouter<M & IChatEventMatch>,
         typing?:    IRouter<M & IChatTypingMatch>,
-        activity?:  IRouter<M & IChatActivityMatch>,
+        activity?:  IRouter<M>,
     }
-) =>
-    prependMatcher<M & IActivityMatch>(matchActivity(chat), first<M & IChatActivityMatch>(
+): IRouter<M> =>
+    first(
         rules.message   && prependMatcher(matchMessage(), rules.message),
         rules.event     && prependMatcher(matchEvent(), rules.event),
         rules.typing    && prependMatcher(matchTyping(), rules.typing),
         rules.activity
-    ));
+    );
 
 export const createChoice = (text: string, choices: string[]): Activity => ({
     type: 'message',
