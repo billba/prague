@@ -1,17 +1,19 @@
+/////////////////////////////// Recipe Glue /////////////////////////////////
+
 import { UniversalChat, WebChatConnector, IChatMessageMatch } from 'prague-botframework';
 import { BrowserBot } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
-const browserBot = new BrowserBot(new UniversalChat(webChat.chatConnector), undefined);
-
-// This is our "base message type" which is used often enough that we made it really short
-
-type B = IChatMessageMatch;
+const browserBot = new BrowserBot<{}>(new UniversalChat(webChat.chatConnector), undefined);
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run } from 'prague';
+import { IRouter, first, best, ifMatch, run, routeMessage, IStateMatch } from 'prague';
+
+// This is our "base message type" which is used often enough that we made it really short
+
+type B = IChatMessageMatch & IStateMatch<{}>;
 
 // Regular Expressions
 
@@ -38,6 +40,35 @@ const dialogs = new Dialogs<B>({
         }
     }
 );
+
+const reroute = (m: B) => {
+    browserBot.message$
+        .next(m);
+    return Promise.resolve();
+}
+
+import { Scheduler } from 'rxjs';
+
+browserBot.message$
+    .observeOn(Scheduler.async)
+    .flatMap(m => routeMessage(appRouter, m))
+    .subscribe(
+        message => console.log("handled", message),
+        error => console.log("error", error),
+        () => console.log("complete")
+    );
+
+////////////////////////////// Bot Logic //////////////////////////////////
+
+const appRouter: IRouter<B> = dialogs.routeToRoot('root');
+
+const rootDialog = dialogs.add(
+    'root',
+    (dialog) => first(
+        dialog.routeTo(gameDialog, matchRE(/start game/i)),
+        m => m.reply("Type 'start game' to start the game")
+    )
+)
 
 interface GameState {
     num: number,
@@ -81,18 +112,3 @@ const gameDialog = dialogs.add<GameArgs, {}, GameState>(
         m => m.reply("Please guess a number between 1 and 50.")
     )
 );
-
-const rootDialog = dialogs.add(
-    'root',
-    (dialog) => first(
-        dialog.routeTo(gameDialog, matchRE(/start game/i)),
-        m => m.reply("Type 'start game' to start the game")
-    )
-)
-
-const appRule: IRouter<B> = dialogs.routeToRoot('root');
-
-browserBot.run({
-    message: appRule
-});
-

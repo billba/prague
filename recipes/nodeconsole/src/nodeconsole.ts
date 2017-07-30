@@ -1,28 +1,34 @@
 import readline = require('readline');
-import { IRouter, ITextMatch, konsole, callActionIfMatch } from 'prague';
-
-export * from 'prague';
+import { ITextMatch, konsole, IStateMatch } from 'prague';
+import { Subject } from 'rxjs';
 
 export interface INodeConsoleMatch extends ITextMatch {
     reply: (text: string) => void;
 }
 
-export const reply = <M extends INodeConsoleMatch>(message: string) => (m: M) => m.reply(message);
+export class NodeConsole <BOTDATA extends object> {
+    public message$ = new Subject<IStateMatch<BOTDATA> & INodeConsoleMatch>();
+    constructor(
+        private defaultData: BOTDATA
+    ) {
+        const rl = readline.createInterface({
+            input: process.stdin
+        });
 
-export const runNodeConsole = (router: IRouter<INodeConsoleMatch>) => {
-    const rl = readline.createInterface({
-        input: process.stdin
-    });
+        rl.on('line', (text: string) =>
+            this.message$.next({
+                text,
+                reply: console.log,
+                data: defaultData
+            })
+        );
+    }
 
-    rl.on('line', (text: string) =>
-        callActionIfMatch(router, {
-            text,
-            reply: console.log
-        })
-        .subscribe(
-            message => konsole.log("handled", message),
-            error => konsole.log("error", error),
-            () => konsole.log("complete")
-        )
-    );
+    start() {
+        this.message$.next({
+            text: 'START',
+            reply: console.log,
+            data: this.defaultData
+        });
+    }
 }

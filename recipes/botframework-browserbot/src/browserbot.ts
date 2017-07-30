@@ -5,7 +5,7 @@ import { Subject } from 'rxjs';
 export const matchStartEvent = <M extends IChatActivityMatch = any>(): Matcher<M, M & IChatEventMatch>  => 
     matchAll(matchEvent(), m => m.event.name === 'start');
 
-export class BrowserBot<BOTDATA> {
+export class BrowserBot<BOTDATA extends object> {
     public message$ = new Subject<IStateMatch<BOTDATA> & IChatActivityMatch>();
 
     constructor(

@@ -1,17 +1,19 @@
+/////////////////////////////// Recipe Glue /////////////////////////////////
+
 import { UniversalChat, WebChatConnector, IChatMessageMatch } from 'prague-botframework';
 import { BrowserBot } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
-const browserBot = new BrowserBot(new UniversalChat(webChat.chatConnector), undefined);
-
-// This is our "base message type" which is used often enough that we made it really short
-
-type B = IChatMessageMatch;
+const browserBot = new BrowserBot<{}>(new UniversalChat(webChat.chatConnector), undefined);
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run, simpleRouter } from 'prague';
+import { IRouter, first, best, ifMatch, run, simpleRouter, routeMessage, IStateMatch } from 'prague';
+
+// This is our "base message type" which is used often enough that we made it really short
+
+type B = IChatMessageMatch & IStateMatch<{}>;
 
 // Regular Expressions
 
@@ -39,15 +41,25 @@ const dialogs = new Dialogs<B>({
     } 
 );
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
+const reroute = (m: B) => {
+    browserBot.message$
+        .next(m);
+    return Promise.resolve();
+}
+
+import { Scheduler } from 'rxjs';
+
+browserBot.message$
+    .observeOn(Scheduler.async)
+    .flatMap(m => routeMessage(appRouter, m))
+    .subscribe(
+        message => console.log("handled", message),
+        error => console.log("error", error),
+        () => console.log("complete")
+    );
+
+////////////////////////////// Bot Logic //////////////////////////////////
 
 const appRouter: IRouter<B> = simpleRouter(
     m => m.reply("Vítejte v Praze (Welcome to Prague)")
 )
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-browserBot.run({
-    message: appRouter,
-});
-
