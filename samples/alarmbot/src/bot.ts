@@ -1,3 +1,6 @@
+
+/////////////////////////////// Recipe Glue /////////////////////////////////
+
 import { UniversalChat, WebChatConnector, IChatMessageMatch, IChatActivityMatch, routeChatActivity } from 'prague-botframework';
 import { BrowserBot, matchStartEvent } from 'prague-botframework-browserbot';
 
@@ -27,7 +30,7 @@ import { matchRE, ifMatchRE } from 'prague';
 
 // const luis = new LuisModel('id', 'key');
 
-// Dialogs
+// Dialog stuff
 
 import { RootDialogInstance, DialogInstance, Dialogs } from 'prague'
 
@@ -43,7 +46,27 @@ const dialogs = new Dialogs<B>({
 
 import { throwRoute, catchRoute } from 'prague';
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+import { Subject, Scheduler } from 'rxjs';
+
+const reroute = (m: B) => {
+    browserBot.message$
+        .next(m);
+    return Promise.resolve();
+}
+
+browserBot.message$
+    .observeOn(Scheduler.async)
+    .flatMap(m => routeMessage(activityRouter, m))
+    .subscribe(
+        message => console.log("handled", message),
+        error => console.log("error", error),
+        () => console.log("complete")
+    );
+
+browserBot.start();
+
+////////////////////////// Business Logic ////////////////////////////////
 
 interface AlarmInfo {
     title?: string,
@@ -58,7 +81,7 @@ const deleteAlarm = (title: string) => {
 
 }
 
-const listAlarms = () => {
+const getAlarms = () => {
 
 }
 
@@ -66,21 +89,21 @@ const getAlarm = (title: string) => {
     
 }
 
-const titleDialog = dialogs.add<{}, { title: string } >(
-    'getTitle',
-    (dialog, m) =>
-        m.reply("What shall I call the alarm?"),
-    (dialog) => first(
-        ifMatch(m => dialog.end({ title: m.text }))
-    )
-)
+////////////////////////////// Bot Logic //////////////////////////////////
 
-const timeDialog = dialogs.add<{}, { time: string } >(
-    'getTime',
-    (dialog, m) =>
-        m.reply("For when shall I set the alarm?"),
+const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
+    event: ifMatch(m => m.event.name === 'start', m => dialogs.setRoot(rootDialog, m as any)),
+    message: dialogs.routeToRoot(),
+});
+
+const rootDialog = dialogs.add(
+    'root',
+    (dialog, m) => m.reply("Hi... I'm the alarm bot sample. I can set new alarms, delete existing ones, and list the ones you have."),
     (dialog) => first(
-        ifMatch(m => dialog.end({ time: m.text }))
+        dialog.routeTo(setAlarmDialog,matchRE(/set (?:an ){0,1}alarm(?: (?:named |called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmInfo)),
+        dialog.routeTo('deleteAlarm', matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called )(.*)){0,1}/i)),
+        dialog.routeTo('listAlarms', matchRE(/list alarms/i)),
+        m => m.reply("I don't think I know how to do that.")
     )
 )
 
@@ -109,39 +132,21 @@ const setAlarmDialog = dialogs.add<AlarmInfo, AlarmInfo, AlarmInfo>(
     )
 );
 
-const rootDialog = dialogs.add(
-    'root',
-    (dialog, m) => m.reply("Hi... I'm the alarm bot sample. I can set new alarms, delete existing ones, and list the ones you have."),
+
+const titleDialog = dialogs.add<{}, { title: string } >(
+    'getTitle',
+    (dialog, m) =>
+        m.reply("What shall I call the alarm?"),
     (dialog) => first(
-        dialog.routeTo(setAlarmDialog,matchRE(/set (?:an ){0,1}alarm(?: (?:named |called )(.*)){0,1}/), m => ({ title: m.groups[1] } as AlarmInfo)),
-        // dialog.routeTo('deleteAlarm', matchRE(/delete alarm/i)),
-        // dialog.routeTo('listAlarms', matchRE(/list alarms/i)),
-        m => m.reply("I don't think I know how to do that.")
+        ifMatch(m => dialog.end({ title: m.text }))
     )
 )
 
-const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
-    event: ifMatch(m => m.event.name === 'name', m => dialogs.setRoot(rootDialog, m as any)),
-    message: dialogs.routeToRoot(),
-});
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-import { Subject, Scheduler } from 'rxjs';
-
-const reroute = (m: B) => {
-    browserBot.message$
-        .next(m);
-    return Promise.resolve();
-}
-
-browserBot.message$
-    .observeOn(Scheduler.async)
-    .flatMap(m => routeMessage(activityRouter, m))
-    .subscribe(
-        message => console.log("handled", message),
-        error => console.log("error", error),
-        () => console.log("complete")
-    );
-
-browserBot.start();
+const timeDialog = dialogs.add<{}, { time: string } >(
+    'getTime',
+    (dialog, m) =>
+        m.reply("For when shall I set the alarm?"),
+    (dialog) => first(
+        ifMatch(m => dialog.end({ time: m.text }))
+    )
+)
