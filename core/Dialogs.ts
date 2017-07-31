@@ -507,14 +507,12 @@ export class Dialogs<M extends object = any> {
         if (!localOrRemoteDialog)
             return Observable.empty();
 
-        const initialDialogState: DialogState = {
-            state: {},
-            activeDialogs: {}
-        };
-
         if (isLocalDialog(localOrRemoteDialog)) {
             if (!localOrRemoteDialog.constructor)
-                return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, initialDialogState));
+                return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
+                    state: {},
+                    activeDialogs: {}
+                } as DialogState));
 
             let dialogResponse;
             let messageToRoute: M;
@@ -539,7 +537,10 @@ export class Dialogs<M extends object = any> {
                             .flatMap(_ => Observable.empty());
                     }
 
-                    return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, initialDialogState))
+                    return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
+                            state: dialogConstructorHelper.state,
+                            activeDialogs: {}
+                        } as DialogState))
                         .flatMap(dialogInstance => messageToRoute
                             ? this.getRouteFromDialogInstance(dialogInstance, messageToRoute, dialogResponseHandler,
                                     (dialogResponse) => {
