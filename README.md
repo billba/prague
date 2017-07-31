@@ -38,15 +38,15 @@ Prague includes an ever-growing number of samples which can be built and run by 
 
 # Tutorial
 
-[Simple routing](docs/Simple.md)
-[More on routing](docs/MoreRouters.md)
-[State and routing](docs/State.md)
-[Dialog](docs/Dialogs.md)
+* [Simple routing](docs/Simple.md)
+* [More on routing](docs/MoreRouters.md)
+* [State and routing](docs/State.md)
+* [Dialog](docs/Dialogs.md)
 
 ## To be written
 
-[More on Dialogs](docs/MoreDialogs.md)
-[Prompts](docs/Prompts.md)
-[Async](docs/Async.md)
-[Natural Language](docs/NLP.md)
-[Inside Prague](docs/Inside.md)
+* [More on Dialogs](docs/MoreDialogs.md)
+* [Prompts](docs/Prompts.md)
+* [Async](docs/Async.md)
+* [Natural Language](docs/NLP.md)
+* [Inside Prague](docs/Inside.md)
