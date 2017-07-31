@@ -2,6 +2,8 @@
 
 A sample [Prague](http://github.com/billba/prague) browser-based bot featuring the classic alarmbot. A good comparison with BotBuilder v3
 
+Note: this sample does not actually set any alarms :-)
+
 # How to use
 
 1. clone the entire Prague, if you haven't already
