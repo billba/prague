@@ -106,11 +106,11 @@ const alarms = new Alarms();
 ////////////////////////////// Bot Logic //////////////////////////////////
 
 const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
-    event: ifMatch(matchStart(), m => dialogs.setRoot(rootDialog, m as any)),
+    event: ifMatch(matchStart(), m => dialogs.setRoot(alarmDialog, m as any)),
     message: dialogs.routeToRoot(),
 });
 
-const rootDialog = dialogs.add(
+const alarmDialog = dialogs.add(
     'root',
     (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
     (dialog) => first(
@@ -124,18 +124,14 @@ const rootDialog = dialogs.add(
 const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
     'setAlarm',
     (dialog, m) => {
-        dialog.state = dialog.args;
-        if (dialog.args.title && alarms.getAlarm(dialog.args.title)) {
-            m.reply("I'm sorry, that name is taken.");
-            dialog.state.title = undefined;
-        }
+        dialog.state.time = dialog.args.time;
+        if (dialog.args.title && validateSetAlarmName(dialog.args.title, m))
+            dialog.state.title = dialog.args.title;
         return dialog.routeMessage(m);
     },
     (dialog) => first(
         dialog.routeTo(textPrompt, _ => !dialog.state.title, { prompt: "What shall I call the alarm?" }, m => {
-            if (alarms.getAlarm(m.dialogResponse.text))
-                m.reply("I'm sorry, that name is taken.")
-            else
+            if (validateSetAlarmName(m.dialogResponse.text, m))
                 dialog.state.title = m.dialogResponse.text;
             return reroute(m);
         }),
@@ -151,21 +147,24 @@ const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
     )
 );
 
+const validateSetAlarmName = (title: string, m) => {
+    if (!alarms.getAlarm(title))
+        return true;
+
+    m.reply("I'm sorry, that name is taken.");
+    return false;
+}
+
 const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
     'deleteAlarm',
     (dialog, m) => {
-        if (dialog.args.title)
-            if (!alarms.getAlarm(dialog.args.title))
-                m.reply(`I'm sorry, I couldn't find an alarm called ${dialog.args.title}.`);
-            else
-                dialog.state.title = dialog.args.title;
+        if (dialog.args.title && validateDeleteAlarmName(dialog.args.title, m))
+            dialog.state.title = dialog.args.title;
         return dialog.routeMessage(m);
     },
     (dialog) => first(
         dialog.routeTo(textPrompt, _ => !dialog.state.title, { prompt: "What is the name of the alarm to delete?" }, m => {
-            if (!alarms.getAlarm(m.dialogResponse.text))
-                m.reply(`I'm sorry, I couldn't find an alarm called ${m.dialogResponse.text}.`);
-            else    
+            if (validateDeleteAlarmName(m.dialogResponse.text, m))
                 dialog.state.title = m.dialogResponse.text;
             return reroute(m);
         }),
@@ -176,6 +175,14 @@ const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
         },
     )
 )
+
+const validateDeleteAlarmName = (title: string, m) => {
+    if (alarms.getAlarm(title))
+        return true;
+
+    m.reply(`I'm sorry, I couldn't find an alarm called ${title}.`);
+    return false;
+}
 
 const listAlarmsDialog = dialogs.add(
     'listAlarms',
