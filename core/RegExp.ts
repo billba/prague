@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 import { ITextMatch } from './Text';
-import { IRouter, ifMatch, Handler, arrayize } from './Rules';
+import { IRouter, ifMatch, Handler, arrayize } from './Router';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;

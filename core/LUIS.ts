@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { IRouter, Route, simpleRouter, Handler, Observableable, toFilteredObservable, routerize } from './Rules';
+import { IRouter, Route, simpleRouter, Handler, Observableable, toFilteredObservable, routerize } from './Router';
 import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time

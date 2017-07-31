@@ -1,5 +1,5 @@
 import { konsole } from './Konsole';
-import { IRouter, Handler, ifMatch } from './Rules';
+import { IRouter, Handler, ifMatch } from './Router';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 

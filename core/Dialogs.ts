@@ -1,4 +1,4 @@
-import { IRouter, RouterOrHandler, Predicate, Matcher, matchize, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Rules';
+import { IRouter, RouterOrHandler, Predicate, Matcher, matchize, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Router';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
