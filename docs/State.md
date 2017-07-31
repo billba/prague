@@ -24,6 +24,7 @@ router = first(
             if (guess === state.num) {
                 m.reply("You're right!");
                 state.num = undefined;
+                return;
             }
 
             if (guess < state.num )
@@ -34,6 +35,7 @@ router = first(
             if (--state.guesses === 0) {
                 m.reply("You are out of guesses");
                 state.num = undefined;
+                return;
             }
             
             m.reply(`You have ${state.guesses} left.`);

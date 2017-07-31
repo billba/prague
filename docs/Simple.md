@@ -58,7 +58,7 @@ import { ifMatch } from 'prague';
 
 router = ifMatch(
     m => m.text === "Hello" || m.text === "Hi" || m.text === "Wassup",
-    m => m.reply("Hello, World"
+    m => m.reply("Hello, World")
 )
 ```
 
@@ -77,7 +77,7 @@ import { first } from 'prague';
 router = first(
     ifMatch(
         m => /Hello|Hi|Wassup/i.test(m.text),
-        m => m.reply("Hello, World"
+        m => m.reply("Hello, World")
     ),
     simpleRouter(
         m => m.reply("I didn't catch that.")
@@ -99,7 +99,7 @@ One of the foundational principles of Prague is "high signal to noise ratio". We
 router = first(
     ifMatch(
         m => /Hello|Hi|Wassup/i.test(m.text),
-        m => m.reply("Hello, World"
+        m => m.reply("Hello, World")
     ),
     m => m.reply("I didn't catch that.")
 )
