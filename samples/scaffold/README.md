@@ -4,8 +4,9 @@ An empty [Prague](http://github.com/billba/prague) browser-based bot, ready for 
 
 # How to use
 
-1. clone Prague repo and go to `samples/scaffold` directory
-2. `npm install`
-3. `npm run build` (or `npm run watch` to build on changes)
-4. `npm run start`
-5. aim your browser at `http://localhost:8000`
+1. clone the entire `prague` repo, if you haven't already
+2. go to the `samples/scaffold` directory
+3. `npm install`
+4. `npm run build` (or `npm run watch` to build on changes)
+5. in a different terminal window, `npm run start`
+6. aim your browser at `http://localhost:8000`
