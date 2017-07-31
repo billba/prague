@@ -108,7 +108,7 @@ import { branchMatch, matchTime } from 'prague';
 ////////////////////////////// Bot Logic //////////////////////////////////
 
 const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
-    event: ifMatch(matchStart(), m => dialogs.setRoot(rootDialog, m as any)),
+    event: ifMatch(matchStart(), m => dialogs.setRoot(alarmDialog, m as any)),
     message: dialogs.routeToRoot(),
 });
 
