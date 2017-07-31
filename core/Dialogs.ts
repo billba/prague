@@ -131,14 +131,14 @@ export interface DialogRouterHelper<
 
     routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        predicate: Predicate<M>,
+        trigger: Predicate<M>,
         args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
 
     routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, N extends object = any>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        matcher: Matcher<M, N>,
+        trigger: Matcher<M, N>,
         args?: DIALOGARGS | ((n: N) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
@@ -152,7 +152,7 @@ export interface DialogRouterHelper<
     routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         tag: string,
-        predicate: Predicate<M>,
+        trigger: Predicate<M>,
         args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
@@ -160,7 +160,7 @@ export interface DialogRouterHelper<
     routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, N extends object = any>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         tag: string,
-        matcher: Matcher<M, N>,
+        trigger: Matcher<M, N>,
         args?: DIALOGARGS | ((n: N) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): IRouter<M>;
