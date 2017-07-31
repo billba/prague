@@ -143,23 +143,6 @@ export const routeChatActivity = <M extends IChatActivityMatch = any>(
         rules.activity
     );
 
-export const createChoice = (text: string, choices: string[]): Activity => ({
-    type: 'message',
-    from: { id: 'MyBot' },
-    text,
-    suggestedActions: { actions: choices.map<CardAction>(choice => ({
-        type: 'postBack',
-        title: choice,
-        value: choice
-    })) }
-});
-
-export const createConfirm = (text: string) => {
-    const choices = ['Yes', 'No'];
-    return createChoice(text, choices);
-}
-
-
 export class WebChatConnector {
     constructor() {
     }
@@ -205,3 +188,69 @@ export class WebChatConnector {
         activity$: this.activityFromChat$ as Observable<Activity>,
     }
 }
+
+// Prompts
+
+import { LocalDialog, Dialogs } from 'prague';
+import { matchTime } from 'prague';
+
+export interface PromptArgs {
+    prompt?: string | Activity;
+}
+
+export interface ErrorPromptState {
+    errorPrompt?: string | Activity;
+}
+
+export interface ErrorPromptArgs extends PromptArgs, ErrorPromptState {
+}
+
+export interface TextPromptResponse {
+    text: string;
+}
+
+export interface TimePromptResponse {
+    time: Date;
+}
+
+export const chatPrompts = <M extends IChatMessageMatch = any>(dialogs: Dialogs<M>) => ({
+    textPrompt: dialogs.add<PromptArgs, TextPromptResponse>(
+        'textPrompt',
+        (dialog, m) => {
+            if (dialog.args.prompt)
+                m.reply(dialog.args.prompt)
+        },
+        (dialog) => m =>
+            dialog.end({ text: m.text })
+    ),
+
+    timePrompt: dialogs.add<ErrorPromptArgs, TimePromptResponse, ErrorPromptState>(
+        'timePrompt',
+        (dialog, m) => {
+            dialog.state.errorPrompt = dialog.args.errorPrompt;
+            m.reply(dialog.args.prompt);
+        },
+        (dialog) => first(
+            ifMatch(matchTime(), m => dialog.end({ time: m.time })),
+            m => m.reply(dialog.state.errorPrompt || "Please type a valid U.S. time, e.g. 5:25pm.")
+        )
+    ),
+
+});
+
+export const createChoice = (text: string, choices: string[]): Activity => ({
+    type: 'message',
+    from: { id: 'MyBot' },
+    text,
+    suggestedActions: { actions: choices.map<CardAction>(choice => ({
+        type: 'postBack',
+        title: choice,
+        value: choice
+    })) }
+});
+
+export const createConfirm = (text: string) => {
+    const choices = ['Yes', 'No'];
+    return createChoice(text, choices);
+}
+
