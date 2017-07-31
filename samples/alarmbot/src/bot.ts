@@ -2,7 +2,7 @@
 /////////////////////////////// Recipe Glue /////////////////////////////////
 
 import { UniversalChat, WebChatConnector, IChatMessageMatch, IChatActivityMatch, routeChatActivity } from 'prague-botframework';
-import { BrowserBot, matchStartEvent } from 'prague-botframework-browserbot';
+import { BrowserBot, matchStart } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
@@ -44,8 +44,11 @@ const dialogs = new Dialogs<B>({
     } 
 );
 
-import { throwRoute, catchRoute } from 'prague';
+import { chatPrompts } from 'prague-botframework';
 
+const { textPrompt, timePrompt } = chatPrompts(dialogs);
+
+import { throwRoute, catchRoute } from 'prague';
 
 import { Subject, Scheduler } from 'rxjs';
 
@@ -70,11 +73,11 @@ browserBot.start();
 
 interface AlarmInfo {
     title?: string,
-    time?: string
+    time?: Date
 }
 
 const alarms: {
-    [title: string]: string;
+    [title: string]: Date;
 } = {}
 
 const setAlarm = (info: AlarmInfo) => {
@@ -98,7 +101,7 @@ const getAlarm = (title: string): AlarmInfo => {
 ////////////////////////////// Bot Logic //////////////////////////////////
 
 const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
-    event: ifMatch(m => m.event.name === 'start', m => dialogs.setRoot(rootDialog, m as any)),
+    event: ifMatch(matchStart(), m => dialogs.setRoot(rootDialog, m as any)),
     message: dialogs.routeToRoot(),
 });
 
@@ -124,40 +127,24 @@ const setAlarmDialog = dialogs.add<AlarmInfo, AlarmInfo, AlarmInfo>(
         return dialog.routeMessage(m);
     },
     (dialog) => first(
-        dialog.routeTo(titleDialog, _ => !dialog.state.title, { prompt: "What shall I call the alarm?" }, m => {
-            if (getAlarm(m.dialogResponse.title))
+        dialog.routeTo(textPrompt, _ => !dialog.state.title, { prompt: "What shall I call the alarm?" }, m => {
+            if (getAlarm(m.dialogResponse.text))
                 m.reply("I'm sorry, that name is taken.")
             else
-                dialog.state.title = m.dialogResponse.title;
+                dialog.state.title = m.dialogResponse.text;
             return reroute(m);
         }),
-        dialog.routeTo(timeDialog, _ => !dialog.state.time, {}, m => {
+        dialog.routeTo(timePrompt, _ => !dialog.state.time, { prompt: "For when shall I set the alarm?" }, m => {
             dialog.state.time = m.dialogResponse.time;
             return reroute(m);
         }),
         m => {
             setAlarm(dialog.state);
-            m.reply(`Okay, I set an alarm called ${dialog.state.title} for ${dialog.state.time.toString()}.`);
+            m.reply(`Okay, I set an alarm called ${dialog.state.title} for ${dialog.state.time.toLocaleTimeString("en-us")}.`);
             return dialog.end();
         }
     )
 );
-
-const titleDialog = dialogs.add<{ prompt: string }, { title: string } >(
-    'getTitle',
-    (dialog, m) =>
-        m.reply(dialog.args.prompt),
-    (dialog) => m =>
-        dialog.end({ title: m.text })
-)
-
-const timeDialog = dialogs.add<{}, { time: string } >(
-    'getTime',
-    (dialog, m) =>
-        m.reply("For when shall I set the alarm?"),
-    (dialog) => m =>
-        dialog.end({ time: m.text })
-)
 
 const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
     'deleteAlarm',
@@ -170,16 +157,16 @@ const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
         return dialog.routeMessage(m);
     },
     (dialog) => first(
-        dialog.routeTo(titleDialog, _ => !dialog.state.title, { prompt: "What is the name of the alarm to delete?" }, m => {
-            if (!getAlarm(m.dialogResponse.title))
-                m.reply(`I'm sorry, I couldn't find an alarm called ${m.dialogResponse.title}.`);
+        dialog.routeTo(textPrompt, _ => !dialog.state.title, { prompt: "What is the name of the alarm to delete?" }, m => {
+            if (!getAlarm(m.dialogResponse.text))
+                m.reply(`I'm sorry, I couldn't find an alarm called ${m.dialogResponse.text}.`);
             else    
-                dialog.state.title = m.dialogResponse.title;
+                dialog.state.title = m.dialogResponse.text;
             return reroute(m);
         }),
         m => {
             const alarm = deleteAlarm(dialog.state.title);
-            m.reply(`I have deleted the alarm named ${alarm.title} for ${alarm.time}`);
+            m.reply(`I have deleted the alarm named ${alarm.title} for ${alarm.time.toLocaleTimeString("en-us")}`);
             return dialog.end();
         },
     )
