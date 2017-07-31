@@ -33,7 +33,7 @@ Prague is a low-level framework. If you want to build an app you will want to us
 Prague includes an ever-growing number of samples which can be built and run by following the directions in each samples' README:
 
 * [Simple Dialog](/samples/simple-dialog)
-* [AlarmBot](/samples/alarmBot)
+* [AlarmBot](/samples/alarmbot)
 * [Scaffold](/samples/scaffold) (this is a great place to start experimenting with your own bot, using concepts from the tutorial and the other samples)
 
 # Tutorial
