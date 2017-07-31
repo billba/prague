@@ -1,6 +1,6 @@
 # Dialogs
 
-Let's imagine that we'd like to make the guessing game from the [previous chapter](State.md) available to other bots. If this were a standard JavaScript application we might do this by creating a class that kept its own state in private variables, with a constructor to create a new instance, and a public method for handling guesses. A Dialog is like a class for message routing.
+Let's imagine that we'd like to make the guessing game from the [previous chapter](State.md) available to other bots. If this were a standard JavaScript application we might do this by creating a class. A constructor would create a new instance, each of which would have its own storage, and there would be a public method for handling guesses. **A Dialog is like a class for message routing.**
 
 First we'll create the constructor and its types :
 
@@ -18,16 +18,15 @@ interface GameArgs {
 }
 
 gameConstructor: DialogConstructor<M, GameArgs, {}, GameState> = 
-    (dialog, m, args = { upperLimit: 50, numGuesses: 10}) => {
-        m.reply(`Guess a number between 1 and ${args.upperLimit}. You have ${args.numGuesses} guesses.`);
+    (dialog, m) => {
+        m.reply(`Guess a number between 1 and ${dialog.args.upperLimit}. You have ${dialog.args.numGuesses} guesses.`);
         dialog.state = {
-            num: Math.floor(Math.random() * args.upperLimit),
-            guesses: args.numGuesses
+            num: Math.floor(Math.random() * (dialog.args.upperLimit || 50)),
+            guesses: (dialog.args.numGuesses || 10)
         }
-    }
 ```
 
-The main change from our original code is we no longer look for a starting message. That's the responsibility of the calling router. We also now take arguments for the constructor, and those arguments have default values.
+The main change from our original code is we no longer look for a starting message. That's the responsibility of the calling router. We also now take arguments for the constructor (the code itself embeds default values for those arguments).
 
 Now let's create the router:
 
@@ -79,8 +78,8 @@ Now we need to add logic to start the game and keep it going. We do this with a 
 ```typescript
 let rootRouter: DialogRouter<M>
 
-rootRouter = (dialog) => dialog.first(
-    ifMatchRE(/start game/, m => dialog.activate('game')),
+rootRouter = (dialog) => first(
+    dialog.routeTo(gameDialog, matchRE(/start game/i)),
     m => m.reply("Type 'start game' to start the game")
 )
 
@@ -97,7 +96,7 @@ If you squint you can see most of the rest of our original game logic:
 1. Initiate the game when the user types 'start game'
 2. Catch-all to help users
 
-If you guessed that `dialog.activate('game')` calls `gameConstructor`, you're absolutely correct. Once the game dialog has been activated, `dialog.first` will first attempt to route messages to `gameRouter`. And if that dialog's router calls `dialog.end()` then it is deactivated, returning everything to its original state.
+`dialog.routeTo` checks to see if the named dialog is currently activated. If not, it checks the supplied condition. If that succeeds, the dialog is activated (calling its constructor). On the dialog was already activated, it routes the message to that dialog's router. If that dialog's router calls `dialog.end()` then it is deactivated, returning everything to its original state.
 
 Finally we route to this dialog from our application router:
 
