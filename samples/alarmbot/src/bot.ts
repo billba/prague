@@ -119,9 +119,9 @@ const rootDialog = dialogs.add(
         dialog.routeTo(listAlarmsDialog, matchRE(/list (?:the ){0,1}alarms/i)),
         m => m.reply("I don't think I know how to do that.")
     )
-)
+);
 
-const setAlarmDialog = dialogs.add<AlarmInfo, AlarmInfo, AlarmInfo>(
+const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
     'setAlarm',
     (dialog, m) => {
         dialog.state = dialog.args;
