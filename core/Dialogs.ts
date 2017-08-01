@@ -145,7 +145,7 @@ export interface DialogRouterHelper<
 
     routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        args: DIALOGARGS,
+        args?: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Router<M>;
 
@@ -168,7 +168,7 @@ export interface DialogRouterHelper<
     routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         instanceTag: string,
-        args: DIALOGARGS,
+        args?: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Router<M>;
 
@@ -989,7 +989,7 @@ export class Dialogs<M extends object> {
                 const instanceName = dialog.localName + '@@@' + instanceTag;
                 const dialogInstance = dialogState.activeDialogs[instanceName];
 
-                let predicateOrMatcher: Predicate<M> | Matcher<M>; 
+                let predicateOrMatcher: Predicate<M> | Matcher<M> = () => true;
 
                 if (args.length >= iArg + 1 && typeof args[iArg] === 'function') {
                     predicateOrMatcher = args[iArg];
