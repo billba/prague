@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { IRouter, Route, simpleRouter, Handler, Observableable, toFilteredObservable, routerize } from './Router';
+import { Router, RouterOrHandler, toFilteredObservable, toRouter } from './Router';
 import 'isomorphic-fetch';
 
 // a temporary model for LUIS built from my imagination because I was offline at the time
@@ -37,7 +37,7 @@ export interface ILuisMatch {
 }
 
 export interface LuisRouters<M> {
-    [intent: string] : Handler<M & ILuisMatch> | IRouter<M & ILuisMatch>
+    [intent: string] : RouterOrHandler<M & ILuisMatch>;
 }
 
 interface TestData {
@@ -156,7 +156,7 @@ export class LuisModel {
             });
     }
 
-    public match<M extends ITextMatch = any>(message: M) {
+    public match<M extends ITextMatch>(message: M) {
         return this.call(message.text)
             .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
             .map(luisResponse => ({
@@ -171,7 +171,7 @@ export class LuisModel {
 
     // IMPORTANT: the order of rules is not important - the router matching the *highest-ranked intent* will be executed
 
-    best<M extends ITextMatch = any>(luisRouters: LuisRouters<M>) {
+    best<M extends ITextMatch>(luisRouters: LuisRouters<M>) {
         return {
             getRoute: (message: M) =>
                 toFilteredObservable(this.match(message))
@@ -182,7 +182,7 @@ export class LuisModel {
                                 Observable.of(luisRouters[luisIntent.intent])
                                 .filter(router => !!router)
                                 .flatMap(router =>
-                                    routerize(router).getRoute({
+                                    toRouter(router).getRoute({
                                         ... message as any,
                                         score: luisIntent.score,
                                         ... entityFields(m.luisResponse.entities),
@@ -192,7 +192,7 @@ export class LuisModel {
                         )
                         .take(1) // stop with first intent that appears in the rules
                     )
-        } as IRouter<M>;
+        } as Router<M>;
     }
 
     static findEntity(entities: LuisEntity[], type: string) {

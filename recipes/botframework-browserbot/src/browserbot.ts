@@ -1,9 +1,9 @@
-import { IRouter, IStateMatch, Matcher, prependMatcher, matchAll, konsole } from 'prague';
+import { IStateMatch, konsole } from 'prague';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, matchActivity, matchEvent, Activity } from 'prague-botframework';
 import { Subject } from 'rxjs';
 
 export const matchStart = () => 
-    <M extends IChatEventMatch = any>(m: M) => m.event.name === 'start';
+    <M extends IChatEventMatch>(m: M) => m.event.name === 'start';
 
 export class BrowserBot<BOTDATA extends object> {
     public message$ = new Subject<IStateMatch<BOTDATA> & IChatActivityMatch>();

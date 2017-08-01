@@ -14,7 +14,7 @@ type B = IChatMessageMatch & IStateMatch<any>;
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run, simpleRouter, matchAll, matchAny, routeMessage, IStateMatch } from 'prague';
+import { Router, first, best, ifMatch, run, simpleRouter, matchAll, matchAny, routeMessage, IStateMatch } from 'prague';
 
 // Regular Expressions
 
@@ -105,7 +105,7 @@ const alarms = new Alarms();
 
 ////////////////////////////// Bot Logic //////////////////////////////////
 
-const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
+const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
     event: ifMatch(matchStart(), m => dialogs.setRoot(alarmDialog, m as any)),
     message: dialogs.routeToRoot(),
 });
