@@ -212,27 +212,25 @@ export interface TimePromptResponse {
 }
 
 export const chatPrompts = <M extends IChatMessageMatch> (dialogs: Dialogs<M>) => ({
-    textPrompt: dialogs.add<PromptArgs, TextPromptResponse>(
-        'textPrompt',
-        (dialog, m) => {
+    textPrompt: dialogs.add<PromptArgs, TextPromptResponse>('textPrompt', {
+        constructor: (dialog, m) => {
             if (dialog.args.prompt)
                 m.reply(dialog.args.prompt)
         },
-        (dialog) => m =>
+        router: (dialog) => m =>
             dialog.end({ text: m.text })
-    ),
+    }),
 
-    timePrompt: dialogs.add<ErrorPromptArgs, TimePromptResponse, ErrorPromptState>(
-        'timePrompt',
-        (dialog, m) => {
+    timePrompt: dialogs.add<ErrorPromptArgs, TimePromptResponse, ErrorPromptState>('timePrompt', {
+        constructor: (dialog, m) => {
             dialog.state.errorPrompt = dialog.args.errorPrompt;
             m.reply(dialog.args.prompt);
         },
-        (dialog) => first(
+        router: (dialog) => first(
             ifMatch(matchTime(), m => dialog.end({ time: m.time })),
             m => m.reply(dialog.state.errorPrompt || "Please type a valid U.S. time, e.g. 5:25pm.")
         )
-    ),
+    }),
 
 });
 

@@ -13,7 +13,7 @@ export const toObservable = <T> (t: Observableable<T>) => {
 
 export const toFilteredObservable = <T> (t: Observableable<T>) => {
     if (!t)
-        return Observable.empty<T> ();
+        return Observable.empty<T>();
     if (t instanceof Observable)
         return t.filter(i => !!i);
     if (t instanceof Promise)
@@ -231,6 +231,10 @@ export function branchMatch <M extends object> (
         elseRouterOrHandler
     )
 }
+
+export const nullRouter = <M extends object = {}> (): Router<M> => ({
+    getRoute: (m) => Observable.empty()
+})
 
 const thrownRoute: Route = {
     thrown: true,
