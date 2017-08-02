@@ -110,26 +110,24 @@ const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatA
     message: dialogs.routeToRoot(),
 });
 
-const alarmDialog = dialogs.add(
-    'root',
-    (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
-    (dialog) => first(
+const alarmDialog = dialogs.add('root', {
+    constructor: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
+    router: (dialog) => first(
         dialog.routeTo(setAlarmDialog, matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i), m => ({ title: m.groups[1] } as AlarmInfo)),
         dialog.routeTo(deleteAlarmDialog, matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i), m => ({ title: m.groups[1] } as AlarmInfo)),
         dialog.routeTo(listAlarmsDialog, matchRE(/list (?:the ){0,1}alarms/i)),
         m => m.reply("I don't think I know how to do that.")
     )
-);
+});
 
-const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
-    'setAlarm',
-    (dialog, m) => {
+const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('setAlarm', {
+    constructor: (dialog, m) => {
         dialog.state.time = dialog.args.time;
         if (dialog.args.title && validateSetAlarmName(dialog.args.title, m))
             dialog.state.title = dialog.args.title;
         return dialog.routeMessage(m);
     },
-    (dialog) => first(
+    router: (dialog) => first(
         dialog.routeTo(textPrompt, _ => !dialog.state.title, { prompt: "What shall I call the alarm?" }, m => {
             if (validateSetAlarmName(m.dialogResponse.text, m))
                 dialog.state.title = m.dialogResponse.text;
@@ -145,7 +143,7 @@ const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
             return dialog.end();
         }
     )
-);
+});
 
 const validateSetAlarmName = (title: string, m) => {
     if (!alarms.getAlarm(title))
@@ -155,14 +153,13 @@ const validateSetAlarmName = (title: string, m) => {
     return false;
 }
 
-const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
-    'deleteAlarm',
-    (dialog, m) => {
+const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('deleteAlarm', {
+    constructor: (dialog, m) => {
         if (dialog.args.title && validateDeleteAlarmName(dialog.args.title, m))
             dialog.state.title = dialog.args.title;
         return dialog.routeMessage(m);
     },
-    (dialog) => first(
+    router: (dialog) => first(
         dialog.routeTo(textPrompt, _ => !dialog.state.title, { prompt: "What is the name of the alarm to delete?" }, m => {
             if (validateDeleteAlarmName(m.dialogResponse.text, m))
                 dialog.state.title = m.dialogResponse.text;
@@ -174,7 +171,7 @@ const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
             return dialog.end();
         },
     )
-)
+})
 
 const validateDeleteAlarmName = (title: string, m) => {
     if (alarms.getAlarm(title))
@@ -184,9 +181,8 @@ const validateDeleteAlarmName = (title: string, m) => {
     return false;
 }
 
-const listAlarmsDialog = dialogs.add(
-    'listAlarms',
-    (dialog, m) => {
+const listAlarmsDialog = dialogs.add('listAlarms', {
+    constructor: (dialog, m) => {
         const _alarms = alarms.getAlarms();
         if (_alarms && _alarms.length) {
             m.reply("Here are the alarms you have set:");
@@ -194,6 +190,5 @@ const listAlarmsDialog = dialogs.add(
         } else
             m.reply("There are currently no alarms set.");
         return dialog.end();
-    },
-    undefined
-)
+    }
+})
