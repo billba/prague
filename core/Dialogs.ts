@@ -401,16 +401,16 @@ export class Dialogs <M extends object> {
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
-        localName: string,
-        remoteUrl: string,
-    ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
+    // add <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
+    //     localName: string,
+    //     remoteUrl: string,
+    // ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
 
-    add <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
-        localName: string,
-        remoteUrl: string,
-        remoteName: string
-    ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
+    // add <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
+    //     localName: string,
+    //     remoteUrl: string,
+    //     remoteName: string
+    // ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
 
     add (
         localName: string,
