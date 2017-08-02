@@ -182,7 +182,7 @@ export interface DialogTrigger <
     M extends object = {},
     DIALOGARGS extends object = {}
 > {
-    (m: M, dialogArgs: Partial<DIALOGARGS>): Observableable<Partial<DIALOGARGS>>;
+    (m: M): Observableable<Partial<DIALOGARGS>>;
 }
 
 export interface IDialog <
@@ -842,97 +842,6 @@ export class Dialogs <M extends object> {
     ): DialogRouterHelper<M> {
         console.log("creating dialogRouterHelper", dialogInstance, m, dialogState, dialogInstances, dialogResponseHandler, end)
 
-        const routeToActive = (
-            dialogOrName: DialogOrName<M>,
-            ... args,
-        ): Router<M> => ({
-            getRoute: (m: M) => {
-                console.log("dialog.routeToActive().getRoute", dialogOrName);
-                const dialog = this.toLocalOrRemoteDialog(dialogOrName);
-                if (!dialog)
-                    return Observable.empty();
-
-                let instanceTag = "default";
-                let i = 0;
-
-                if (args.length && typeof args[0] === 'string') {
-                    instanceTag = args[0];
-                    i = 1;
-                }
-
-                const instanceName = dialog.localName + '@@@' + instanceTag;
-                const dialogResponseHandler: DialogResponseHandler<M> = args[i];
-    
-                console.log("dialog.routeToActive() derived args", instanceName, dialogResponseHandler);
-
-                return toFilteredObservable(dialogState.activeDialogs[instanceName])
-                    .flatMap(dialogInstance =>
-                        this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
-                            delete dialogState.activeDialogs[instanceName];
-                            return true;
-                        })
-                    );
-            }
-        });
-
-        const routeTo = (
-            dialogOrName: DialogOrName<M>,
-            ... args
-        ): Router<M> => ({
-            getRoute: (m: M) => {
-                console.log("dialog.routeTo().getRoute", dialogOrName, ...args);
-                const dialog = this.toLocalOrRemoteDialog(dialogOrName);
-                if (!dialog)
-                    return Observable.empty();
-
-                let instanceTag = 'default';
-                let iArg = 0;
-
-                if (typeof args[0] === 'string') {
-                    instanceTag = args[0];
-                    iArg = 1;
-                }
-
-                const instanceName = toLocalName(dialogOrName) + '@@@' + instanceTag;
-                const dialogInstance = dialogState.activeDialogs[instanceName];
-
-                let predicateOrMatcher: Predicate<M> | Matcher<M> = () => true;
-
-                if (args.length >= iArg + 1 && typeof args[iArg] === 'function') {
-                    predicateOrMatcher = args[iArg];
-                    iArg++;
-                }
-
-                let getDialogArgs: (n) => object = () => ({});
-                if (args.length >= iArg + 1) {
-                    getDialogArgs = typeof args[iArg] === 'function'
-                        ? args[iArg]
-                        : () => args[iArg];
-                }
-
-                const dialogResponseHandler = args.length === iArg + 2 ? args[iArg + 1] : undefined;
-
-                console.log("dialog.routeTo() derived args", instanceName, dialogInstance, predicateOrMatcher, getDialogArgs, dialogResponseHandler);
-
-                if (dialogInstance)
-                    // dialog already active - route the message
-                    return this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
-                        delete dialogState.activeDialogs[instanceName];
-                        return true;
-                    });
-
-                return tryMatch(predicateOrMatcher, m)
-                    .map(n => ({
-                        action: () => toObservable(getDialogArgs(n))
-                            .do(dialogArgs => console.log("dialog.routeTo() dialog args", dialogArgs))
-                            .flatMap(dialogArgs => this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler))
-                            .do(dialogInstance => {
-                                dialogState.activeDialogs[instanceName] = dialogInstance;
-                            })
-                    } as Route));
-            }
-        });
-
         return {
             // core
 
@@ -1039,11 +948,98 @@ export class Dialogs <M extends object> {
                 return dialogState.activeDialogs[toLocalName(dialogOrName)] !== undefined;
             },
 
-            routeToActive,
+            routeToActive: (
+                dialogOrName: DialogOrName<M>,
+                ... args,
+            ): Router<M> => ({
+                getRoute: (m: M) => {
+                    console.log("dialog.routeToActive().getRoute", dialogOrName);
+                    const dialog = this.toLocalOrRemoteDialog(dialogOrName);
+                    if (!dialog)
+                        return Observable.empty();
+
+                    let instanceTag = "default";
+                    let i = 0;
+
+                    if (args.length && typeof args[0] === 'string') {
+                        instanceTag = args[0];
+                        i = 1;
+                    }
+
+                    const instanceName = dialog.localName + '@@@' + instanceTag;
+                    const dialogResponseHandler: DialogResponseHandler<M> = args[i];
+        
+                    console.log("dialog.routeToActive() derived args", instanceName, dialogResponseHandler);
+
+                    return toFilteredObservable(dialogState.activeDialogs[instanceName])
+                        .flatMap(dialogInstance =>
+                            this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
+                                delete dialogState.activeDialogs[instanceName];
+                                return true;
+                            })
+                        );
+                }
+            }),
 
             // "just works"
     
-            routeTo
+            routeTo: (
+                dialogOrName: DialogOrName<M>,
+                ... args
+            ): Router<M> => ({
+                getRoute: (m: M) => {
+                    console.log("dialog.routeTo().getRoute", dialogOrName, ...args);
+                    const dialog = this.toLocalOrRemoteDialog(dialogOrName);
+                    if (!dialog)
+                        return Observable.empty();
+
+                    let instanceTag = 'default';
+                    let iArg = 0;
+
+                    if (typeof args[0] === 'string') {
+                        instanceTag = args[0];
+                        iArg = 1;
+                    }
+
+                    const instanceName = toLocalName(dialogOrName) + '@@@' + instanceTag;
+                    const dialogInstance = dialogState.activeDialogs[instanceName];
+
+                    let predicateOrMatcher: Predicate<M> | Matcher<M> = () => true;
+
+                    if (args.length >= iArg + 1 && typeof args[iArg] === 'function') {
+                        predicateOrMatcher = args[iArg];
+                        iArg++;
+                    }
+
+                    let getDialogArgs: (n) => object = () => ({});
+                    if (args.length >= iArg + 1) {
+                        getDialogArgs = typeof args[iArg] === 'function'
+                            ? args[iArg]
+                            : () => args[iArg];
+                    }
+
+                    const dialogResponseHandler = args.length === iArg + 2 ? args[iArg + 1] : undefined;
+
+                    console.log("dialog.routeTo() derived args", instanceName, dialogInstance, predicateOrMatcher, getDialogArgs, dialogResponseHandler);
+
+                    if (dialogInstance)
+                        // dialog already active - route the message
+                        return this.getRouteFromDialogInstance(dialogInstance, m, dialogResponseHandler, (dialogResponse) => {
+                            delete dialogState.activeDialogs[instanceName];
+                            return true;
+                        });
+
+                    return tryMatch(predicateOrMatcher, m)
+                        .map(n => ({
+                            action: () => toObservable(getDialogArgs(n))
+                                .do(dialogArgs => console.log("dialog.routeTo() dialog args", dialogArgs))
+                                .flatMap(dialogArgs => this.createDialogInstance(dialogOrName, m, dialogArgs, dialogResponseHandler))
+                                .do(dialogInstance => {
+                                    dialogState.activeDialogs[instanceName] = dialogInstance;
+                                })
+                        } as Route));
+                }
+            }),
 
         } as DialogRouterHelper<M>
     }
