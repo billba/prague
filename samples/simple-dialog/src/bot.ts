@@ -62,13 +62,14 @@ browserBot.message$
 
 const appRouter: Router<B> = dialogs.routeToRoot('root');
 
-const rootDialog = dialogs.add(
-    'root',
-    (dialog) => first(
+import { IDialog } from 'prague';
+
+const rootDialog = dialogs.add('root', {
+    router: (dialog) => first(
         dialog.routeTo(gameDialog, matchRE(/start game/i)),
         m => m.reply("Type 'start game' to start the game")
     )
-)
+} as IDialog<B>);
 
 interface GameState {
     num: number,
@@ -80,16 +81,15 @@ interface GameArgs {
     numGuesses?: number;
 }
 
-const gameDialog = dialogs.add<GameArgs, {}, GameState>(
-    'game',
-    (dialog, m) => {
+const gameDialog = dialogs.add<GameArgs, {}, GameState>('game', {
+    constructor: (dialog, m) => {
         m.reply(`Guess a number between 1 and ${dialog.args.upperLimit}. You have ${dialog.args.numGuesses} guesses.`);
         dialog.state = {
             num: Math.floor(Math.random() * (dialog.args.upperLimit || 50)),
             guesses: (dialog.args.numGuesses || 10)
         }
     },
-    (dialog) => first(
+    router: (dialog) => first(
         ifMatchRE(/\d+/, m => {
             const guess = parseInt(m.groups[0]);
             if (guess === dialog.state.num) {
@@ -111,4 +111,4 @@ const gameDialog = dialogs.add<GameArgs, {}, GameState>(
         }),
         m => m.reply("Please guess a number between 1 and 50.")
     )
-);
+});

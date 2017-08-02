@@ -110,7 +110,7 @@ const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatA
     message: dialogs.routeToRoot(),
 });
 
-const alarmDialog = dialogs.add('root', {
+const alarmDialog = dialogs.add('alarmDialog', {
     constructor: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
     router: (dialog) => first(
         dialog.routeTo(setAlarmDialog, matchAll<B, AlarmInfo>(
