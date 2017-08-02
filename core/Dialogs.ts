@@ -183,7 +183,7 @@ export interface IDialog <
     DIALOGSTATE extends object = {},
 > {
     constructor?: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
-    routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>,
+    router: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>,
 }
 
 export interface LocalDialog <
