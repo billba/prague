@@ -347,13 +347,13 @@ export class Dialogs <M extends object> {
         console.warn(`You referenced a dialog named "${dialogOrName}" but no such dialog exists.`)
     }
 
-    // add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}> (
+    // add <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}> (
     //     localName: string,
     //     remoteName: string,
     //     dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>
     // ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    // add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}> (
+    // add <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}> (
     //     localName: string,
     //     remoteable: boolean,
     //     dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>
