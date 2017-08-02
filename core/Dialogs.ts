@@ -120,19 +120,19 @@ export interface DialogRouterHelper <
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Router<M>;
 
-    // routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
-    //     dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-    //     instanceTag: string,
-    //     trigger: DialogTrigger<M, DIALOGARGS>,
-    //     dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    // ): Router<M>;
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        instanceTag: string,
+        trigger: DialogTrigger<M, DIALOGARGS>,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): Router<M>;
 
-    // routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
-    //     dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-    //     instanceTag: string,
-    //     args?: DIALOGARGS,
-    //     dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    // ): Router<M>;
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        instanceTag: string,
+        args?: DIALOGARGS,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): Router<M>;
 
 }
 
