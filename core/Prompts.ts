@@ -1,5 +1,5 @@
 import { konsole } from './Konsole';
-import { IRouter, Handler, ifMatch } from './Router';
+import { Router, RouterOrHandler, prependMatcher } from './Router';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 
@@ -8,7 +8,7 @@ export interface IChatPromptChoiceMatch {
 }
 
 export const matchChoice = (choices: string[]) =>
-    <M extends ITextMatch = any>(message: M) => {
+    <M extends ITextMatch>(message: M) => {
         const choice = choices.find(choice => choice.toLowerCase() === message.text.toLowerCase());
         return choice && {
             ... message as any, // remove "as any" when TypeScript fixes this bug
@@ -16,18 +16,18 @@ export const matchChoice = (choices: string[]) =>
         } as M & IChatPromptChoiceMatch;
     }
 
-export const promptChoice = <M extends ITextMatch = any>(choices: string[], ruleOrHandler: Handler<M & IChatPromptChoiceMatch> | IRouter<M & IChatPromptChoiceMatch>) => {
-    return ifMatch(matchChoice(choices), ruleOrHandler) as IRouter<M>;
+export const promptChoice = <M extends ITextMatch>(choices: string[], routerOrHandler: RouterOrHandler<M & IChatPromptChoiceMatch>) => {
+    return prependMatcher<M>(matchChoice(choices), routerOrHandler);
 }
 
 export const matchConfirm = () =>
-    <M extends ITextMatch = any>(message: M) => {
+    <M extends ITextMatch>(message: M) => {
         const m = matchChoice(['Yes', 'No'])(message);
-        return m.choice === 'Yes' && message;
+        return m.choice === 'Yes' && m;
     }
 
-export const promptConfirm = <M extends ITextMatch = any>(ruleOrHandler: Handler<M> | IRouter<M>) => {
-    return ifMatch(matchConfirm(), ruleOrHandler) as IRouter<M>;
+export const promptConfirm = <M extends ITextMatch>(routerOrHandler: RouterOrHandler<M>) => {
+    return prependMatcher<M>(matchConfirm(), routerOrHandler);
 }
 
 export interface IChatPromptTimeMatch {
@@ -43,7 +43,7 @@ const parseTime = (text: string): Date => {
 }
 
 export const matchTime = () => 
-    <M extends ITextMatch = any>(m: M) => {
+    <M extends ITextMatch>(m: M) => {
         const time = parseTime(m.text);
         return time && {
             ... m as any,

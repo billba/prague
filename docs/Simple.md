@@ -20,9 +20,9 @@ interface Message {
 We're going to be building a router that can route these types of messages:
 
 ```typescript
-import { IRouter } from 'prague';
+import { Router } from 'prague';
 
-let router: IRouter<Message>;
+let router: Router<Message>;
 ```
 
 Our hypothetical bot wires this router up via a message pump, something like: 

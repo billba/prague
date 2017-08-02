@@ -9,7 +9,7 @@ const browserBot = new BrowserBot<{}>(new UniversalChat(webChat.chatConnector), 
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run, simpleRouter, routeMessage, IStateMatch } from 'prague';
+import { Router, first, best, ifMatch, run, simpleRouter, routeMessage, IStateMatch } from 'prague';
 
 // This is our "base message type" which is used often enough that we made it really short
 
@@ -60,6 +60,6 @@ browserBot.message$
 
 ////////////////////////////// Bot Logic //////////////////////////////////
 
-const appRouter: IRouter<B> = simpleRouter(
+const appRouter: Router<B> = simpleRouter(
     m => m.reply("Vítejte v Praze (Welcome to Prague)")
 )

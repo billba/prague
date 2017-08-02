@@ -1,4 +1,4 @@
-import { IRouter, RouterOrHandler, Predicate, Matcher, matchize, routerize, Route, Observableable, toObservable, toFilteredObservable, first } from './Router';
+import { Router, RouterOrHandler, Predicate, Matcher, tryMatch, toRouter, Route, Observableable, toObservable, toFilteredObservable, first } from './Router';
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 
@@ -11,11 +11,11 @@ export interface IDialogResponseHandlerMatch<DIALOGRESPONSE extends object = obj
     readonly dialogResponse: DIALOGRESPONSE;
 }
 
-export interface DialogResponseHandler<M extends object = any, DIALOGRESPONSE extends object = any> {
+export interface DialogResponseHandler<M extends object = {}, DIALOGRESPONSE extends object = {}> {
     (message: M & IDialogResponseHandlerMatch<DIALOGRESPONSE>): Observableable<void>;
 }
 
-export interface DialogState<DIALOGSTATE extends object = any> {
+export interface DialogState<DIALOGSTATE extends object = {}> {
     state: DIALOGSTATE,
     // child: DialogInstance,
     activeDialogs: {
@@ -24,10 +24,10 @@ export interface DialogState<DIALOGSTATE extends object = any> {
 }
 
 export interface DialogConstructorHelper<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any
+    M extends object = {},
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {}
 > {
     readonly args: DIALOGARGS;
     state: DIALOGSTATE;
@@ -36,15 +36,15 @@ export interface DialogConstructorHelper<
 }
 
 export interface DialogRouterHelper<
-    M extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any,
+    M extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {},
 > {
     state: DIALOGSTATE;
 
     // core        
 
-    createInstance <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
+    createInstance <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
         dialogArgs?: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
@@ -54,19 +54,19 @@ export interface DialogRouterHelper<
     //     dialogInstance: DialogInstance
     // ): Promise<void>;
 
-    routeToInstance <DIALOGRESPONSE extends object = any> (
+    routeToInstance <DIALOGRESPONSE extends object = {}> (
         dialogInstance: DialogInstance,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
     // Use this signature if you want to infer the typing of the dialog
-    routeToInstance <DIALOGRESPONSE extends object = any> (
+    routeToInstance <DIALOGRESPONSE extends object = {}> (
         dialog: LocalOrRemoteDialog<M, any, DIALOGRESPONSE>,
         dialogInstance: DialogInstance,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
-    // first<M extends object = any>(... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M>;
+    // first<M extends object>(... routersOrHandlers: (RouterOrHandler<M>)[]): IRouter<M>;
 
     // call this from within a dialog to signal its end and (optionally) pass a response to the dialog response handler
     end(
@@ -76,7 +76,7 @@ export interface DialogRouterHelper<
     // // stack
 
     // // call this from within a dialog to signal its end and ask the parent dialog to begin another dialog
-    // replace <DIALOGARGS extends object = any> (
+    // replace <DIALOGARGS extends object = {}> (
     //     dialogOrName: DialogOrName<M, DIALOGARGS>,
     //     args?: DIALOGARGS,
     // ): Promise<void>;
@@ -86,7 +86,7 @@ export interface DialogRouterHelper<
     // ): Promise<void>;
 
     // // shorthand for createInstance(...).then(di => setChild(di))
-    // setChild <DIALOGARGS extends object = any> (
+    // setChild <DIALOGARGS extends object = {}> (
     //     dialogOrName: DialogOrName<M, DIALOGARGS>,
     //     args?: DIALOGARGS,
     // ): Promise<void>;
@@ -97,13 +97,13 @@ export interface DialogRouterHelper<
 
     // activation
 
-    activate <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
+    activate <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         args?: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Promise<void>;
 
-    activate <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any> (
+    activate <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}> (
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         dialogResponseHandler: DialogResponseHandler<M, DIALOGRESPONSE>
     ): Promise<void>;
@@ -116,104 +116,104 @@ export interface DialogRouterHelper<
         dialogOrName: DialogOrName<M>
     ): boolean;
 
-    routeToActive <DIALOGRESPONSE extends object = any> (
+    routeToActive <DIALOGRESPONSE extends object = {}> (
         dialogOrName: DialogOrName<M, any, DIALOGRESPONSE>,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
-    routeToActive <DIALOGRESPONSE extends object = any> (
+    routeToActive <DIALOGRESPONSE extends object = {}> (
         dialogOrName: DialogOrName<M, any, DIALOGRESPONSE>,
         tag: string,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
     // "just works"
 
-    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
-        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        trigger: Predicate<M>,
-        args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
-        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
-
-    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, N extends object = any>(
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, N extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
         trigger: Matcher<M, N>,
         args?: DIALOGARGS | ((n: N) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
-    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        args: DIALOGARGS,
-        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
-
-    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
-        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        tag: string,
         trigger: Predicate<M>,
         args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
-    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, N extends object = any>(
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        tag: string,
+        args: DIALOGARGS,
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): Router<M>;
+
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, N extends object = {}>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        instanceTag: string,
         trigger: Matcher<M, N>,
         args?: DIALOGARGS | ((n: N) => Observableable<DIALOGARGS>),
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
-    routeTo <DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
-        tag: string,
+        instanceTag: string,
+        trigger: Predicate<M>,
+        args?: DIALOGARGS | ((m: M) => Observableable<DIALOGARGS>),
+        dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
+    ): Router<M>;
+
+    routeTo <DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
+        dialogOrName: DialogOrName<M, DIALOGARGS, DIALOGRESPONSE>,
+        instanceTag: string,
         args: DIALOGARGS,
         dialogResponseHandler?: DialogResponseHandler<M, DIALOGRESPONSE>
-    ): IRouter<M>;
+    ): Router<M>;
 
 }
 
 export interface DialogConstructor<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any
+    M extends object,
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {}
 > {
     (dialog: DialogConstructorHelper<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>, message: M): Observableable<void>;
 }
 
 export interface DialogRouter<
-    M extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any
+    M extends object,
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {}
 > {
-    (dialog: DialogRouterHelper<M, DIALOGRESPONSE, DIALOGSTATE>): IRouter<M>;
+    (dialog: DialogRouterHelper<M, DIALOGRESPONSE, DIALOGSTATE>): Router<M>;
 }
 
 export interface DialogRouterOrHandler<
-    M extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any
+    M extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {}
 > {
     (dialog: DialogRouterHelper<M, DIALOGRESPONSE, DIALOGSTATE>): RouterOrHandler<M>;
     
 }
 export interface IDialog<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any,
+    M extends object,
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {},
 > {
     constructor?: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
     routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>,
 }
 
 export interface LocalDialog<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any,
+    M extends object,
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {},
 > {
     localName: string;
     remoteName: string;    // How it is named to the outside world (might be same as localName)
@@ -222,9 +222,9 @@ export interface LocalDialog<
 }
 
 export interface RemoteDialog<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
+    M extends object,
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
 > {
     remoteUrl: string;
     localName: string;
@@ -232,26 +232,26 @@ export interface RemoteDialog<
 }
 
 export type LocalOrRemoteDialog<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any,
+    M extends object = {},
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {},
 > = LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE> | RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>
 
 const isLocalDialog = <
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any
+    M extends object,
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {}
 > (localOrRemoteDialog: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>)
 : localOrRemoteDialog is LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE> =>
     (localOrRemoteDialog as any).router !== undefined;
 
 export type DialogOrName<
-    M extends object = any,
-    DIALOGARGS extends object = any,
-    DIALOGRESPONSE extends object = any,
-    DIALOGSTATE extends object = any,
+    M extends object = {},
+    DIALOGARGS extends object = {},
+    DIALOGRESPONSE extends object = {},
+    DIALOGSTATE extends object = {},
 > = LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE> | string;
 
 export const localName = (dialogOrName: DialogOrName): string =>
@@ -276,7 +276,7 @@ export interface LocalDialogInstances {
 //     args?: object;
 // }
 
-// export interface RemoteDialogProxy<M extends object = any> {
+// export interface RemoteDialogProxy<M extends object> {
 //     matchLocalToRemote?: (message: M) => Observableable<any>,
 //     matchRemoteToLocal?: (message: object, tasks: DialogTask[]) => Observableable<M>,
 //     executeTask?: (message: M, tasks: DialogTask) => Observableable<any>,
@@ -344,7 +344,7 @@ export const inMemoryDialogInstances: LocalDialogInstances = {
     }
 }
 
-export class Dialogs<M extends object = any> {
+export class Dialogs<M extends object> {
 
     private dialogRegistry: {
         [name: string]: LocalOrRemoteDialog<M>;
@@ -357,7 +357,7 @@ export class Dialogs<M extends object = any> {
     ) {
     }
 
-    private localOrRemoteDialog<DIALOGARGS extends object = any>(
+    private toLocalOrRemoteDialog<DIALOGARGS extends object = {}>(
         dialogOrName: DialogOrName<M, DIALOGARGS>
     ): LocalOrRemoteDialog<M, DIALOGARGS> {
         if (typeof dialogOrName !== 'string')
@@ -370,66 +370,66 @@ export class Dialogs<M extends object = any> {
         console.warn(`You referenced a dialog named "${dialogOrName}" but no such dialog exists.`)
     }
 
-    // add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    // add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
     //     localName: string,
     //     remoteName: string,
     //     dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>
     // ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    // add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    // add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
     //     localName: string,
     //     remoteable: boolean,
     //     dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>
     // ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         dialog: IDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         remoteName: string,
         constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         remoteable: boolean,
         constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         remoteName: string,
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         remoteable: boolean,
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any, DIALOGSTATE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}, DIALOGSTATE extends object = {}>(
         localName: string,
         routerOrHandler: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>
     ): LocalDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         localName: string,
         remoteUrl: string,
     ): RemoteDialog<M, DIALOGARGS, DIALOGRESPONSE>;
 
-    add<DIALOGARGS extends object = any, DIALOGRESPONSE extends object = any>(
+    add<DIALOGARGS extends object = {}, DIALOGRESPONSE extends object = {}>(
         localName: string,
         remoteUrl: string,
         remoteName: string
@@ -481,7 +481,7 @@ export class Dialogs<M extends object = any> {
                 localName,
                 remoteName,
                 constructor,
-                router: dialog => routerize(routerOrHandler(dialog))
+                router: dialog => toRouter(routerOrHandler(dialog))
             }
         }
 
@@ -503,7 +503,7 @@ export class Dialogs<M extends object = any> {
     ): Observable<DialogInstance> {
 
         console.log("createDialogInstance", dialogOrName, m, dialogArgs, dialogResponseHandler);
-        const localOrRemoteDialog = this.localOrRemoteDialog(dialogOrName);
+        const localOrRemoteDialog = this.toLocalOrRemoteDialog(dialogOrName);
         if (!localOrRemoteDialog)
             return Observable.empty();
 
@@ -673,7 +673,7 @@ export class Dialogs<M extends object = any> {
     //                     dialogState,
     //                     dialogStack: [... m.dialogStack, dialogInstance],
 
-    //                     beginChildDialog: <DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS) =>
+    //                     beginChildDialog: <DIALOGARGS extends object = {}>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS) =>
     //                         this.activate(dialogOrName, m, dialogArgs)
     //                             .do(dialogInstance => m.dialogState.childDialogInstance = dialogInstance)
     //                             .toPromise(),
@@ -681,7 +681,7 @@ export class Dialogs<M extends object = any> {
     //                         dialogState.childDialogInstance = undefined;
     //                         resolve();
     //                     }),
-    //                     replaceThisDialog: <DIALOGARGS extends object = any>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE> | string, dialogArgs?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
+    //                     replaceThisDialog: <DIALOGARGS extends object = {}>(dialogOrName: LocalOrRemoteDialog<M, DIALOGARGS, DIALOGRESPONSE> | string, dialogArgs?: DIALOGARGS, dialogResponse?: DIALOGRESPONSE) =>
     //                         toObservable(dialogResponseHandler({
     //                             ... m as any,
     //                             dialogResponse
@@ -859,7 +859,7 @@ export class Dialogs<M extends object = any> {
     //         } as RemoteTryMatchResponse));
     // }
 
-    setRoot <DIALOGARGS extends object = any> (
+    setRoot <DIALOGARGS extends object = {}> (
         dialogOrName: DialogOrName<M, DIALOGARGS>,
         m: M,
         dialogArgs?: DIALOGARGS
@@ -873,10 +873,10 @@ export class Dialogs<M extends object = any> {
             .toPromise();
     }
 
-    routeToRoot <DIALOGARGS extends object = any> (
+    routeToRoot <DIALOGARGS extends object = {}> (
         dialogOrName?: DialogOrName<M, DIALOGARGS>,
         dialogArgs?: DIALOGARGS
-    ): IRouter<M> {
+    ): Router<M> {
         console.log("routeToRoot", dialogOrName, dialogArgs);
 
         const end = () => {
@@ -908,20 +908,6 @@ export class Dialogs<M extends object = any> {
         }
     }
 
-    private createDialogConstructorHelper(
-        m: M,
-        args: object,
-        end: (dialogResponse: object) => Promise<void>,
-        routeMessage: (m: M) => void
-    ): DialogConstructorHelper {
-        return {
-            args,
-            state: {},
-            routeMessage,
-            end
-        }
-    }
-
     private createDialogRouterHelper(
         dialogInstance: DialogInstance,
         m: M,
@@ -929,7 +915,7 @@ export class Dialogs<M extends object = any> {
         dialogResponseHandler: DialogResponseHandler<M>,
         end: (dialogResponse?: object) => boolean = () => true,
         // replace?: (dialogOrName: DialogOrName, args?: object) => Promise<void>
-    ): DialogRouterHelper {
+    ): DialogRouterHelper<M> {
         console.log("creating dialogRouterHelper", dialogInstance, m, dialogState, dialogInstances, dialogResponseHandler, end) // , replace);
 
         // const routeToChild = (): IRouter<M> => ({
@@ -957,7 +943,7 @@ export class Dialogs<M extends object = any> {
         const routeToActive = (
             dialogOrName: DialogOrName<M>,
             ... args,
-        ): IRouter<M> => ({
+        ): Router<M> => ({
             getRoute: (m: M) => {
                 console.log("dialog.routeToActive().getRoute", dialogOrName);
 
@@ -985,22 +971,22 @@ export class Dialogs<M extends object = any> {
         const routeTo = (
             dialogOrName: DialogOrName<M>,
             ... args
-        ): IRouter<M> => ({
+        ): Router<M> => ({
             getRoute: (m: M) => {
                 console.log("dialog.routeTo().getRoute", dialogOrName, ...args);
-                const dialog = this.localOrRemoteDialog(dialogOrName);
+                const dialog = this.toLocalOrRemoteDialog(dialogOrName);
                 if (!dialog)
                     return Observable.empty();
 
-                let tag = 'default';
+                let instanceTag = 'default';
                 let iArg = 0;
 
                 if (typeof args[0] === 'string') {
-                    tag = args[0];
+                    instanceTag = args[0];
                     iArg = 1;
                 }
 
-                const instanceName = dialog.localName + '@@@' + tag;
+                const instanceName = dialog.localName + '@@@' + instanceTag;
                 const dialogInstance = dialogState.activeDialogs[instanceName];
 
                 let predicateOrMatcher: Predicate<M> | Matcher<M>; 
@@ -1028,7 +1014,7 @@ export class Dialogs<M extends object = any> {
                         return true;
                     });
 
-                return matchize(predicateOrMatcher, m)
+                return tryMatch(predicateOrMatcher, m)
                     .map(n => ({
                         action: () => toObservable(getDialogArgs(n))
                             .do(dialogArgs => console.log("dialog.routeTo() dialog args", dialogArgs))
@@ -1056,7 +1042,7 @@ export class Dialogs<M extends object = any> {
                     .toPromise();
             },
 
-            routeToInstance: (... args): IRouter<M> => ({
+            routeToInstance: (... args): Router<M> => ({
                 getRoute: (m: M) => {
                     console.log("dialog.routeToInstance.getRoute", ... args)
                     const i = args[0].instanceId !== undefined ? 0 : 1;
@@ -1170,7 +1156,7 @@ export class Dialogs<M extends object = any> {
     
             routeTo
 
-        }
+        } as DialogRouterHelper<M>
     }
 
 }
@@ -1181,7 +1167,7 @@ export class Dialogs<M extends object = any> {
 
     // runChildIfActive<
     //     ANYMATCH extends object = M,
-    //     DIALOGRESPONSE extends object = any
+    //     DIALOGRESPONSE extends object = {}
     // >(
     //     dialogOrName?: LocalOrRemoteDialog<M, any, DIALOGRESPONSE> | string,
     //     dialogResponseHandler: DialogResponseHandler<ANYMATCH, DIALOGRESPONSE> = () => {}
@@ -1229,7 +1215,7 @@ export class Dialogs<M extends object = any> {
     // matchRootDialog(message: M): M & IDialogRootMatch<M> {
     //     return {
     //         ... message as any,
-    //         beginChildDialog: <DIALOGARGS extends object = any>(dialog: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS) =>
+    //         beginChildDialog: <DIALOGARGS extends object = {}>(dialog: LocalOrRemoteDialog<M, DIALOGARGS> | string, dialogArgs?: DIALOGARGS) =>
     //             this.activate(dialog, message, dialogArgs)
     //                 .flatMap(dialogInstance => toObservable(this.rootDialogInstance.set(message, dialogInstance)))
     //                 .toPromise(),

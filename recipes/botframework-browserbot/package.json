@@ -1,6 +1,6 @@
 {
   "name": "prague-botframework-browserbot",
-  "version": "0.11.1",
+  "version": "0.11.3",
   "description": "simple in-browser bot",
   "main": "dist/browserbot.js",
   "types": "dist/browserbot.d.ts",
@@ -15,8 +15,8 @@
     "typescript": "2.4.0"
   },
   "dependencies": {
-    "prague-botframework": "^0.11.1",
-    "prague": "^0.11.1",
+    "prague-botframework": "^0.11.3",
+    "prague": "^0.11.3",
     "rxjs": "^5.3.0"
   }
 }

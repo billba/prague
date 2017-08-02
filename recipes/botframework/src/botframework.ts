@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { IRouter, first, prependMatcher, ITextMatch, konsole, ifMatch, RouterOrHandler } from 'prague';
+import { Router, first, prependMatcher, ITextMatch, konsole, ifMatch, RouterOrHandler } from 'prague';
 import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
@@ -128,14 +128,14 @@ export const matchTyping = () => <M extends IChatActivityMatch>(message: M) =>
         typing: message.activity
     } as M & IChatTypingMatch;
 
-export const routeChatActivity = <M extends IChatActivityMatch = any>(
+export const routeChatActivity = <M extends IChatActivityMatch>(
     rules: {
-        message?:   IRouter<M & IChatMessageMatch>,
-        event?:     IRouter<M & IChatEventMatch>,
-        typing?:    IRouter<M & IChatTypingMatch>,
-        activity?:  IRouter<M>,
+        message?:   Router<M & IChatMessageMatch>,
+        event?:     Router<M & IChatEventMatch>,
+        typing?:    Router<M & IChatTypingMatch>,
+        activity?:  Router<M>,
     }
-): IRouter<M> =>
+): Router<M> =>
     first(
         rules.message   && prependMatcher(matchMessage(), rules.message),
         rules.event     && prependMatcher(matchEvent(), rules.event),
@@ -213,7 +213,7 @@ export interface TimePromptResponse {
     time: Date;
 }
 
-export const chatPrompts = <M extends IChatMessageMatch = any>(dialogs: Dialogs<M>) => ({
+export const chatPrompts = <M extends IChatMessageMatch>(dialogs: Dialogs<M>) => ({
     textPrompt: dialogs.add<PromptArgs, TextPromptResponse>(
         'textPrompt',
         (dialog, m) => {
