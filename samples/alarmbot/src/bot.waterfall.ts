@@ -14,7 +14,7 @@ type B = IChatMessageMatch & IStateMatch<any>;
 
 // General purpose rule stuff
 
-import { IRouter, first, best, ifMatch, run, simpleRouter, matchAll, matchAny, routeMessage, IStateMatch } from 'prague';
+import { Router, first, best, ifMatch, run, simpleRouter, matchAll, matchAny, routeMessage, IStateMatch } from 'prague';
 
 // Regular Expressions
 
@@ -107,32 +107,36 @@ import { branchMatch, matchTime } from 'prague';
 
 ////////////////////////////// Bot Logic //////////////////////////////////
 
-const activityRouter: IRouter<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
+const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatActivity({
     event: ifMatch(matchStart(), m => dialogs.setRoot(alarmDialog, m as any)),
     message: dialogs.routeToRoot(),
 });
 
-const alarmDialog = dialogs.add(
-    'root',
-    (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
-    (dialog) => first(
-        dialog.routeTo(setAlarmDialog, matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i), m => ({ title: m.groups[1] } as AlarmInfo)),
-        dialog.routeTo(deleteAlarmDialog, matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i), m => ({ title: m.groups[1] } as AlarmInfo)),
+const alarmDialog = dialogs.add('root', {
+    constructor: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
+    router: (dialog) => first(
+        dialog.routeTo(setAlarmDialog, matchAll<B, AlarmInfo>(
+            matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
+            (m: any) => ({ title: m.groups[1] })
+        )),
+        dialog.routeTo(deleteAlarmDialog, matchAll<B, AlarmInfo>(
+            matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
+            (m: any) => ({ title: m.groups[1] })
+        )),
         dialog.routeTo(listAlarmsDialog, matchRE(/list (?:the ){0,1}alarms/i)),
         m => m.reply("I don't think I know how to do that.")
     )
-);
+});
 
-const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
-    'setAlarm',
-    (dialog, m) => {
+const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('setAlarm', {
+    constructor: (dialog, m) => {
         dialog.state.time = dialog.args.time;
         if (dialog.args.title && validateSetAlarmName(dialog.args.title, m))
             dialog.state.title = dialog.args.title;
         if (nextSetAlarmStep(dialog.state, m))
             return dialog.end();
     },
-    (dialog) => first(
+    router: (dialog) => first(
         ifMatch(m => !dialog.state.title, m => {
             if (validateSetAlarmName(m.text, m))
                 dialog.state.title = m.text;
@@ -154,7 +158,7 @@ const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
                 return dialog.end();
         }
     )
-);
+});
 
 const validateSetAlarmName = (title: string, m) => {
     if (!alarms.getAlarm(title))
@@ -179,21 +183,20 @@ const nextSetAlarmStep = (state: AlarmInfo, m: B): boolean => {
     }
 }
 
-const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>(
-    'deleteAlarm',
-    (dialog, m) => {
+const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('deleteAlarm', {
+    constructor: (dialog, m) => {
         if (dialog.args.title && validateDeleteAlarmName(dialog.args.title, m))
             dialog.state.title = dialog.args.title;
         if (nextDeleteAlarmStep(dialog.state, m))
             return dialog.end();
     },
-    (dialog) => m => {
+    router: (dialog) => m => {
         if (validateDeleteAlarmName(m.text, m))
             dialog.state.title = m.text;
         if (nextDeleteAlarmStep(dialog.state, m))
             return dialog.end();
     },
-);
+});
 
 const validateDeleteAlarmName = (title: string, m) => {
     if (alarms.getAlarm(title))
@@ -214,9 +217,8 @@ const nextDeleteAlarmStep = (state: AlarmInfo, m: B): boolean => {
     }
 }
 
-const listAlarmsDialog = dialogs.add(
-    'listAlarms',
-    (dialog, m) => {
+const listAlarmsDialog = dialogs.add('listAlarms', {
+    constructor: (dialog, m) => {
         const _alarms = alarms.getAlarms();
         if (_alarms && _alarms.length) {
             m.reply("Here are the alarms you have set:");
@@ -224,6 +226,5 @@ const listAlarmsDialog = dialogs.add(
         } else
             m.reply("There are currently no alarms set.");
         return dialog.end();
-    },
-    undefined
-)
+    }
+})

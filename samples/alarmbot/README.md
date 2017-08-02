@@ -41,6 +41,8 @@ Technically `listAlarmDialog` doesn't need to be a dialog, as it just executes c
 
 There are two slightly different implementations of the router logic of `setAlarmDialog` and `deleteAlarmDialog`. Each takes a different approach of solving the problem of "what do we do next after the user responds.":
 
+There is also a third implementation which demonstrates a dialog providing its own trigger.
+
 ### "reroute" (default)
 
 This implementation uses `reroute` and Prague's built-in prompts to enable a state-driven approach. The idea is that, after completing each action (e.g. "get title"), the system reverts to a rest state. The last message is rerouted through the entire app router. If it is correctly designed (and here it is) that message will route back into the dialog's router, which will look at the state to determine the next action.
@@ -56,3 +58,7 @@ Decoupling the two allows much more freedom on each side. Importantly, it allows
 This implementation behaves exactly the same, but it uses deterministic code to determine what to do after the user responds. To try it out, rename `bot.ts` to `bot.reroute.ts`, then rename `bot.waterfall.ts` to `bot.ts`.
 
 This is a traditional pattern. There is more code because the intelligence of the system is in the code and not in the state. After a title is entered, we always look for the time. "Next action" is conditioned on the last user action, not on the current state. Changing that order of entering variables would require changing a lot of code, whereas in the 'reroute' option it is just swapping the order of the state comparisons in `setAlarmDialog`.
+
+### "innerTrigger"
+
+This implementation is based on "reroute", but instead of `alarmDialog` supplying the trigger conditions for each of its child dialogs, each dialogs provides its own. Notice that the conditions are the same, only the location of them changes.

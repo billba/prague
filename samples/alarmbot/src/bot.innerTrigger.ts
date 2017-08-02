@@ -113,20 +113,18 @@ const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatA
 const alarmDialog = dialogs.add('root', {
     constructor: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
     router: (dialog) => first(
-        dialog.routeTo(setAlarmDialog, matchAll<B, AlarmInfo>(
-            matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
-            (m: any) => ({ title: m.groups[1] })
-        )),
-        dialog.routeTo(deleteAlarmDialog, matchAll<B, AlarmInfo>(
-            matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
-            (m: any) => ({ title: m.groups[1] })
-        )),
-        dialog.routeTo(listAlarmsDialog, matchRE(/list (?:the ){0,1}alarms/i)),
+        dialog.routeTo(setAlarmDialog),
+        dialog.routeTo(deleteAlarmDialog),
+        dialog.routeTo(listAlarmsDialog),
         m => m.reply("I don't think I know how to do that.")
     )
 });
 
 const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('setAlarm', {
+    trigger: matchAll(
+        matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
+        (m: any) => ({ title: m.groups[1] })
+    ),
     constructor: (dialog, m) => {
         dialog.state.time = dialog.args.time;
         if (dialog.args.title && validateSetAlarmName(dialog.args.title, m))
@@ -160,6 +158,10 @@ const validateSetAlarmName = (title: string, m) => {
 }
 
 const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('deleteAlarm', {
+    trigger: matchAll(
+        matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
+        (m: any) => ({ title: m.groups[1] })
+    ),
     constructor: (dialog, m) => {
         if (alarms.getAlarms().length === 0) {
             m.reply("There are currently no alarms set.");
@@ -193,6 +195,7 @@ const validateDeleteAlarmName = (title: string, m) => {
 }
 
 const listAlarmsDialog = dialogs.add('listAlarms', {
+    trigger: matchRE(/list (?:the ){0,1}alarms/i),
     constructor: (dialog, m) => {
         const _alarms = alarms.getAlarms();
         if (_alarms && _alarms.length) {
