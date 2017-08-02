@@ -8,7 +8,7 @@ export interface IRegExpMatch {
 }
 
 export const matchRE = (... intents: RegExp[]) =>
-    <M extends ITextMatch>(message: M) =>
+    <M extends ITextMatch> (message: M) =>
         Observable.from(intents)
         .do(_ => konsole.log("matchRegExp matching", message))
         .map(regexp => regexp.exec(message.text))
@@ -22,5 +22,5 @@ export const matchRE = (... intents: RegExp[]) =>
         } as M & IRegExpMatch));
 
 // Either call as ifRE(intent, action) or ifRE([intent, intent, ...], action)
-export const ifMatchRE = <M extends ITextMatch>(intent: RegExp, routerOrHandler: RouterOrHandler<M & IRegExpMatch>) =>
+export const ifMatchRE = <M extends ITextMatch> (intent: RegExp, routerOrHandler: RouterOrHandler<M & IRegExpMatch>) =>
     prependMatcher<M>(matchRE(intent), routerOrHandler);

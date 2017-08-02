@@ -88,8 +88,6 @@ export interface IChatTypingMatch extends IChatActivityMatch {
     typing: Typing
 }
 
-export const reply = <M extends IChatActivityMatch>(toSend: Activity | string) => (message: M) => message.reply(toSend);
-
 export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>(message: M) => {
     const address = getAddress(message.activity);
 
@@ -103,7 +101,7 @@ export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>
     } as M & IChatActivityMatch;
 }
 
-export const matchMessage = () => <M extends IChatActivityMatch>(message: M) => 
+export const matchMessage = () => <M extends IChatActivityMatch> (message: M) => 
     message.activity.type === 'message' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
@@ -112,7 +110,7 @@ export const matchMessage = () => <M extends IChatActivityMatch>(message: M) =>
         message: message.activity
     } as M & IChatMessageMatch;
 
-export const matchEvent = () => <M extends IChatActivityMatch>(message: M) => 
+export const matchEvent = () => <M extends IChatActivityMatch> (message: M) => 
     message.activity.type === 'event' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
@@ -120,7 +118,7 @@ export const matchEvent = () => <M extends IChatActivityMatch>(message: M) =>
         event: message.activity
     } as M & IChatEventMatch;
 
-export const matchTyping = () => <M extends IChatActivityMatch>(message: M) => 
+export const matchTyping = () => <M extends IChatActivityMatch> (message: M) => 
     message.activity.type === 'typing' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
@@ -213,7 +211,7 @@ export interface TimePromptResponse {
     time: Date;
 }
 
-export const chatPrompts = <M extends IChatMessageMatch>(dialogs: Dialogs<M>) => ({
+export const chatPrompts = <M extends IChatMessageMatch> (dialogs: Dialogs<M>) => ({
     textPrompt: dialogs.add<PromptArgs, TextPromptResponse>(
         'textPrompt',
         (dialog, m) => {
