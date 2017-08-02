@@ -210,13 +210,13 @@ export function ifMatch <M extends object> (... args: (Predicate | Matcher | Rou
 }
 
 export function branchMatch <M extends object> (
-    predicate: (Predicate<M>),
+    predicate: Predicate<M>,
     ifRouterOrHandler: RouterOrHandler<M>,
     elseRouterOrHandler: RouterOrHandler<M>,
 ): Router<M>;
 
 export function branchMatch <M extends object, N extends object> (
-    matcher: (Matcher<M, N>),
+    matcher: Matcher<M, N>,
     ifRouterOrHandler: RouterOrHandler<N>,
     elseRouterOrHandler: RouterOrHandler<M>,
 ): Router<M>;
