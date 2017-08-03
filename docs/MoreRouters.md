@@ -20,7 +20,7 @@ router = first(
 
 Again, `first` tries routing each message through each of its routers until one succeeds.
 
-It would be nice to great the user by name. It turns out that the conditions in `ifMatch` don't have to be boolean expressions. They can alternatively return a modified version of the original message, adding new elements. In this case, `matchRE`, if successful, adds the matching groups to a field called `groups`:
+It would be nice to greet the user by name. It turns out that the conditions in `ifMatch` don't have to be boolean expressions. They can alternatively return a modified version of the original message, adding new elements. In this case, `matchRE`, if successful, adds the matching groups to a field called `groups`:
 
 ```typescript
 import { matchRE } from 'prague';
