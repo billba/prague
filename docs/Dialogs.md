@@ -50,7 +50,7 @@ gameRouter: DialogRouter<M, {}, GameState> = (dialog) => first(
             m.reply("You are out of guesses");
             return dialog.end();
         }
-        
+
         m.reply(`You have ${dialog.state.guesses} left.`);
     }),
     m => m.reply("Please guess a number between 1 and 50.")
@@ -92,7 +92,7 @@ This dialog doesn't set any initial state so it doesn't require a constructor.
 If you squint you can see most of the rest of our original game logic:
 
 1. Initiate the game when the user types 'start game'
-2. Catch-all to help users
+1. Catch-all to help users
 
 `dialog.routeTo` checks to see if the named dialog is currently activated. If not, it checks the supplied condition. If that succeeds, the dialog is activated (calling its constructor). On the dialog was already activated, it routes the message to that dialog's router. If that dialog's router calls `dialog.end()` then it is deactivated, returning everything to its original state.
 
@@ -107,15 +107,15 @@ Why do we need the root dialog? Prague routers don't know anything about dialogs
 You don't have to use dialogs in your Prague application, but if you do you will probably follow this pattern of placing your application routing logic in your root dialog and the dialogs it calls, with the application router doing nothing but routing to the root dialog.
 
 >
-**Hi**  
-*Type 'start game' to start the game.*  
-**start game**  
-*Guess a number between 1 and 50. You have 10 guesses.*  
-**10**  
-*That is too low.*  
-*You have 9 guesses left*  
-**Hi**  
-*Please guess a number between 1 and 50.*  
+**Hi**
+*Type 'start game' to start the game.*
+**start game**
+*Guess a number between 1 and 50. You have 10 guesses.*
+**10**
+*That is too low.*
+*You have 9 guesses left*
+**Hi**
+*Please guess a number between 1 and 50.*
 
 It may seem we did a lot of work to recreate the same user experience we had before. But now that the game is encapsulated as a dialog, we can call it with any router. That router won't need to know anything about that dialog except its types. And the game dialog won't know anything about the router calling it. This sort of thing makes developers happy because it makes it easy to change the implementation of the dialog without having to change the router, and vice-versa.
 
