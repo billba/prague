@@ -46,10 +46,10 @@ router = simpleRouter(
 This function is aptly named - it creates a simple router that passes the message as the single parameter to the function provided. Thus every message is routed to the same action:
 
 >
-**Hey**  
-*Hello, World*  
-**Hello**  
-*Hello, World*  
+**Hey**
+*Hello, World*
+**Hello**
+*Hello, World*
 
 This is a friendly bot, but not a very clever one. Let's be a little more discriminating about when we greet the user by introducing a condition that must be satisfied before the action is taken:
 
@@ -65,9 +65,9 @@ router = ifMatch(
 `ifMatch` first passes the message to the first function. Only if it succeeds will it route the message to the second function:
 
 >
-**Hey**  
-**Hello**  
-*Hello, World*  
+**Hey**
+**Hello**
+*Hello, World*
 
 No bot is perfect, and there will always be user utterances we can't parse. But instead of ignoring them, it would we be nice if we acknowledged them in some way. We do this by introducing another function.  `first` takes a list of routers and tries a given message on each in turn, until one succeeds. While we're at it, we'll switch from string comparison to a case-insensitive Regular Expression test:
 
@@ -86,10 +86,10 @@ router = first(
 ```
 
 >
-**Hey**  
-*I didn't catch that.*  
-**hello**  
-*Hello, World*  
+**Hey**
+*I didn't catch that.*
+**hello**
+*Hello, World*
 
 Nice!
 
@@ -108,12 +108,11 @@ router = first(
 Let's take a moment to review how this all works.
 
 1. Our hypothetical Prague bot recipe takes the `text` of each user utterance and packages it into an object along with `reply` method for sending messages back to the user.
-2. It then passes that object and the router we defined to the `routeMessage` function.
-3. The `first` function attempts to route the message through each router in turn until one succeeds.
-4. The `isMatch` function attempts to route the message through the first function. If it succeeds, it routes it to action of second function. The first router succeeds and the second is never called.
-5. Otherwise, `first` attempts to route the message through the second router. Since it is a "simple" router with no conditions, it will succeed, routing to its action.
+1. It then passes that object and the router we defined to the `routeMessage` function.
+1. The `first` function attempts to route the message through each router in turn until one succeeds.
+1. The `isMatch` function attempts to route the message through the first function. If it succeeds, it routes it to action of second function. The first router succeeds and the second is never called.
+1. Otherwise, `first` attempts to route the message through the second router. Since it is a "simple" router with no conditions, it will succeed, routing to its action.
 
 You may be looking at this code wondering how `first` and `ifMatch` are passing the message. Where *is* the message, anyway? The answer is that there is a lot of functional programming magic going on, including higher-order functions (functions returning functions). Suffice to say, underneath Prague's simple and concise exterior lies some fairly sophisticated plumbing. You can learn more in [Inside Prague](Inside.md).
 
 In this lesson we built a simple bot using Prague's message routing pattern. In our [next lesson](MoreRouters.md), we'll add a little more intelligence to our bot.
-

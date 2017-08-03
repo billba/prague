@@ -3,8 +3,8 @@
 So far our bot has strictly replied to user utterances. Let's build a bot that asks questions too. Something like:
 
 >
-**stock quote**  
-*What stock do you want to look up?*  
+**stock quote**
+*What stock do you want to look up?*
 **MSFT**
 *MSFT is trading at one million dollars per share.*
 
@@ -16,4 +16,3 @@ router = first(
     m => m.reply("I didn't catch that.")
 )
 ```
-
