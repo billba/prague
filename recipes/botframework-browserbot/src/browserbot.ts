@@ -1,9 +1,9 @@
-import { IStateMatch, konsole } from 'prague';
+import { IStateMatch, konsole, Predicate } from 'prague';
 import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, IChatTypingMatch, IActivityMatch, matchActivity, matchEvent, Activity } from 'prague-botframework';
 import { Subject } from 'rxjs';
 
-export const matchStart = () => 
-    <M extends IChatEventMatch> (m: M) => m.event.name === 'start';
+export const matchStart = <M extends IChatEventMatch> (): Predicate<M> => 
+     (m) => m.event.name === 'start';
 
 export class BrowserBot <BOTDATA extends object> {
     public message$ = new Subject<IStateMatch<BOTDATA> & IChatActivityMatch>();
@@ -42,6 +42,6 @@ export class BrowserBot <BOTDATA extends object> {
                 } as Activity
             }),
             data: this.defaultData
-        });
+        } as IStateMatch<BOTDATA> & IChatActivityMatch);
     }
 }

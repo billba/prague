@@ -113,13 +113,13 @@ const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatA
 const alarmDialog = dialogs.add('alarmDialog', {
     constructor: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
     router: (dialog) => first(
-        dialog.routeTo(setAlarmDialog, matchAll<B, AlarmInfo>(
+        dialog.routeTo(setAlarmDialog, matchAll(
             matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
-            (m: any) => ({ title: m.groups[1] })
+            m => ({ title: m.groups[1] })
         )),
-        dialog.routeTo(deleteAlarmDialog, matchAll<B, AlarmInfo>(
+        dialog.routeTo(deleteAlarmDialog, matchAll(
             matchRE(/delete (?:the ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
-            (m: any) => ({ title: m.groups[1] })
+            m => ({ title: m.groups[1] })
         )),
         dialog.routeTo(listAlarmsDialog, matchRE(/list (?:the ){0,1}alarms/i)),
         m => m.reply("I don't think I know how to do that.")

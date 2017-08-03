@@ -1,14 +1,16 @@
 import { Observable } from 'rxjs';
 import { konsole } from './Konsole';
 import { ITextMatch } from './Text';
-import { Router, prependMatcher, RouterOrHandler } from './Router';
+import { Router, prependMatcher, RouterOrHandler, Matcher } from './Router';
 
 export interface IRegExpMatch {
     groups: RegExpExecArray;
 }
 
-export const matchRE = (... intents: RegExp[]) =>
-    <M extends ITextMatch> (message: M) =>
+export const matchRE = <M extends ITextMatch>(
+    ... intents: RegExp[]
+): Matcher<M, M & IRegExpMatch> =>
+     (message) =>
         Observable.from(intents)
         .do(_ => konsole.log("matchRegExp matching", message))
         .map(regexp => regexp.exec(message.text))
@@ -19,8 +21,10 @@ export const matchRE = (... intents: RegExp[]) =>
         .map(groups => ({
             ... message as any, // remove "as any" when TypeScript fixes this bug,
             groups
-        } as M & IRegExpMatch));
+        }));
 
 // Either call as ifRE(intent, action) or ifRE([intent, intent, ...], action)
-export const ifMatchRE = <M extends ITextMatch> (intent: RegExp, routerOrHandler: RouterOrHandler<M & IRegExpMatch>) =>
-    prependMatcher<M>(matchRE(intent), routerOrHandler);
+export const ifMatchRE = <M extends ITextMatch> (
+    intent: RegExp, routerOrHandler: RouterOrHandler<M & IRegExpMatch>
+): Router<M> =>
+    prependMatcher(matchRE(intent), routerOrHandler);

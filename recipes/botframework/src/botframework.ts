@@ -1,7 +1,7 @@
 // Generic Chat support
 
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { Router, first, prependMatcher, ITextMatch, konsole, ifMatch, RouterOrHandler } from 'prague';
+import { Router, first, prependMatcher, ITextMatch, konsole, ifMatch, RouterOrHandler, Matcher } from 'prague';
 import { IBotConnection, ConnectionStatus, Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 export { Activity, Typing, EventActivity, Message, CardAction } from 'botframework-directlinejs';
 
@@ -88,7 +88,7 @@ export interface IChatTypingMatch extends IChatActivityMatch {
     typing: Typing
 }
 
-export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>(message: M) => {
+export const matchActivity = <M extends IActivityMatch> (chat: UniversalChat): Matcher<M, M & IChatActivityMatch> => (message) => {
     const address = getAddress(message.activity);
 
     return {
@@ -98,35 +98,35 @@ export const matchActivity = (chat: UniversalChat) => <M extends IActivityMatch>
         address,
         reply: (activity: Activity | string) => chat.send(address, activity),
         replyAsync: (activity: Activity | string) => chat.sendAsync(address, activity),
-    } as M & IChatActivityMatch;
+    };
 }
 
-export const matchMessage = () => <M extends IChatActivityMatch> (message: M) => 
+export const matchMessage = <M extends IChatActivityMatch> (): Matcher<M, M & IChatMessageMatch> => (message) => 
     message.activity.type === 'message' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatMessageMatch
         text: message.activity.text,
         message: message.activity
-    } as M & IChatMessageMatch;
+    };
 
-export const matchEvent = () => <M extends IChatActivityMatch> (message: M) => 
+export const matchEvent = <M extends IChatActivityMatch> (): Matcher<M, M & IChatEventMatch> => (message) => 
     message.activity.type === 'event' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatEventMatch
         event: message.activity
-    } as M & IChatEventMatch;
+    };
 
-export const matchTyping = () => <M extends IChatActivityMatch> (message: M) => 
+export const matchTyping = <M extends IChatActivityMatch> (): Matcher<M, M & IChatTypingMatch> => (message) => 
     message.activity.type === 'typing' && {
         ... message as any, // remove "as any" when TypeScript fixes this bug
 
         // IChatTypingMatch
         typing: message.activity
-    } as M & IChatTypingMatch;
+    };
 
-export const routeChatActivity = <M extends IChatActivityMatch>(
+export const routeChatActivity = <M extends IChatActivityMatch> (
     rules: {
         message?:   Router<M & IChatMessageMatch>,
         event?:     Router<M & IChatEventMatch>,

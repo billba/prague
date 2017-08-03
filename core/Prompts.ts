@@ -1,5 +1,5 @@
 import { konsole } from './Konsole';
-import { Router, RouterOrHandler, prependMatcher } from './Router';
+import { Router, RouterOrHandler, prependMatcher, Matcher, Predicate, matchAll } from './Router';
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 
@@ -7,28 +7,28 @@ export interface IChatPromptChoiceMatch {
     choice: string,
 }
 
-export const matchChoice = (choices: string[]) =>
-    <M extends ITextMatch> (message: M) => {
+export const matchChoice = <M extends ITextMatch>(choices: string[]): Matcher<M, M & IChatPromptChoiceMatch> =>
+    (message) => {
         const choice = choices.find(choice => choice.toLowerCase() === message.text.toLowerCase());
         return choice && {
             ... message as any, // remove "as any" when TypeScript fixes this bug
             choice
-        } as M & IChatPromptChoiceMatch;
+        };
     }
 
-export const promptChoice = <M extends ITextMatch> (choices: string[], routerOrHandler: RouterOrHandler<M & IChatPromptChoiceMatch>) => {
-    return prependMatcher<M>(matchChoice(choices), routerOrHandler);
-}
+// export const promptChoice = <M extends ITextMatch> (
+//     choices: string[],
+//     routerOrHandler: RouterOrHandler<M & IChatPromptChoiceMatch>
+// ): Router<M> => {
+//     return prependMatcher(matchChoice(choices), routerOrHandler);
+// }
 
-export const matchConfirm = () =>
-    <M extends ITextMatch> (message: M) => {
-        const m = matchChoice(['Yes', 'No'])(message);
-        return m.choice === 'Yes' && m;
-    }
+export const matchConfirm = <M extends ITextMatch> (): Matcher<M, M & IChatPromptChoiceMatch> =>
+    matchAll(matchChoice(['Yes', 'No']), m => m.choice === 'Yes');
 
-export const promptConfirm = <M extends ITextMatch> (routerOrHandler: RouterOrHandler<M>) => {
-    return prependMatcher<M>(matchConfirm(), routerOrHandler);
-}
+// export const promptConfirm = <M extends ITextMatch> (routerOrHandler: RouterOrHandler<M & IChatPromptChoiceMatch>) => {
+//     return prependMatcher<M>(matchConfirm(), routerOrHandler);
+// }
 
 export interface IChatPromptTimeMatch {
     time: Date,
@@ -42,11 +42,11 @@ const parseTime = (text: string): Date => {
     }
 }
 
-export const matchTime = () => 
-    <M extends ITextMatch> (m: M) => {
+export const matchTime = <M extends ITextMatch>(): Matcher<M, M & IChatPromptTimeMatch> => 
+     (m) => {
         const time = parseTime(m.text);
         return time && {
             ... m as any,
             time
-        } as M & IChatPromptTimeMatch;
+        }
     }

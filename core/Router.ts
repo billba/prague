@@ -169,7 +169,7 @@ export function matchAny <M extends object> (... predicatesOrMatchers: (Predicat
 
 export function prependMatcher <L extends object, M extends object> (matcher: Matcher<L, M>, routerOrHandler: RouterOrHandler<M>): Router<L>;
 export function prependMatcher <M extends object> (predicate: Predicate<M>, routerOrHandler: RouterOrHandler<M>): Router<M>;
-export function prependMatcher(matcherOrPredicate: Matcher | Predicate, routerOrHandler: RouterOrHandler): Router<any> {
+export function prependMatcher (matcherOrPredicate: Matcher | Predicate, routerOrHandler: RouterOrHandler): Router<any> {
     return {
         getRoute: (m) =>
             tryMatch(matcherOrPredicate, m)
