@@ -156,7 +156,7 @@ export class LuisModel {
             });
     }
 
-    public match<M extends ITextMatch>(message: M) {
+    public match <M extends ITextMatch> (message: M) {
         return this.call(message.text)
             .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
             .map(luisResponse => ({
@@ -171,7 +171,7 @@ export class LuisModel {
 
     // IMPORTANT: the order of rules is not important - the router matching the *highest-ranked intent* will be executed
 
-    best<M extends ITextMatch>(luisRouters: LuisRouters<M>) {
+    best <M extends ITextMatch> (luisRouters: LuisRouters<M>) {
         return {
             getRoute: (message: M) =>
                 toFilteredObservable(this.match(message))

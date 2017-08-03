@@ -3,9 +3,9 @@ import { UniversalChat, IChatActivityMatch, IChatMessageMatch, IChatEventMatch, 
 import { Subject } from 'rxjs';
 
 export const matchStart = () => 
-    <M extends IChatEventMatch>(m: M) => m.event.name === 'start';
+    <M extends IChatEventMatch> (m: M) => m.event.name === 'start';
 
-export class BrowserBot<BOTDATA extends object> {
+export class BrowserBot <BOTDATA extends object> {
     public message$ = new Subject<IStateMatch<BOTDATA> & IChatActivityMatch>();
 
     constructor(

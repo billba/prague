@@ -66,27 +66,25 @@ import { Dialogs } from 'prague';
 
 const dialogs = new Dialogs<M>();
 
-dialogs.add(
-    'game',
-    gameConstructor,
-    gameRouter
-)
+dialogs.add('game', {
+    constructor: gameConstructor,
+    router: gameRouter
+});
 ```
 
 Now we need to add logic to start the game and keep it going. We do this with a second dialog, which we'll mysteriously (for now) call 'root':
 
 ```typescript
-let rootRouter: DialogRouter<M>
+let rootRouter: DialogRouter<M>;
 
 rootRouter = (dialog) => first(
     dialog.routeTo(gameDialog, matchRE(/start game/i)),
     m => m.reply("Type 'start game' to start the game")
-)
+);
 
-dialogs.add(
-    'root',
-    rootRouter
-)
+dialogs.add('root', {
+    router: rootRouter
+});
 ```
 
 This dialog doesn't set any initial state so it doesn't require a constructor.
