@@ -5,7 +5,7 @@ import { BrowserBot } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
 window["browserBot"] = webChat.botConnection;
-const browserBot = new BrowserBot<{}>(new UniversalChat(webChat.chatConnector), undefined);
+const browserBot = new BrowserBot<{}>(new UniversalChat(webChat.chatConnector), {});
 
 // General purpose rule stuff
 
@@ -13,7 +13,7 @@ import { Router, first, best, ifMatch, run, simpleRouter, routeMessage, IStateMa
 
 // This is our "base message type" which is used often enough that we made it really short
 
-type B = IChatMessageMatch & IStateMatch<{}>;
+type B = IChatMessageMatch & IStateMatch<any>;
 
 // Regular Expressions
 
