@@ -51,7 +51,7 @@ import { Scheduler } from 'rxjs';
 
 browserBot.message$
     .observeOn(Scheduler.async)
-    .flatMap(m => routeMessage(appRouter, m))
+    .flatMap(m => routeMessage(appRouter, m as any))
     .subscribe(
         message => console.log("handled", message),
         error => console.log("error", error),
