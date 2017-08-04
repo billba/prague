@@ -1,6 +1,6 @@
 /////////////////////////////// Recipe Glue /////////////////////////////////
 
-import { UniversalChat, WebChatConnector, IChatMessageMatch } from 'prague-botframework';
+import { UniversalChat, WebChatConnector, IChatMessageMatch, routeChatActivity } from 'prague-botframework';
 import { BrowserBot } from 'prague-botframework-browserbot';
 
 const webChat = new WebChatConnector()
@@ -51,7 +51,8 @@ import { Scheduler } from 'rxjs';
 
 browserBot.message$
     .observeOn(Scheduler.async)
-    .flatMap(m => routeMessage(appRouter, m as any))
+    .flatMap(m => routeMessage(routeChatActivity({
+        message: appRouter }), m as any))
     .subscribe(
         message => console.log("handled", message),
         error => console.log("error", error),
