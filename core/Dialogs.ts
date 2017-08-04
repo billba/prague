@@ -22,7 +22,7 @@ export interface DialogState <DIALOGSTATE extends object = {}> {
     }
 }
 
-export interface DialogConstructorHelper <
+export interface CreateDialogHelper <
     M extends object = {},
     DIALOGARGS extends object = {},
     DIALOGRESPONSE extends object = {},
@@ -136,13 +136,13 @@ export interface DialogRouterHelper <
 
 }
 
-export interface DialogConstructor <
+export interface CreateDialog <
     M extends object,
     DIALOGARGS extends object = {},
     DIALOGRESPONSE extends object = {},
     DIALOGSTATE extends object = {}
 > {
-    (dialog: DialogConstructorHelper<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>, message: M): Observableable<void>;
+    (dialog: CreateDialogHelper<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>, message: M): Observableable<void>;
 }
 
 export interface DialogRouter <
@@ -181,7 +181,7 @@ export interface IDialog <
     DIALOGRESPONSE extends object = {},
     DIALOGSTATE extends object = {},
 > {
-    constructor?: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
+    create?: CreateDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>,
     router?: DialogRouterOrHandler<M, DIALOGRESPONSE, DIALOGSTATE>,
     trigger?: DialogTrigger<M, DIALOGARGS>,
 }
@@ -194,7 +194,7 @@ export interface LocalDialog <
 > {
     localName: string;
     remoteName: string;    // How it is named to the outside world (might be same as localName)
-    constructor: DialogConstructor<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
+    create: CreateDialog<M, DIALOGARGS, DIALOGRESPONSE, DIALOGSTATE>;
     router: DialogRouter<M, DIALOGRESPONSE, DIALOGSTATE>;
     trigger: DialogTrigger<M, DIALOGARGS>;
 }
@@ -401,7 +401,7 @@ export class Dialogs <M extends object> {
             dialog = {
                 localName,
                 remoteName,
-                constructor: idialog.constructor || ((dialog, m) => {}),
+                create: idialog.create || ((dialog, m) => {}),
                 router: (dialog: DialogRouterHelper<M>) => idialog.router ? toRouter(idialog.router(dialog)) : nullRouter(),
                 trigger: idialog.trigger || (() => ({}))
             } as LocalDialog<M>;
@@ -433,7 +433,7 @@ export class Dialogs <M extends object> {
             let dialogResponse;
             let messageToRoute: M;
     
-            const dialogConstructorHelper: DialogConstructorHelper = {
+            const CreateDialogHelper: CreateDialogHelper = {
                 args: dialogArgs,
                 state: {},
                 end: (_dialogResponse: object) => {
@@ -444,17 +444,17 @@ export class Dialogs <M extends object> {
                 }
             }
 
-            return toObservable(localOrRemoteDialog.constructor(dialogConstructorHelper, m))
+            return toObservable(localOrRemoteDialog.create(CreateDialogHelper, m))
                 .flatMap(_ => {
-                    console.log("createDialogInstance constructor response", dialogResponse, messageToRoute);
+                    console.log("createDialogInstance create response", dialogResponse, messageToRoute);
                     if (dialogResponse) {
-                        // Dialog ended in constructor. Do handle the response, don't create a dialog.
+                        // Dialog ended in create. Do handle the response, don't create a dialog.
                         return toObservable(dialogResponseHandler(dialogResponse))
                             .flatMap(_ => Observable.empty());
                     }
 
                     return toObservable(this.localDialogInstances.createInstance(localOrRemoteDialog.localName, {
-                            state: dialogConstructorHelper.state,
+                            state: CreateDialogHelper.state,
                             activeDialogs: {}
                         } as DialogState))
                         .flatMap(dialogInstance => messageToRoute

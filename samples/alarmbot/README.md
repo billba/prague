@@ -27,7 +27,7 @@ The `BrowserBot` instance `browserBot` subscribes to the instance of WebChat. Ev
 
 A separate message pump subscribes to the `browserBot.message$` queue and routes them to `activityRouter`. This router gets all types of activities - events, messages, typing, etc. It routes to type-specific routers using the `routeChatActivity` router.
 
-When the app is fully configured, we kicks off the bot by calling `botBrowser.start()`, which places an `event` activity named `start` in the `browserBot.message$` queue. `activityRouter` routes this message to `dialogs.setRoot()`, which creates an instance of `alarmDialog` (calling its constructor, which welcomes the user) and sets it as the root dialog. Subsequent `message` events are then routed to `dialogs.routeToRoot()` which then routes them to the router of that instance of `alarmDialog`'s.
+When the app is fully configured, we kicks off the bot by calling `botBrowser.start()`, which places an `event` activity named `start` in the `browserBot.message$` queue. `activityRouter` routes this message to `dialogs.setRoot()`, which creates an instance of `alarmDialog` (calling `create`, which welcomes the user) and sets it as the root dialog. Subsequent `message` events are then routed to `dialogs.routeToRoot()` which then routes them to the router of that instance of `alarmDialog`'s.
 
 If you wanted to incorporate the functionality of `alarmDialog` into a larger bot, you would likely create a different root dialog which itself created the `alarmDialog` instance and routed messages to it as it saw fit.
 

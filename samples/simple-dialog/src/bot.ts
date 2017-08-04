@@ -67,15 +67,13 @@ const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatA
     message: dialogs.routeToRoot(),
 });
 
-import { IDialog } from 'prague';
-
 const rootDialog = dialogs.add('root', {
-    constructor: (dialog, m) => m.reply("Type 'start game' to start the game"),
+    create: (dialog, m) => m.reply("Type 'start game' to start the game"),
     router: (dialog) => first(
         dialog.routeTo(gameDialog, matchRE(/start game/i)),
         m => m.reply("Type 'start game' to start the game")
     )
-} as IDialog<B>);
+});
 
 interface GameState {
     num: number,
@@ -88,7 +86,7 @@ interface GameArgs {
 }
 
 const gameDialog = dialogs.add<GameArgs, {}, GameState>('game', {
-    constructor: (dialog, m) => {
+    create: (dialog, m) => {
         const upperLimit = dialog.args.upperLimit || 50;
         const numGuesses = dialog.args.numGuesses || 10;
         m.reply(`Guess a number between 1 and ${upperLimit}. You have ${numGuesses} guesses.`);

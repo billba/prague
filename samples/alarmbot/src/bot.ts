@@ -111,7 +111,7 @@ const activityRouter: Router<IChatActivityMatch & IStateMatch<any>> = routeChatA
 });
 
 const alarmDialog = dialogs.add('alarmDialog', {
-    constructor: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
+    create: (dialog, m) => m.reply("Hello, I am your alarm bot. I can set new alarms, delete existing ones, and list the ones you have."),
     router: (dialog) => first(
         dialog.routeTo(setAlarmDialog, matchAll(
             matchRE(/set (?:an ){0,1}alarm(?: (?:named |called ){0,1}(.*)){0,1}/i),
@@ -127,7 +127,7 @@ const alarmDialog = dialogs.add('alarmDialog', {
 });
 
 const setAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('setAlarm', {
-    constructor: (dialog, m) => {
+    create: (dialog, m) => {
         dialog.state.time = dialog.args.time;
         if (dialog.args.title && validateSetAlarmName(dialog.args.title, m))
             dialog.state.title = dialog.args.title;
@@ -160,7 +160,7 @@ const validateSetAlarmName = (title: string, m) => {
 }
 
 const deleteAlarmDialog = dialogs.add<AlarmInfo, {}, AlarmInfo>('deleteAlarm', {
-    constructor: (dialog, m) => {
+    create: (dialog, m) => {
         if (alarms.getAlarms().length === 0) {
             m.reply("There are currently no alarms set.");
             return dialog.end();
@@ -193,7 +193,7 @@ const validateDeleteAlarmName = (title: string, m) => {
 }
 
 const listAlarmsDialog = dialogs.add('listAlarms', {
-    constructor: (dialog, m) => {
+    create: (dialog, m) => {
         const _alarms = alarms.getAlarms();
         if (_alarms && _alarms.length) {
             m.reply("Here are the alarms you have set:");

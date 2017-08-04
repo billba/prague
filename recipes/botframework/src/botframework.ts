@@ -213,7 +213,7 @@ export interface TimePromptResponse {
 
 export const chatPrompts = <M extends IChatMessageMatch> (dialogs: Dialogs<M>) => ({
     textPrompt: dialogs.add<PromptArgs, TextPromptResponse>('textPrompt', {
-        constructor: (dialog, m) => {
+        create: (dialog, m) => {
             if (dialog.args.prompt)
                 m.reply(dialog.args.prompt)
         },
@@ -222,7 +222,7 @@ export const chatPrompts = <M extends IChatMessageMatch> (dialogs: Dialogs<M>) =
     }),
 
     timePrompt: dialogs.add<ErrorPromptArgs, TimePromptResponse, ErrorPromptState>('timePrompt', {
-        constructor: (dialog, m) => {
+        create: (dialog, m) => {
             dialog.state.errorPrompt = dialog.args.errorPrompt;
             m.reply(dialog.args.prompt);
         },
