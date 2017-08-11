@@ -513,7 +513,7 @@ export class Dialogs <M extends object> {
         dialogResponseHandler: DialogResponseHandler<M> = () => {},
         end: (dialogResponse?: object) => boolean = () => true,
     ): Observable<Route> {
-        console.log("getRouteFromDialogInstance", dialogInstance, m, dialogResponseHandler, end); // , replace);
+        console.log("getRouteFromDialogInstance", dialogInstance, m, dialogResponseHandler, end);
 
         // A small optimization - if the provided DialogInstance is null or undefined, no match but also no error
         // This allows the developer to use a variable initialized to undefined
@@ -531,7 +531,7 @@ export class Dialogs <M extends object> {
             konsole.log("getRouteFromDialogInstance local", m);
             return toObservable(this.localDialogInstances.getDialogState(dialogInstance))
                 .flatMap(dialogState =>
-                    localOrRemoteDialog.router(this.createDialogRouterHelper(dialogInstance, m, dialogState, dialogResponseHandler, end)) // , replace))
+                    localOrRemoteDialog.router(this.createDialogRouterHelper(dialogInstance, m, dialogState, dialogResponseHandler, end))
                         .getRoute(m)
                         .map(route => ({
                             ... route,
