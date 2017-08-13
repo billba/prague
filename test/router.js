@@ -17,29 +17,26 @@ const fooPlusBar = {
     bar: "bar"
 }
 
-tryMatch(m => false, foo).subscribe(
-    n => 
-        describe('tryMatch', () => {
-            it('should never emit on false', () =>
-                false
-            );
-        }),
-    error => {},
-    () =>
-        describe('tryMatch', () => {
+describe('tryMatch', () => {
+    tryMatch(m => false, foo).subscribe(
+        n => 
+            it('should never emit on false', () => {
+                throw new Error();
+            }),
+        error => {},
+        () =>
             it('should complete on false', () =>
                 true
-            );
-        })
-);
+            )
+    );
 
-tryMatch(m => true, foo).subscribe(n => 
-    describe('tryMatch', () => {
+    tryMatch(m => true, foo).subscribe(n => 
         it('should pass message through on true', () => {
             expect(n).to.equal(foo)
-        });
-    })
-);
+        })
+    );
+
+});
 
 
 
