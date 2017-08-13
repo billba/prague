@@ -2,7 +2,7 @@
 
 const chai = require('chai');
 const expect = chai.expect;
-const { tryMatch, matchAll } = require('../dist/prague.js');
+const { tryMatch, matchAll, matchAny } = require('../dist/prague.js');
 
 const foo = {
     foo: "foo"
@@ -131,4 +131,78 @@ describe('matchAll', () => {
 
 });
 
+describe('matchAny', () => {
+    it('should stop on false predicate', (done) =>
+        tryMatch(matchAny(m => false), foo)
+            .subscribe(throwErr, passErr, done)
+    );
 
+    it('should pass through true predicate', (done) => {
+        tryMatch(matchAny(m => true), foo).subscribe(n => {
+            expect(n).to.equal(foo);
+            done();
+        });
+    });
+
+    it('should stop on no match', (done) =>
+        tryMatch(matchAny(addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through match', (done) => {
+        tryMatch(matchAll(addBar), foo).subscribe(n => {
+            expect(n).to.eql(fooPlusBar);
+            done();
+        });
+    });
+
+    it('should stop on false predicate, no match', (done) =>
+        tryMatch(matchAny(m => false, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should stop on no match, false predicate', (done) =>
+        tryMatch(matchAny(addBar, m => false), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through true predicate, no match', (done) =>
+        tryMatch(matchAny(m => true, addBar), notFoo).subscribe(n => {
+            expect(n).to.eql(notFoo);
+            done();
+        })
+    );
+
+    it('should pass through true predicate, match', (done) =>
+        tryMatch(matchAny(m => true, addBar), foo).subscribe(n => {
+            expect(n).to.eql(foo);
+            done();
+        })
+    );
+
+    it('should stop on false predicate, no match', (done) =>
+        tryMatch(matchAny(m => false, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should skip false predicate, pass through match', (done) =>
+        tryMatch(matchAny(m => false, addBar), foo).subscribe(n => {
+            expect(n).to.eql(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through match, false predicate', (done) =>
+        tryMatch(matchAny(addBar, m => false), foo).subscribe(n => {
+            expect(n).to.eql(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through match, true predicate', (done) =>
+        tryMatch(matchAny(addBar, m => true), foo).subscribe(n => {
+            expect(n).to.eql(fooPlusBar);
+            done();
+        })
+    );
+});
