@@ -11,12 +11,14 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha test"
   },
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^7.0.31",
+    "chai": "^4.1.1",
+    "mocha": "^3.5.0",
     "typescript": "2.4.2"
   },
   "dependencies": {
