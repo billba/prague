@@ -46,7 +46,7 @@ describe('tryMatch', () => {
 
     it('should pass message through on true predicate', (done) => {
         tryMatch(m => true, foo).subscribe(n => {
-            expect(n).to.equal(foo);
+            expect(n).to.eql(foo);
             done();
         });
     });
@@ -78,7 +78,7 @@ describe('matchAll', () => {
 
     it('should pass through true predicate', (done) => {
         tryMatch(matchAll(m => true), foo).subscribe(n => {
-            expect(n).to.equal(foo);
+            expect(n).to.eql(foo);
             done();
         });
     });
@@ -139,7 +139,7 @@ describe('matchAny', () => {
 
     it('should pass through true predicate', (done) => {
         tryMatch(matchAny(m => true), foo).subscribe(n => {
-            expect(n).to.equal(foo);
+            expect(n).to.eql(foo);
             done();
         });
     });
