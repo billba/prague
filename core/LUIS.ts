@@ -1,10 +1,8 @@
 import { Observable } from 'rxjs';
 import { ITextMatch } from './Text';
 import { konsole } from './Konsole';
-import { Router, RouterOrHandler, toFilteredObservable, toRouter } from './Router';
+import { Router, RouterOrHandler, toObservable, toFilteredObservable, toRouter, Matcher } from './Router';
 import 'isomorphic-fetch';
-
-// a temporary model for LUIS built from my imagination because I was offline at the time
 
 export interface LuisIntent {
     intent: string;
@@ -26,183 +24,105 @@ export interface LuisResponse {
     entities?: LuisEntity[];
 }
 
-interface LuisCache {
-    [utterance: string]: LuisResponse;
-}
-
 export interface ILuisMatch {
-    entities: LuisEntity[],
-    findEntity: (type: string) => LuisEntity[],
+    score: number,
+    intents?: LuisIntent[],
+    entities?: LuisEntity[],
+    entity: (type: string) => LuisEntity[],
     entityValues: (type: string) => string[]    
 }
 
-export interface LuisRouters<M> {
-    [intent: string] : RouterOrHandler<M & ILuisMatch>;
-}
-
-interface TestData {
-    [utterance: string]: LuisResponse;
-}
-
-const entityFields = (entities: LuisEntity[]): ILuisMatch => ({
+const entityFields = (entities: LuisEntity[]): Partial<ILuisMatch> => ({
     entities: entities,
-    findEntity: (type: string) => LuisModel.findEntity(entities, type),
-    entityValues: (type: string) => LuisModel.entityValues(entities, type),
+    entity: (type: string) => entities
+        .filter(entity => entity.type === type),
+    entityValues: (type: string) => entities
+        .filter(entity => entity.type === type)
+        .map(entity => entity.entity)
 })                
 
 export class LuisModel {
-    private cache: LuisCache = {};
-    private url: string;
+    private cache: {
+        [utterance: string]: ILuisMatch;
+    } = {};
+    private scoreThreshold = 0.5;
+    private fetcher: (utterance: string) => Promise<LuisResponse>;
 
-    constructor(id: string, key: string, private scoreThreshold = 0.5) {
-        this.url = 
-            id === 'id' && key === 'key' ? 'testData' :
-            `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${id}?subscription-key=${key}&q=`;
+    constructor(id: string, key: string, scoreThreshold?: number);
+    constructor(fetcher: (utterance: string) => Promise<LuisResponse>, scoreThreshold?: number);
+    constructor(... args) {
+        this.fetcher = typeof args[0] === 'function'
+            ? args[0]
+            : (utterance: string) =>
+                fetch(`https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${args[0]}?subscription-key=${args[1]}&q=${utterance}`)
+                    .then<LuisResponse>(response => response.json());
+
+        if (typeof args[args.length - 1] === 'number')
+            this.scoreThreshold = args[args.length - 1];
     }
 
-    private testData: TestData = {
-        "Wagon Wheel": {
-            query: "Wagon Wheel",
-            topScoringIntent: {
-                intent: 'singASong',
-                score: .95,
-            },
-            intents: [{
-                intent: 'singASong',
-                score: .95,
-            }, {
-                intent: 'findSomething',
-                score: .30,
-            }, {
-                intent: 'bestPerson',
-                score: .05
-            }],
-            entities: [{
-                entity: 'Wagon Wheel',
-                type: "song",
-                startIndex: 0,
-                endIndex: 11,
-                score: .95
-            }, {
-                entity: 'Pub',
-                type: "what",
-                startIndex: 0,
-                endIndex: 3,
-                score: .89
-            }, {
-                entity: 'London',
-                type: "where",
-                startIndex: 0,
-                endIndex: 6,
-                score: .72
-            }]
-        },
+    public query(utterance: string): Observable<ILuisMatch> {
+        konsole.log("Luis.query", utterance, this.cache);
+        const luisMatch = this.cache[utterance];
+        if (luisMatch)
+            return Observable.of(luisMatch)
+                .do(_ => konsole.log("Luis.query: found match from cache"));
 
-        "Pubs in London": {
-            query: "Pubs in London",
-            topScoringIntent: {
-                intent: 'findSomething',
-                score: .90,
-            },
-            intents: [{
-                intent: 'findSomething',
-                score: .90,
-            }, {
-                intent: 'singASong',
-                score: .51,
-            }, {
-                intent: 'bestPerson',
-                score: .05
-            }],
-            entities: [{
-                entity: 'Pub',
-                type: "what",
-                startIndex: 0,
-                endIndex: 3,
-                score: .89
-            }, {
-                entity: 'London',
-                type: "where",
-                startIndex: 0,
-                endIndex: 6,
-                score: .72
-            }, {
-                entity: 'Wagon Wheel',
-                type: "song",
-                startIndex: 0,
-                endIndex: 11,
-                score: .35
-            }]
-        }
-    }
-
-    public call(utterance: string): Observable<LuisResponse> {
-        konsole.log("calling LUIS");
-        const response = this.cache[utterance];
-        if (response)
-            return Observable.of(response).do(_ => konsole.log("from cache!!"));
-        if (this.url === 'testData') {
-            const luisResponse = this.testData[utterance];
-            if (!luisResponse)
-                return Observable.empty();
-            return Observable.of(luisResponse)
-                .do(luisResponse => konsole.log("LUIS test data!", luisResponse))
-                .do(luisResponse => this.cache[utterance] = luisResponse);
-        }
-        return Observable.fromPromise(fetch(this.url + utterance).then<LuisResponse>(response => response.json()))
-            .do(luisResponse => {
-                konsole.log("LUIS response!", luisResponse);
-                this.cache[utterance] = luisResponse;
+        return Observable.fromPromise(this.fetcher(utterance))
+            .do(luisResponse => konsole.log("Luis.query: response", luisResponse))
+            .flatMap(luisResponse =>
+                toObservable<LuisIntent[]>(luisResponse.intents)
+                    .map(intents => intents.filter(luisIntent => luisIntent.score >= this.scoreThreshold))
+                    .map(intents => ({
+                        ... entityFields(luisResponse.entities),
+                        intents,
+                    } as ILuisMatch))
+            )
+            .do(luisMatch => {
+                this.cache[utterance] = luisMatch;
             });
     }
 
-    public match <M extends ITextMatch> (message: M) {
-        return this.call(message.text)
-            .filter(luisResponse => luisResponse.topScoringIntent.score >= this.scoreThreshold)
-            .map(luisResponse => ({
-                ... message as any, // remove "as any" when TypeScript fixes this bug
-                luisResponse: {
-                    ... luisResponse,
-                    intents: (luisResponse.intents || luisResponse.topScoringIntent && [luisResponse.topScoringIntent])
-                        .filter(luisIntent => luisIntent.score >= this.scoreThreshold)
-                }
-            } as M & { luisResponse: LuisResponse}));
+    public matchIntent <M extends ITextMatch> (intent: string): Matcher<M, M & ILuisMatch> {
+        return (m) => this.query(m.text)
+            .flatMap(luisMatch =>
+                toFilteredObservable(luisMatch.intents.find(i => i.intent === intent))
+                    .map(luisIntent => ({
+                        ... m as any,
+                        ... luisMatch,
+                        score: luisIntent.score
+                    } as M & ILuisMatch))
+            )
     }
 
     // IMPORTANT: the order of rules is not important - the router matching the *highest-ranked intent* will be executed
 
-    best <M extends ITextMatch> (luisRouters: LuisRouters<M>) {
+    best <M extends ITextMatch> (
+        routersOrHandlers: {
+            [intent: string] : RouterOrHandler<M & ILuisMatch>;
+        }
+    ): Router<M> {
         return {
-            getRoute: (message: M) =>
-                toFilteredObservable(this.match(message))
-                    .flatMap(m =>
-                        Observable.from(m.luisResponse.intents)
-                        .flatMap(
-                            luisIntent =>
-                                Observable.of(luisRouters[luisIntent.intent])
-                                .filter(router => !!router)
-                                .flatMap(router =>
-                                    toRouter(router).getRoute({
-                                        ... message as any,
-                                        score: luisIntent.score,
-                                        ... entityFields(m.luisResponse.entities),
-                                        })
-                                ),
-                            1
-                        )
-                        .take(1) // stop with first intent that appears in the rules
+            getRoute: (m) => {
+                return toObservable(this.query(m.text))
+                    .flatMap(luisMatch =>
+                        Observable.from(luisMatch.intents)
+                            .flatMap(
+                                luisIntent =>
+                                    toFilteredObservable(routersOrHandlers[luisIntent.intent])
+                                        .flatMap(routerOrHandler =>
+                                            toRouter(routerOrHandler).getRoute({
+                                                ... m as any,
+                                                ... luisMatch,
+                                                score: luisIntent.score,
+                                            })
+                                        ),
+                                1
+                            )
+                            .take(1) // stop with first intent that appears in the rules
                     )
-        } as Router<M>;
-    }
-
-    static findEntity(entities: LuisEntity[], type: string) {
-        return entities
-        .filter(entity => entity.type === type);
-    }
-
-    static entityValues(entities: LuisEntity[], type: string) {
-        return this.findEntity(entities, type)
-        .map(entity => entity.entity);
+            }
+        };
     }
 
 }
