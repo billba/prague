@@ -365,7 +365,7 @@ describe('first', () => {
         routeMessage(
             first(
                 m => {
-                    foo= true;
+                    foo = true;
                 }
             ),
             message
@@ -381,7 +381,7 @@ describe('first', () => {
         routeMessage(
             first(
                 simpleRouter(m => {
-                    foo= true;
+                    foo = true;
                 })
             ),
             message
@@ -399,7 +399,7 @@ describe('first', () => {
                 null,
                 undefined,
                 simpleRouter(m => {
-                    foo= true;
+                    foo = true;
                 })
             ),
             message
@@ -416,7 +416,7 @@ describe('first', () => {
             first(
                 nullRouter(),
                 simpleRouter(m => {
-                    foo= true;
+                    foo = true;
                 })
             ),
             message
@@ -427,6 +427,24 @@ describe('first', () => {
             });
     });
 
+});
+
+describe('run', () => {
+    it("should execute the handler, complete, and never emit", (done) => {
+        let foo = false;
+        routeMessage(
+            run(
+                m => {
+                    foo = true;
+                }
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, _ => {
+                expect(foo).to.be.true;
+                done()
+            })
+    })
 });
 
 describe('tryMatch', () => {
