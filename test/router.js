@@ -327,6 +327,29 @@ describe('first', () => {
             .subscribe(throwErr, passErr, done)
     );
 
+    it('should complete and never emit on only null/undefined routers', (done) =>
+        routeMessage(
+            first(
+                null,
+                undefined
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on only unsuccessful and null/undefined routers', (done) =>
+        routeMessage(
+            first(
+                nullRouter(),
+                null,
+                undefined
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
     it('should complete and never emit on no successful routers', (done) => {
         routeMessage(
             first(
@@ -357,6 +380,24 @@ describe('first', () => {
         let foo = false;
         routeMessage(
             first(
+                simpleRouter(m => {
+                    foo= true;
+                })
+            ),
+            message
+        )
+            .subscribe(n => {
+                expect(foo).to.be.true;
+                done();
+            });
+    });
+
+    it('should ignore null/undefined routers and route to a successful router', (done) => {
+        let foo = false;
+        routeMessage(
+            first(
+                null,
+                undefined,
                 simpleRouter(m => {
                     foo= true;
                 })
