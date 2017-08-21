@@ -81,6 +81,9 @@ const minRoute: Route = {
     action: () => console.log("This should never be called")
 }
 
+const toScore = (score: number) =>
+    score == null ? 1 : score;
+
 export const best = <M extends object> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> => ({
     getRoute: (m) =>
         filteredRouter$(... routersOrHandlers).flatMap(
@@ -91,9 +94,10 @@ export const best = <M extends object> (... routersOrHandlers: RouterOrHandler<M
             }
         )
         .reduce(
-            (prev, current) => Math.min(prev.score === undefined ? 1 : prev.score) > Math.min(current.score === undefined ? 1 : current.score) ? prev : current,
+            (prev, current) => toScore(prev.score) >= toScore(current.score) ? prev : current,
             minRoute
         )
+        .filter(route => toScore(route.score) > 0)
 });
 
 export const run = <M extends object> (handler: Handler<M>): Router<M> => ({

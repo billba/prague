@@ -429,6 +429,188 @@ describe('first', () => {
 
 });
 
+const makeRouter = (score, action) => ({
+    getRoute: (m) => Observable.of({
+        score,
+        action
+    })
+});
+
+describe('best', () => {
+    it('should complete and never emit on no routers', (done) =>
+        routeMessage(
+            best(),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on only null/undefined routers', (done) =>
+        routeMessage(
+            best(
+                null,
+                undefined
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on only unsuccessful and null/undefined routers', (done) =>
+        routeMessage(
+            best(
+                nullRouter(),
+                null,
+                undefined
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on no successful routers', (done) => {
+        routeMessage(
+            best(
+                nullRouter()
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it('should convert a scoreless handler to a router, and route to it', (done) => {
+        let foo = false;
+        routeMessage(
+            best(
+                m => {
+                    foo = true;
+                }
+            ),
+            message
+        )
+            .subscribe(n => {
+                expect(foo).to.be.true;
+                done();
+            });
+    });
+
+    it('should route to a single successful scoreless router', (done) => {
+        let foo = false;
+        routeMessage(
+            best(
+                simpleRouter(m => {
+                    foo = true;
+                })
+            ),
+            message
+        )
+            .subscribe(n => {
+                expect(foo).to.be.true;
+                done();
+            });
+    });
+
+    it('should ignore null/undefined routers and route to a successful scoreless router', (done) => {
+        let foo = false;
+        routeMessage(
+            best(
+                null,
+                undefined,
+                simpleRouter(m => {
+                    foo = true;
+                })
+            ),
+            message
+        )
+            .subscribe(n => {
+                expect(foo).to.be.true;
+                done();
+            });
+    });
+
+    it('should skip an unsuccessful router and route to a successful scoreless router', (done) => {
+        let foo = false;
+        routeMessage(
+            best(
+                nullRouter(),
+                simpleRouter(m => {
+                    foo = true;
+                })
+            ),
+            message
+        )
+            .subscribe(n => {
+                expect(foo).to.be.true;
+                done();
+            });
+    });
+
+    it('should return the higher scoring route when it is first', (done) => {
+        let foo;
+        routeMessage(
+            best(
+                makeRouter(0.75, _ => { foo = 'first'; }),
+                makeRouter(0.50, _ => { foo = 'second'; })
+            ),
+            message
+        )
+            .subscribe(n => {
+                console.log("foo", foo);
+                expect(foo).to.eql('first');
+                done();
+            });
+    });
+
+    it('should return the higher scoring route when it is second', (done) => {
+        let foo;
+        routeMessage(
+            best(
+                makeRouter(0.50, _ => { foo = 'first'; }),
+                makeRouter(0.75, _ => { foo = 'second'; })
+            ),
+            message
+        )
+            .subscribe(n => {
+                console.log("foo", foo);
+                expect(foo).to.eql('second');
+                done();
+            });
+    });
+
+    it('should return the treat missing scores as 1', (done) => {
+        let foo;
+        routeMessage(
+            best(
+                makeRouter(undefined, _ => { foo = 'first'; }),
+                makeRouter(0.75, _ => { foo = 'second'; })
+            ),
+            message
+        )
+            .subscribe(n => {
+                console.log("foo", foo);
+                expect(foo).to.eql('first');
+                done();
+            });
+    });
+
+    it('should return the first of two tied scores', (done) => {
+        let foo;
+        routeMessage(
+            best(
+                makeRouter(0.75, _ => { foo = 'first'; }),
+                makeRouter(0.75, _ => { foo = 'second'; })
+            ),
+            message
+        )
+            .subscribe(n => {
+                console.log("foo", foo);
+                expect(foo).to.eql('first');
+                done();
+            });
+    });
+});
+
+
 describe('run', () => {
     it("should execute the handler, complete, and never emit", (done) => {
         let foo = false;
