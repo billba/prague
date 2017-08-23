@@ -555,7 +555,6 @@ describe('best', () => {
             message
         )
             .subscribe(n => {
-                console.log("foo", foo);
                 expect(foo).to.eql('first');
                 done();
             });
@@ -571,7 +570,6 @@ describe('best', () => {
             message
         )
             .subscribe(n => {
-                console.log("foo", foo);
                 expect(foo).to.eql('second');
                 done();
             });
@@ -587,7 +585,6 @@ describe('best', () => {
             message
         )
             .subscribe(n => {
-                console.log("foo", foo);
                 expect(foo).to.eql('first');
                 done();
             });
@@ -603,7 +600,6 @@ describe('best', () => {
             message
         )
             .subscribe(n => {
-                console.log("foo", foo);
                 expect(foo).to.eql('first');
                 done();
             });
@@ -801,4 +797,96 @@ describe('matchAny', () => {
             done();
         })
     );
+});
+
+describe('prependMatcher', () => {
+    it('should complete and never emit on false predicate', (done) =>
+        routeMessage(
+            prependMatcher(
+                m => false,
+                throwErr
+            ),
+            message
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on no match', (done) =>
+        routeMessage(
+            prependMatcher(
+                addBar,
+                throwErr
+            ),
+            notFoo
+        )
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should route message to handler on true predicate', (done) => {
+        let routed = false;
+        routeMessage(
+            prependMatcher(
+                m => true,
+                m => {
+                    routed = true;
+                }
+            ),
+            foo
+        )
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            })
+    });
+
+    it('should route message to router on true predicate', (done) => {
+        let routed = false;
+        routeMessage(
+            prependMatcher(
+                m => true,
+                simpleRouter(m => {
+                    routed = true;
+                })
+            ),
+            foo
+        )
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            })
+    });
+
+    it('should route message to handler on match', (done) => {
+        let routed = false;
+        routeMessage(
+            prependMatcher(
+                addBar,
+                m => {
+                    routed = true;
+                }
+            ),
+            foo
+        )
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            })
+    });
+
+    it('should route message to router on match', (done) => {
+        let routed = false;
+        routeMessage(
+            prependMatcher(
+                addBar,
+                simpleRouter(m => {
+                    routed = true;
+                })
+            ),
+            foo
+        )
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            })
+    });
 });
