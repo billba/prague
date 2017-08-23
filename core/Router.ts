@@ -27,34 +27,38 @@ export interface Route {
     action: () => Observableable<any>;
 }
 
-export interface Router <M extends object> {
-    getRoute(message: M): Observable<Route>;
+export interface Match {
+    score?: number;
 }
 
-export function nullRouter <M extends object = {}> (): Router<M> {
+export interface Router <M extends Match> {
+    getRoute(m: M): Observable<Route>;
+}
+
+export function nullRouter <M extends Match = {}> (): Router<M> {
     return {
         getRoute: (m) => Observable.empty()
     }
 }
 
-export function routeMessage <M extends object> (router: Router<M>, message: M) {
-    return router.getRoute(message)
+export function routeMessage <M extends Match> (router: Router<M>, m: M) {
+    return router.getRoute(m)
         .do(route => konsole.log("handle: matched a route", route))
         .flatMap(route => toObservable(route.action()))
         .do(_ => konsole.log("handle: called action"));
 }
 
-export interface Handler <Z extends object = {}> {
-    (message: Z): Observableable<any>;
+export interface Handler <Z extends Match = {}> {
+    (m: Z): Observableable<any>;
 }
 
-export type RouterOrHandler <M extends object = {}> = Router<M> | Handler<M>;
+export type RouterOrHandler <M extends Match = {}> = Router<M> | Handler<M>;
 
-export function isRouter <M extends object> (routerOrHandler: RouterOrHandler<M>): routerOrHandler is Router<M> {
+export function isRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>): routerOrHandler is Router<M> {
     return ((routerOrHandler as any).getRoute !== undefined);
 }
 
-export function simpleRouter <M extends object> (handler: Handler<M>): Router<M> {
+export function simpleRouter <M extends Match> (handler: Handler<M>): Router<M> {
     return {
         getRoute: (m) => Observable.of({
             action: () => handler(m)
@@ -62,17 +66,17 @@ export function simpleRouter <M extends object> (handler: Handler<M>): Router<M>
     }
 }
 
-export function toRouter <M extends object> (routerOrHandler: RouterOrHandler<M>): Router<M> {
+export function toRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>): Router<M> {
     return isRouter(routerOrHandler) ? routerOrHandler : simpleRouter(routerOrHandler);
 }
 
-function filteredRouter$ <M extends object> (... routersOrHandlers: RouterOrHandler<M>[]) {
+function filteredRouter$ <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
     return Observable.from(routersOrHandlers)
         .filter(routerOrHandler => !!routerOrHandler)
         .map(routerOrHandler => toRouter(routerOrHandler));
 }
 
-export function first <M extends object> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
+export function first <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
     const routers = filteredRouter$(... routersOrHandlers);
     return {
         getRoute: (m) =>
@@ -80,7 +84,7 @@ export function first <M extends object> (... routersOrHandlers: RouterOrHandler
                 (router, i) => {
                     konsole.log(`first: trying router #${i}`);
                     return router.getRoute(m)
-                        .do(m => konsole.log(`first: router #${i} succeeded`, m));
+                        .do(n => konsole.log(`first: router #${i} succeeded`, n));
                 },
                 1
             )
@@ -97,7 +101,7 @@ function toScore (score: number) {
     return score == null ? 1 : score;
 }
 
-export function best <M extends object> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
+export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
     const routers = filteredRouter$(... routersOrHandlers);
     return {
         getRoute: (m) =>
@@ -105,7 +109,7 @@ export function best <M extends object> (... routersOrHandlers: RouterOrHandler<
                 (router, i) => {
                     konsole.log(`best: trying router #${i}`);
                     return router.getRoute(m)
-                        .do(m => konsole.log(`best: router #${i} succeeded`, m));
+                        .do(n => konsole.log(`best: router #${i} succeeded`, n));
                 }
             )
             .reduce(
@@ -116,7 +120,7 @@ export function best <M extends object> (... routersOrHandlers: RouterOrHandler<
     }
 }
 
-export function run <M extends object> (handler: Handler<M>): Router<M> {
+export function run <M extends Match> (handler: Handler<M>): Router<M> {
     return {
         getRoute: (m) =>
             toObservable(handler(m))
@@ -124,32 +128,39 @@ export function run <M extends object> (handler: Handler<M>): Router<M> {
     }
 }
 
-export interface Matcher <M extends object = {}, Z extends object = {}> {
-    (message: M): Observableable<Z>;
+export interface Matcher <M extends Match = {}, Z extends Match = {}> {
+    (m: M): Observableable<Z>;
 }
 
-export interface Predicate <M extends object = {}> {
-    (message: M): Observableable<boolean>;
+export interface Predicate <M extends Match = {}> {
+    (m: M): Observableable<boolean>;
 }
 
-export function tryMatch <M extends object, N extends object> (matcher: Matcher<M, N>, message: M): Observable<N>;
-export function tryMatch <M extends object> (predicate: Predicate<M>, message: M): Observable<M>;
-export function tryMatch <M extends object> (predicateOrMatcher: Predicate | Matcher, message: M): Observable<any>;
-export function tryMatch(predicateOrMatcher: Matcher | Predicate, message): Observable<any> {
+export function tryMatch <M extends Match, N extends Match> (matcher: Matcher<M, N>, m: M): Observable<N>;
+export function tryMatch <M extends Match> (predicate: Predicate<M>, m: M): Observable<M>;
+export function tryMatch <M extends Match> (predicateOrMatcher: Predicate | Matcher, m: M): Observable<any>;
+export function tryMatch(predicateOrMatcher: Matcher | Predicate, m): Observable<any> {
     // we want to allow any matcher to be a predicate (return a boolean)
     // if so, the 'falsey' case will be filtered out by toFilteredObservable,
     // so we just need to catch the case where it is precisely true
-    konsole.log("tryMatch", predicateOrMatcher, message);
-    return toFilteredObservable(predicateOrMatcher(message))
-        .map(m => typeof m === 'boolean' ? message : m);
+    konsole.log("tryMatch", predicateOrMatcher, m);
+    return toFilteredObservable(predicateOrMatcher(m))
+        .map(n => typeof n === 'boolean' ? m : n);
 }
 
-export function ifMatch <L extends object, M extends object> (
+export function routeWithCombinedScore(route: Route, score?: number) {
+    return {
+        ... route,
+        score: toScore(score) * toScore(route.score)
+    }
+}
+
+export function ifMatch <L extends Match, M extends Match> (
     matcher: Matcher<L, M>,
     routerOrHandler: RouterOrHandler<M>
 ): Router<L>;
 
-export function ifMatch <M extends object> (
+export function ifMatch <M extends Match> (
     predicate: Predicate<M>,
     routerOrHandler: RouterOrHandler<M>
 ): Router<M>;
@@ -162,23 +173,26 @@ export function ifMatch (
     return {
         getRoute: (m) =>
             tryMatch(predicateOrMatcher, m)
-                .flatMap(m => router.getRoute(m))
+                .flatMap((n: Match) =>
+                    router.getRoute(n)
+                        .map(route => routeWithCombinedScore(route, n.score))
+                )
     };
 }
 
-export function ifMatchElse <M extends object> (
+export function ifMatchElse <M extends Match> (
     predicate: Predicate<M>,
     ifRouterOrHandler: RouterOrHandler<M>,
     elseRouterOrHandler: RouterOrHandler<M>,
 ): Router<M>;
 
-export function ifMatchElse <M extends object, N extends object> (
+export function ifMatchElse <M extends Match, N extends Match> (
     matcher: Matcher<M, N>,
     ifRouterOrHandler: RouterOrHandler<N>,
     elseRouterOrHandler: RouterOrHandler<M>,
 ): Router<M>;
 
-export function ifMatchElse <M extends object> (
+export function ifMatchElse <M extends Match> (
     predicateOrMatcher: Predicate<M> | Matcher<M>,
     ifRouterOrHandler: RouterOrHandler,
     elseRouterOrHandler: RouterOrHandler,
@@ -189,11 +203,13 @@ export function ifMatchElse <M extends object> (
         getRoute: (m) =>
             tryMatch(predicateOrMatcher, m)
                 .defaultIfEmpty(null)
-                .flatMap(n => n
+                .flatMap((n: Match) => n
                     ? ifRouter.getRoute(n)
+                        .map(route => routeWithCombinedScore(route, n.score))    
                     : elseRouter.getRoute(m)
+                        .map(route => routeWithCombinedScore(route, m.score))    
                 )
-    };
+    }
 }
 
 const thrownRoute: Route = {
@@ -201,13 +217,13 @@ const thrownRoute: Route = {
     action: () => {}
 };
 
-export function throwRoute <M extends object> (): Router<M> {
+export function throwRoute <M extends Match> (): Router<M> {
     return {
         getRoute: (m) => Observable.of(thrownRoute)
     }
 }
 
-export function catchRoute <M extends object> (routerOrHandler: RouterOrHandler<M>): Router<M> {
+export function catchRoute <M extends Match> (routerOrHandler: RouterOrHandler<M>): Router<M> {
     return {
         getRoute: (m) => toRouter(routerOrHandler).getRoute(m)
             .filter(route => !route.thrown)

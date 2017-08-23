@@ -2,7 +2,7 @@
 
 const chai = require('chai');
 const expect = chai.expect;
-const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, ifMatch, ifMatchElse, nullRouter, throwRoute, catchRoute } = require('../dist/prague.js');
+const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, routeWithCombinedScore, ifMatch, ifMatchElse, nullRouter, throwRoute, catchRoute } = require('../dist/prague.js');
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -745,6 +745,44 @@ describe('tryMatch', () => {
     
 });
 
+describe('routeWithCombinedScore', () => {
+    it("should return score=1 with both scores undefined", () => {
+        expect(routeWithCombinedScore(
+            {
+                action: () => {}
+            }
+        ).score).to.eql(1);
+    });
+
+    it("should return supplied score when route score undefined", () => {
+        expect(routeWithCombinedScore(
+            {
+                action: () => {}
+            },
+            .13
+        ).score).to.eql(.13);
+    });
+
+    it("should return route score when supplied score undefined", () => {
+        expect(routeWithCombinedScore(
+            {
+                score: .13,
+                action: () => {}
+            }
+        ).score).to.eql(.13);
+    });
+
+    it("should return combined score when both scores supplied", () => {
+        expect(routeWithCombinedScore(
+            {
+                score: .4,
+                action: () => {}
+            },
+            .25
+        ).score).to.eql(.1);
+    });
+})
+
 describe('ifMatch', () => {
     it('should complete and never emit on false predicate', (done) =>
         routeMessage(
@@ -839,6 +877,59 @@ describe('ifMatch', () => {
                 done();
             })
     });
+
+    it("should return score=1 with both scores undefined", (done) => {
+        ifMatch(
+            m => true,
+            m => {}
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(1);
+                done();
+            })
+    });
+
+    it("should return supplied score when route score undefined", (done) => {
+        ifMatch(
+            m => ({
+                score: 0.4  
+            }),
+            () => {}
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.4);
+                done();
+            })
+    });
+
+    it("should return route score when supplied score undefined", (done) => {
+        ifMatch(
+            m => true,
+            makeRouter(0.25, () => {})
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.25);
+                done();
+            })
+    });
+
+    it("should return combined score when both scores supplied", (done) => {
+        ifMatch(
+            m => ({
+                score: 0.4  
+            }),
+            makeRouter(0.25, () => {})
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.1);
+                done();
+            })
+    });
+  
 });
 
 describe('ifMatchElse', () => {
@@ -1038,6 +1129,101 @@ describe('ifMatchElse', () => {
         )
             .subscribe(n => {
                 expect(routed).to.be.true;
+                done();
+            })
+    });
+
+    it("should return score=1 on true predicate when route score undefined", (done) => {
+        ifMatchElse(
+            m => true,
+            m => {},
+            m => {}
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(1);
+                done();
+            })
+    });
+
+    it("should return score=1 on scoreless match when route score undefined", (done) => {
+        ifMatchElse(
+            m => ({}),
+            m => {},
+            m => {}
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(1);
+                done();
+            })
+    });
+
+    it("should return supplied score on match when 'if' route score undefined", (done) => {
+        ifMatchElse(
+            m => ({
+                score: 0.4  
+            }),
+            m => {},
+            m => {}
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.4);
+                done();
+            })
+    });
+
+    it("should return 'if' route score when match score undefined", (done) => {
+        ifMatchElse(
+            m => true,
+            makeRouter(0.25, () => {}),
+            makeRouter(0.5, () => {})
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.25);
+                done();
+            })
+    });
+
+    it("should combine supplied score and 'if' route score on match", (done) => {
+        ifMatchElse(
+            m => ({
+                score: 0.4  
+            }),
+            makeRouter(0.25, () => {}),
+            makeRouter(0.5, () => {})
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.1);
+                done();
+            })
+    });
+
+    it("should return 'else' route score on false predicate", (done) => {
+        ifMatchElse(
+            m => false,
+            makeRouter(0.25, () => {}),
+            makeRouter(0.5, () => {})
+        )
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.5);
+                done();
+            })
+    });
+
+    it("should return 'else' route score on no match", (done) => {
+        ifMatchElse(
+            addBar,
+            makeRouter(0.25, () => {}),
+            makeRouter(0.5, () => {})
+        )
+            .getRoute(notFoo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.5);
                 done();
             })
     });
