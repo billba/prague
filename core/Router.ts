@@ -35,11 +35,9 @@ export interface Router <M extends Match> {
     getRoute(m: M): Observable<Route>;
 }
 
-export function nullRouter <M extends Match = {}> (): Router<M> {
-    return {
-        getRoute: (m) => Observable.empty()
-    }
-}
+export const nullRouter = {
+    getRoute: (m) => Observable.empty()
+} as Router<any>;
 
 export function routeMessage <M extends Match> (router: Router<M>, m: M) {
     return router.getRoute(m)
@@ -155,50 +153,27 @@ export function routeWithCombinedScore(route: Route, score?: number) {
     }
 }
 
-export function ifMatch <L extends Match, M extends Match> (
-    matcher: Matcher<L, M>,
-    routerOrHandler: RouterOrHandler<M>
-): Router<L>;
-
 export function ifMatch <M extends Match> (
     predicate: Predicate<M>,
-    routerOrHandler: RouterOrHandler<M>
-): Router<M>;
-
-export function ifMatch (
-    predicateOrMatcher: Matcher | Predicate,
-    routerOrHandler: RouterOrHandler
-): Router<any> {
-    const router = toRouter(routerOrHandler);
-    return {
-        getRoute: (m) =>
-            tryMatch(predicateOrMatcher, m)
-                .flatMap((n: Match) =>
-                    router.getRoute(n)
-                        .map(route => routeWithCombinedScore(route, n.score))
-                )
-    };
-}
-
-export function ifMatchElse <M extends Match> (
-    predicate: Predicate<M>,
     ifRouterOrHandler: RouterOrHandler<M>,
-    elseRouterOrHandler: RouterOrHandler<M>,
+    elseRouterOrHandler?: RouterOrHandler<M>,
 ): Router<M>;
 
-export function ifMatchElse <M extends Match, N extends Match> (
+export function ifMatch <M extends Match, N extends Match> (
     matcher: Matcher<M, N>,
     ifRouterOrHandler: RouterOrHandler<N>,
-    elseRouterOrHandler: RouterOrHandler<M>,
+    elseRouterOrHandler?: RouterOrHandler<M>,
 ): Router<M>;
 
-export function ifMatchElse <M extends Match> (
+export function ifMatch <M extends Match> (
     predicateOrMatcher: Predicate<M> | Matcher<M>,
     ifRouterOrHandler: RouterOrHandler,
-    elseRouterOrHandler: RouterOrHandler,
+    elseRouterOrHandler?: RouterOrHandler,
 ): Router<M> {
     const ifRouter = toRouter(ifRouterOrHandler);
-    const elseRouter = toRouter(elseRouterOrHandler);
+    const elseRouter = elseRouterOrHandler
+        ? toRouter(elseRouterOrHandler)
+        : nullRouter;
     return {
         getRoute: (m) =>
             tryMatch(predicateOrMatcher, m)
