@@ -1,8 +1,9 @@
 "use strict";
 
 const chai = require('chai');
+chai.use(require('chai-subset'));
 const expect = chai.expect;
-const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute } = require('../dist/prague.js');
+const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute, matchAll, firstMatch, bestMatch } = require('../dist/prague.js');
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -554,11 +555,11 @@ describe('best', () => {
     });
 
     it('should convert a scoreless handler to a router, and route to it', (done) => {
-        let foo = false;
+        let routed = false;
         routeMessage(
             best(
                 m => {
-                    foo = true;
+                    routed = true;
                 }
             ),
             foo
@@ -623,6 +624,24 @@ describe('best', () => {
             });
     });
 
+    it('should return the first route where score=1', (done) => {
+        let routed;
+
+        routeMessage(
+            best(
+                m => {
+                    routed = true;
+                },
+                throwErr
+            ),
+            foo
+        )
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            });
+    });
+
     it('should return the higher scoring route when it is first', (done) => {
         let routed;
 
@@ -655,7 +674,7 @@ describe('best', () => {
             });
     });
 
-    it('should return the treat missing scores as 1', (done) => {
+    it('should treat missing scores as 1', (done) => {
         let routed;
 
         routeMessage(
@@ -1282,4 +1301,248 @@ describe('catchRoute', () => {
         )
             .subscribe(throwErr, passErr, done);
     });
+});
+
+describe('matchAll', () => {
+    it('should complete and never emit on false predicate', (done) =>
+        tryMatch(matchAll(m => false), foo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through true predicate', (done) => {
+        tryMatch(matchAll(m => true), foo).subscribe(n => {
+            expect(n).to.containSubset(foo);
+            done();
+        });
+    });
+
+    it('should pass through match', (done) => {
+        tryMatch(matchAll(addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        });
+    });
+
+    it('should pass through no match', (done) => {
+        tryMatch(addBar, notFoo)
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it('should complete and never emit on false predicate', (done) => {
+        tryMatch(matchAll(m => false, addBar), foo)
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it('should pass through true predicate to match', (done) => {
+        tryMatch(matchAll(m => true, addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        });
+    });
+
+    it('should pass through true predicate to no match, then complete and never emit', (done) => {
+        tryMatch(matchAll(m => true, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it('should pass through match to true predicate', (done) => {
+        tryMatch(matchAll(addBar, m => true), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        });
+    });
+
+    it('should pass through match to false predicate, then complete and never emit', (done) => {
+        tryMatch(matchAll(addBar, m => false), foo)
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it('should complete and never emit on no match', (done) => {
+        tryMatch(matchAll(addBar, m => true), notFoo)
+            .subscribe(throwErr, passErr, done)
+    });
+
+});
+
+describe('firstMatch', () => {
+    it('should complete and never emit on false predicate', (done) =>
+        tryMatch(firstMatch(m => false), foo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on no match', (done) =>
+        tryMatch(firstMatch(addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through true predicate', (done) => {
+        tryMatch(firstMatch(m => true), foo).subscribe(n => {
+            expect(n).to.containSubset(foo);
+            done();
+        });
+    });
+
+    it('should pass through match', (done) => {
+        tryMatch(matchAll(addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        });
+    });
+
+    it('should complete and never emit on false predicate, no match', (done) =>
+        tryMatch(firstMatch(m => false, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on no match, false predicate', (done) =>
+        tryMatch(firstMatch(addBar, m => false), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through true predicate, no match', (done) =>
+        tryMatch(firstMatch(m => true, addBar), notFoo).subscribe(n => {
+            expect(n).to.containSubset(notFoo);
+            done();
+        })
+    );
+
+    it('should pass through true predicate, match', (done) =>
+        tryMatch(firstMatch(m => true, addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(foo);
+            done();
+        })
+    );
+
+    it('should complete and never emit on false predicate, no match', (done) =>
+        tryMatch(firstMatch(m => false, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should skip false predicate, pass through match', (done) =>
+        tryMatch(firstMatch(m => false, addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through match, false predicate', (done) =>
+        tryMatch(firstMatch(addBar, m => false), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through match, true predicate', (done) =>
+        tryMatch(firstMatch(addBar, m => true), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        })
+    );
+
+});
+
+describe('bestMatch', () => {
+    it('should complete and never emit on false predicate', (done) =>
+        tryMatch(bestMatch(m => false), foo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on no match', (done) =>
+        tryMatch(bestMatch(addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through true predicate', (done) => {
+        tryMatch(bestMatch(m => true), foo).subscribe(n => {
+            console.log("n", n);
+            expect(n).to.containSubset(foo);
+            done();
+        });
+    });
+
+    it('should pass through match', (done) => {
+        tryMatch(bestMatch(addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        });
+    });
+
+    it('should complete and never emit on false predicate, no match', (done) =>
+        tryMatch(bestMatch(m => false, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should complete and never emit on no match, false predicate', (done) =>
+        tryMatch(bestMatch(addBar, m => false), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should pass through true predicate, no match', (done) =>
+        tryMatch(bestMatch(m => true, addBar), notFoo).subscribe(n => {
+            expect(n).to.containSubset(notFoo);
+            done();
+        })
+    );
+
+    it('should pass through true predicate, scoreless match', (done) =>
+        tryMatch(bestMatch(m => true, addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(foo);
+            done();
+        })
+    );
+
+    it('should complete and never emit on false predicate, no match', (done) =>
+        tryMatch(bestMatch(m => false, addBar), notFoo)
+            .subscribe(throwErr, passErr, done)
+    );
+
+    it('should skip false predicate, pass through match', (done) =>
+        tryMatch(bestMatch(m => false, addBar), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through scoreless match, ignore false predicate', (done) =>
+        tryMatch(bestMatch(addBar, m => false), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through scoreless match, ignore true predicate', (done) =>
+        tryMatch(bestMatch(addBar, m => true), foo).subscribe(n => {
+            expect(n).to.containSubset(fooPlusBar);
+            done();
+        })
+    );
+
+    it('should pass through true predicate, ignore subsequent matcher', (done) =>
+        tryMatch(bestMatch(m => true, throwErr), foo).subscribe(n => {
+            expect(n.score).to.eql(1);
+            done();
+        })
+    );
+
+    it('should pass through score=1 match, ignore subsequent matcher', (done) =>
+        tryMatch(bestMatch(m => ({ score: 1 }), throwErr), foo).subscribe(n => {
+            expect(n.score).to.eql(1);
+            done();
+        })
+    );
+
+    it('should skip <1 match, pass through true predicate', (done) =>
+        tryMatch(bestMatch(m => ({ score: .5}), m => true), foo).subscribe(n => {
+            expect(n.score).to.eql(1);
+            done();
+        })
+    );
+
+    it('should return higher-scoring match', (done) =>
+        tryMatch(bestMatch(m => ({ score: .5}), m => ({ score: .25})), foo).subscribe(n => {
+            expect(n.score).to.eql(.5);
+            done();
+        })
+    );
+
 });
