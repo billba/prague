@@ -742,7 +742,7 @@ describe('tryMatch', () => {
 
     it('should pass message through on true predicate', (done) => {
         tryMatch(m => true, foo).subscribe(n => {
-            expect(n).to.eql(foo);
+            expect(n).to.containSubset(foo);
             done();
         });
     });
@@ -1362,6 +1362,30 @@ describe('matchAll', () => {
     it('should complete and never emit on no match', (done) => {
         tryMatch(matchAll(addBar, m => true), notFoo)
             .subscribe(throwErr, passErr, done)
+    });
+
+    it('should combine scores', (done) => {
+        tryMatch(matchAll(m => ({ score: .4 }), m => ({ score: .25 })), foo)
+            .subscribe(n => {
+                expect(n.score).to.eql(.1);
+                done();
+            });
+    });
+
+    it('should combine scores, treating true predicates as 1', (done) => {
+        tryMatch(matchAll(m => ({ score: .4 }), m => true), foo)
+            .subscribe(n => {
+                expect(n.score).to.eql(.4);
+                done();
+            });
+    });
+
+    it('should combine scores, treating scoreless matchers as 1', (done) => {
+        tryMatch(matchAll(m => ({ score: .4 }), m => ({})), foo)
+            .subscribe(n => {
+                expect(n.score).to.eql(.4);
+                done();
+            });
     });
 
 });

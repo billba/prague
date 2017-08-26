@@ -163,7 +163,15 @@ export function tryMatch(predicateOrMatcher: Matcher | Predicate, m): Observable
     // so we just need to catch the case where it is precisely true
     konsole.log("tryMatch", predicateOrMatcher, m);
     return toFilteredObservable(predicateOrMatcher(m))
-        .map(n => typeof n === 'boolean' ? m : n);
+        .map(n => typeof n === 'boolean'
+            ? toScore(m.score) === 1
+                ? m
+                : {
+                    ... m,
+                    score: 1
+                }
+            : n
+        );
 }
 
 export function combineScores(previousScore, nextScore) {
@@ -255,15 +263,15 @@ export function matchAll <M extends Match> (... predicatesOrMatchers: (Predicate
             .reduce<Predicate | Matcher, Observable<Match>> (
                 (prevObservable, currentMatcher, i) =>
                     prevObservable
-                    .flatMap(prevMatch => {
-                        konsole.log(`calling matcher #${i}`, currentMatcher);
-                        return tryMatch(currentMatcher, prevMatch)
-                            .do(result => konsole.log("result", result))
-                            .map((n: Match) => ({
-                                ... n,
-                                score: combineScores(prevMatch.score, n.score)
-                            }));
-                    }),
+                        .flatMap(prevMatch => {
+                            konsole.log(`calling matcher #${i}`, currentMatcher);
+                            return tryMatch(currentMatcher, prevMatch)
+                                .do(result => konsole.log("result", result))
+                                .map((n: Match) => ({
+                                    ... n,
+                                    score: combineScores(prevMatch.score, n.score)
+                                }));
+                        }),
                 Observable.of(m)
             )
             .mergeAll();
