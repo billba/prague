@@ -3,7 +3,7 @@
 const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
-const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute, matchAll, firstMatch, bestMatch } = require('../dist/prague.js');
+const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, toScore, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute, matchAll, firstMatch, bestMatch } = require('../dist/prague.js');
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -768,39 +768,39 @@ describe('tryMatch', () => {
 
 describe('routeWithCombinedScore', () => {
     it("should return score=1 with both scores undefined", () => {
-        expect(routeWithCombinedScore(
+        expect(toScore(routeWithCombinedScore(
             {
                 action: () => {}
             }
-        ).score).to.eql(1);
+        ).score)).to.eql(1);
     });
 
     it("should return supplied score when route score undefined", () => {
-        expect(routeWithCombinedScore(
+        expect(toScore(routeWithCombinedScore(
             {
                 action: () => {}
             },
             .13
-        ).score).to.eql(.13);
+        ).score)).to.eql(.13);
     });
 
     it("should return route score when supplied score undefined", () => {
-        expect(routeWithCombinedScore(
+        expect(toScore(routeWithCombinedScore(
             {
                 score: .13,
                 action: () => {}
             }
-        ).score).to.eql(.13);
+        ).score)).to.eql(.13);
     });
 
     it("should return combined score when both scores supplied", () => {
-        expect(routeWithCombinedScore(
+        expect(toScore(routeWithCombinedScore(
             {
                 score: .4,
                 action: () => {}
             },
             .25
-        ).score).to.eql(.1);
+        ).score)).to.eql(.1);
     });
 })
 
@@ -1130,7 +1130,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(1);
+                expect(toScore(route.score)).to.eql(1);
                 done();
             })
     });
@@ -1142,7 +1142,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(1);
+                expect(toScore(route.score)).to.eql(1);
                 done();
             })
     });
@@ -1156,7 +1156,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(.4);
+                expect(toScore(route.score)).to.eql(.4);
                 done();
             })
     });
@@ -1168,7 +1168,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(.25);
+                expect(toScore(route.score)).to.eql(.25);
                 done();
             })
     });
@@ -1180,7 +1180,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(.25);
+                expect(toScore(route.score)).to.eql(.25);
                 done();
             })
     });
@@ -1194,7 +1194,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(.1);
+                expect(toScore(route.score)).to.eql(.1);
                 done();
             })
     });
@@ -1207,7 +1207,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(1);
+                expect(toScore(route.score)).to.eql(1);
                 done();
             })
     });
@@ -1220,7 +1220,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(1);
+                expect(toScore(route.score)).to.eql(1);
                 done();
             })
     });
@@ -1233,7 +1233,7 @@ describe('ifMatch', () => {
         )
             .getRoute(foo)
             .subscribe(route => {
-                expect(route.score).to.eql(.5);
+                expect(toScore(route.score)).to.eql(.5);
                 done();
             })
     });
@@ -1246,7 +1246,7 @@ describe('ifMatch', () => {
         )
             .getRoute(notFoo)
             .subscribe(route => {
-                expect(route.score).to.eql(.5);
+                expect(toScore(route.score)).to.eql(.5);
                 done();
             })
     });
@@ -1544,28 +1544,28 @@ describe('bestMatch', () => {
 
     it('should pass through true predicate, ignore subsequent matcher', (done) =>
         tryMatch(bestMatch(m => true, throwErr), foo).subscribe(n => {
-            expect(n.score).to.eql(1);
+            expect(toScore(n.score)).to.eql(1);
             done();
         })
     );
 
     it('should pass through score=1 match, ignore subsequent matcher', (done) =>
         tryMatch(bestMatch(m => ({ score: 1 }), throwErr), foo).subscribe(n => {
-            expect(n.score).to.eql(1);
+            expect(toScore(n.score)).to.eql(1);
             done();
         })
     );
 
     it('should skip <1 match, pass through true predicate', (done) =>
         tryMatch(bestMatch(m => ({ score: .5}), m => true), foo).subscribe(n => {
-            expect(n.score).to.eql(1);
+            expect(toScore(n.score)).to.eql(1);
             done();
         })
     );
 
     it('should return higher-scoring match', (done) =>
         tryMatch(bestMatch(m => ({ score: .5}), m => ({ score: .25})), foo).subscribe(n => {
-            expect(n.score).to.eql(.5);
+            expect(toScore(n.score)).to.eql(.5);
             done();
         })
     );

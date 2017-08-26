@@ -94,8 +94,17 @@ const minRoute: Route = {
     action: () => console.warn("This should never be called")
 }
 
-function toScore (score: number) {
+export function toScore (score: number) {
     return score == null ? 1 : score;
+}
+
+export function addScore<T extends { score?: number }>(t: T, score: number): T {
+    return toScore(t.score) === score
+        ? t
+        : {
+            ... t as any,
+            score
+        } as T;
 }
 
 export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
@@ -105,20 +114,13 @@ export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M
             let bestRoute: Route = minRoute;
 
             const subscription = router$
-                .takeWhile(_ => bestRoute.score < 1)
+                .takeWhile(_ => toScore(bestRoute.score) < 1)
                 .concatMap(router => router.getRoute(m))
                 .subscribe(
                     route => {
-                        const routeWithScore = route.score == null
-                            ? {
-                                ... route,
-                                score: toScore(route.score)
-                            }
-                            : route;
-
-                        if (routeWithScore.score > bestRoute.score) {
-                            bestRoute = routeWithScore;
-                            if (bestRoute.score === 1) {
+                        if (toScore(route.score) > toScore(bestRoute.score)) {
+                            bestRoute = route;
+                            if (toScore(bestRoute.score) === 1) {
                                 observer.next(bestRoute);
                                 observer.complete();
                             }
@@ -127,7 +129,7 @@ export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M
                     error =>
                         observer.error(error),
                     () => {
-                        if (bestRoute.score > 0)
+                        if (toScore(bestRoute.score) > 0)
                             observer.next(bestRoute);
                         observer.complete();
                     }
@@ -164,12 +166,7 @@ export function tryMatch(predicateOrMatcher: Matcher | Predicate, m): Observable
     konsole.log("tryMatch", predicateOrMatcher, m);
     return toFilteredObservable(predicateOrMatcher(m))
         .map(n => typeof n === 'boolean'
-            ? toScore(m.score) === 1
-                ? m
-                : {
-                    ... m,
-                    score: 1
-                }
+            ? addScore(m, 1)
             : n
         );
 }
@@ -179,10 +176,7 @@ export function combineScores(previousScore, nextScore) {
 }
 
 export function routeWithCombinedScore(route: Route, score?: number) {
-    return {
-        ... route,
-        score: combineScores(score, route.score)
-    }
+    return addScore(route, combineScores(score, route.score));
 }
 
 export function ifMatch <M extends Match> (
@@ -267,10 +261,15 @@ export function matchAll <M extends Match> (... predicatesOrMatchers: (Predicate
                             konsole.log(`calling matcher #${i}`, currentMatcher);
                             return tryMatch(currentMatcher, prevMatch)
                                 .do(result => konsole.log("result", result))
-                                .map((n: Match) => ({
-                                    ... n,
-                                    score: combineScores(prevMatch.score, n.score)
-                                }));
+                                .map((n: Match) => {
+                                    const score = combineScores(prevMatch.score, n.score);
+                                    return toScore(n.score) === score
+                                        ? n
+                                        : {
+                                            ... n,
+                                            score
+                                        };
+                                })
                         }),
                 Observable.of(m)
             )
@@ -292,20 +291,13 @@ export function bestMatch <M extends Match> (... predicatesOrMatchers: (Predicat
         let bestMatch: Match = { score: 0 };
 
         const subscription = Observable.from(predicatesOrMatchers)
-            .takeWhile(_ => bestMatch.score < 1)
+            .takeWhile(_ => toScore(bestMatch.score) < 1)
             .concatMap(predicateOrMatcher => tryMatch(predicateOrMatcher, m))
             .subscribe(
                 (match: Match) => {
-                    const matchWithScore = match.score == null
-                        ? {
-                            ... match,
-                            score: toScore(match.score)
-                        }
-                        : match;
-
-                    if (matchWithScore.score > bestMatch.score) {
-                        bestMatch = matchWithScore;
-                        if (bestMatch.score === 1) {
+                    if (toScore(match.score) > toScore(bestMatch.score)) {
+                        bestMatch = match;
+                        if (toScore(bestMatch.score) === 1) {
                             observer.next(bestMatch);
                             observer.complete();
                         }
@@ -314,7 +306,7 @@ export function bestMatch <M extends Match> (... predicatesOrMatchers: (Predicat
                 error =>
                     observer.error(error),
                 () => {
-                    if (bestMatch.score > 0)
+                    if (toScore(bestMatch.score) > 0)
                         observer.next(bestMatch);
                     observer.complete();
                 }
