@@ -75,9 +75,9 @@ function filteredRouter$ <M extends Match> (... routersOrHandlers: RouterOrHandl
 }
 
 export function first <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
-    const routers = filteredRouter$(... routersOrHandlers);
+    const router$ = filteredRouter$(... routersOrHandlers);
     return {
-        getRoute: (m) => routers
+        getRoute: (m) => router$
             .concatMap(
                 (router, i) => {
                     konsole.log(`first: trying router #${i}`);
@@ -98,40 +98,43 @@ function toScore (score: number) {
     return score == null ? 1 : score;
 }
 
-const takeWhileInclusive = <R>(predicate: (r: R) => boolean) => (source: Observable<R>) =>
-    new Observable(observer => {
-        const subscription = source.subscribe({
-            next: value => {
-                observer.next(value);
-
-                if (!predicate(value)) {
-                    observer.complete();
-                }
-            },
-            error: error => observer.error(error),
-            complete: () => observer.complete()
-        });
-
-        return () => subscription.unsubscribe();
-    });
-
 export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
-    const routers = filteredRouter$(... routersOrHandlers);
+    const router$ = filteredRouter$(... routersOrHandlers);
     return {
-        getRoute: (m) => routers
-            .concatMap(
-                (router, i) => {
-                    konsole.log(`best: trying router #${i}`);
-                    return router.getRoute(m)
-                        .do(n => konsole.log(`best: router #${i} succeeded`, n));
-                }
-            )
-            .let<Route, Route>(takeWhileInclusive<Route>(route => toScore(route.score) < 1))
-            .scan(
-                (prev, current) => toScore(prev.score) >= toScore(current.score) ? prev : current,
-                minRoute
-            )
-            .filter(route => toScore(route.score) > 0)
+        getRoute: (m) => new Observable<Route>(observer => {
+            let bestRoute: Route = minRoute;
+
+            const subscription = router$
+                .takeWhile(_ => bestRoute.score < 1)
+                .concatMap(router => router.getRoute(m))
+                .subscribe(
+                    route => {
+                        const routeWithScore = route.score == null
+                            ? {
+                                ... route,
+                                score: toScore(route.score)
+                            }
+                            : route;
+
+                        if (routeWithScore.score > bestRoute.score) {
+                            bestRoute = routeWithScore;
+                            if (bestRoute.score === 1) {
+                                observer.next(bestRoute);
+                                observer.complete();
+                            }
+                        }
+                    },
+                    error =>
+                        observer.error(error),
+                    () => {
+                        if (bestRoute.score > 0)
+                            observer.next(bestRoute);
+                        observer.complete();
+                    }
+                );
+
+            return () => subscription.unsubscribe();
+        })
     }
 }
 
@@ -277,12 +280,36 @@ export function firstMatch <M extends Match> (... predicatesOrMatchers: (Predica
 
 export function bestMatch <M extends Match> (... predicatesOrMatchers: (Predicate<M> | Matcher<M>)[]): Matcher<M> {
     konsole.log("bestMatch", predicatesOrMatchers);
-    return m =>
-        Observable.from(predicatesOrMatchers)
+    return m => new Observable<Match>(observer => {
+        let bestMatch: Match = { score: 0 };
+
+        const subscription = Observable.from(predicatesOrMatchers)
+            .takeWhile(_ => bestMatch.score < 1)
             .concatMap(predicateOrMatcher => tryMatch(predicateOrMatcher, m))
-            .do((match: Match) => console.log("after flatMap", match))
-            // .takeWhile((match: Match) => toScore(match.score) !== 1)
-            .do((match: Match) => console.log("after takeWhile", match))
-            .scan<Match, Match>((prevMatch, match) => toScore(prevMatch.score) >= toScore(match.score) ? prevMatch : match, { score: 0 })
-            .filter(match => match.score > 0);
+            .subscribe(
+                (match: Match) => {
+                    const matchWithScore = match.score == null
+                        ? {
+                            ... match,
+                            score: toScore(match.score)
+                        }
+                        : match;
+
+                    if (matchWithScore.score > bestMatch.score) {
+                        bestMatch = matchWithScore;
+                        if (bestMatch.score === 1) {
+                            observer.next(bestMatch);
+                            observer.complete();
+                        }
+                    }
+                },
+                error =>
+                    observer.error(error),
+                () => {
+                    if (bestMatch.score > 0)
+                        observer.next(bestMatch);
+                    observer.complete();
+                }
+            )
+    });
 }

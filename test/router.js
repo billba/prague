@@ -434,17 +434,18 @@ describe('first', () => {
     });
 
     it('should convert a handler to a router, and route to it', (done) => {
-        let foo = false;
+        let routed;
+
         routeMessage(
             first(
                 m => {
-                    foo = true;
+                    routed = true;
                 }
             ),
             foo
         )
             .subscribe(n => {
-                expect(foo).to.be.true;
+                expect(routed).to.be.true;
                 done();
             });
     });
@@ -554,8 +555,9 @@ describe('best', () => {
             .subscribe(throwErr, passErr, done)
     });
 
-    it('should convert a scoreless handler to a router, and route to it', (done) => {
-        let routed = false;
+    it('should convert a handler to a router, and route to it', (done) => {
+        let routed;
+
         routeMessage(
             best(
                 m => {
@@ -565,7 +567,7 @@ describe('best', () => {
             foo
         )
             .subscribe(n => {
-                expect(foo).to.be.true;
+                expect(routed).to.be.true;
                 done();
             });
     });
@@ -624,7 +626,7 @@ describe('best', () => {
             });
     });
 
-    it('should return the first route where score=1', (done) => {
+    it('should return the first route where score=1, never trying the rest', (done) => {
         let routed;
 
         routeMessage(
@@ -1454,7 +1456,6 @@ describe('bestMatch', () => {
 
     it('should pass through true predicate', (done) => {
         tryMatch(bestMatch(m => true), foo).subscribe(n => {
-            console.log("n", n);
             expect(n).to.containSubset(foo);
             done();
         });
