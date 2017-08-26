@@ -231,6 +231,8 @@ export function catchRoute <M extends Match> (routerOrHandler: RouterOrHandler<M
     }
 }
 
+// ifMatch(m1, ifMatch(m2, router)) === ifMatch(matchAll(m1, m2), router)
+
 export function matchAll <M extends Match, Z extends Match> (m1: Matcher<M, Z>): Matcher<M, Z>
 export function matchAll <M extends Match> (p1: Predicate<M>): Matcher<M, M>
 
@@ -277,6 +279,8 @@ export function matchAll <M extends Match> (... predicatesOrMatchers: (Predicate
     }
 }
 
+// ifMatch(firstMatch(m1, m2), router) === first(ifMatch(m1, router), ifMatch(m2, router))
+
 export function firstMatch <M extends Match> (... predicatesOrMatchers: (Predicate<M> | Matcher<M>)[]): Matcher<M> {
     konsole.log("firstMatch", predicatesOrMatchers);
     return m =>
@@ -284,6 +288,8 @@ export function firstMatch <M extends Match> (... predicatesOrMatchers: (Predica
             .concatMap(predicateOrMatcher => tryMatch(predicateOrMatcher, m))
             .take(1);
 }
+
+// ifMatch(bestMatch(m1, m2), router) === best(ifMatch(m1, router), ifMatch(m2, router))
 
 export function bestMatch <M extends Match> (... predicatesOrMatchers: (Predicate<M> | Matcher<M>)[]): Matcher<M> {
     konsole.log("bestMatch", predicatesOrMatchers);
