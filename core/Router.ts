@@ -246,13 +246,13 @@ export function matchAll <M extends Match, Z extends Match> (p1: Matcher<M>, m2:
 export function matchAll <M extends Match, Z extends Match> (p1: Predicate<M>, p2: Predicate<M>, m3: Matcher<M, Z>, routerOrHandler: RouterOrHandler<Z>): Matcher<M, Z>
 export function matchAll <M extends Match> (p1: Predicate<M>, p2: Predicate<M>, p3: Predicate<M>): Matcher<M, M>
 
-export function matchAll <M extends Match> (... matchersOrPredicates: (Matcher|Predicate)[]): Matcher<M>
+export function matchAll <M extends Match> (... predicatesOrMatchers: (Predicate | Matcher)[]): Matcher<M>
 
-export function matchAll <M extends Match> (... args: Matcher[]): Matcher<M> {
+export function matchAll <M extends Match> (... predicatesOrMatchers: (Predicate | Matcher)[]): Matcher<M> {
     return m => {
-        konsole.log("matchAll", args, m)
-        return Observable.from(args)
-            .reduce<Matcher, Observable<any>> (
+        konsole.log("matchAll", predicatesOrMatchers, m)
+        return Observable.from(predicatesOrMatchers)
+            .reduce<Predicate | Matcher, Observable<Match>> (
                 (prevObservable, currentMatcher, i) =>
                     prevObservable
                     .flatMap(prevMatch => {
