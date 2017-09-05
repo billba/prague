@@ -31,13 +31,11 @@ export interface Match {
     score?: number;
 }
 
-export interface Router <M extends Match> {
-    getRoute(m: M): Observable<Route>;
+export class Router <M extends Match> {
+    constructor(public getRoute: (m: M) => Observable<Route>) {}
 }
 
-export const nullRouter = {
-    getRoute: (m) => Observable.empty()
-} as Router<any>;
+export const nullRouter = new Router<any>((m) => Observable.empty());
 
 export function routeMessage <M extends Match> (router: Router<M>, m: M) {
     return router.getRoute(m)
@@ -56,12 +54,10 @@ export function isRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>)
     return ((routerOrHandler as any).getRoute !== undefined);
 }
 
-export function simpleRouter <M extends Match> (handler: Handler<M>): Router<M> {
-    return {
-        getRoute: (m) => Observable.of({
-            action: () => handler(m)
-        } as Route)
-    }
+export function simpleRouter <M extends Match> (handler: Handler<M>) {
+    return new Router<M>((m) => Observable.of({
+        action: () => handler(m)
+    } as Route));
 }
 
 export function toRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>): Router<M> {
@@ -74,19 +70,18 @@ function filteredRouter$ <M extends Match> (... routersOrHandlers: RouterOrHandl
         .map(routerOrHandler => toRouter(routerOrHandler));
 }
 
-export function first <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
+export function first <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
     const router$ = filteredRouter$(... routersOrHandlers);
-    return {
-        getRoute: (m) => router$
-            .concatMap(
-                (router, i) => {
-                    konsole.log(`first: trying router #${i}`);
-                    return router.getRoute(m)
-                        .do(n => konsole.log(`first: router #${i} succeeded`, n));
-                }
-            )
-            .take(1) // so that we don't keep going through routers after we find one that matches
-    }
+    return new Router<M>((m) => router$
+        .concatMap(
+            (router, i) => {
+                konsole.log(`first: trying router #${i}`);
+                return router.getRoute(m)
+                    .do(n => konsole.log(`first: router #${i} succeeded`, n));
+            }
+        )
+        .take(1) // so that we don't keep going through routers after we find one that matches
+    );
 }
 
 const minRoute: Route = {
@@ -107,45 +102,42 @@ export function addScore<T extends { score?: number }>(t: T, score: number): T {
         } as T;
 }
 
-export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]): Router<M> {
+export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
     const router$ = filteredRouter$(... routersOrHandlers);
-    return {
-        getRoute: (m) => new Observable<Route>(observer => {
-            let bestRoute: Route = minRoute;
+    return new Router<M>((m) => new Observable<Route>(observer => {
+        let bestRoute: Route = minRoute;
 
-            const subscription = router$
-                .takeWhile(_ => toScore(bestRoute.score) < 1)
-                .concatMap(router => router.getRoute(m))
-                .subscribe(
-                    route => {
-                        if (toScore(route.score) > toScore(bestRoute.score)) {
-                            bestRoute = route;
-                            if (toScore(bestRoute.score) === 1) {
-                                observer.next(bestRoute);
-                                observer.complete();
-                            }
-                        }
-                    },
-                    error =>
-                        observer.error(error),
-                    () => {
-                        if (toScore(bestRoute.score) > 0)
+        const subscription = router$
+            .takeWhile(_ => toScore(bestRoute.score) < 1)
+            .concatMap(router => router.getRoute(m))
+            .subscribe(
+                route => {
+                    if (toScore(route.score) > toScore(bestRoute.score)) {
+                        bestRoute = route;
+                        if (toScore(bestRoute.score) === 1) {
                             observer.next(bestRoute);
-                        observer.complete();
+                            observer.complete();
+                        }
                     }
-                );
+                },
+                error =>
+                    observer.error(error),
+                () => {
+                    if (toScore(bestRoute.score) > 0)
+                        observer.next(bestRoute);
+                    observer.complete();
+                }
+            );
 
-            return () => subscription.unsubscribe();
-        })
-    }
+        return () => subscription.unsubscribe();
+    }));
 }
 
-export function run <M extends Match> (handler: Handler<M>): Router<M> {
-    return {
-        getRoute: (m) =>
-            toObservable(handler(m))
-                .filter(_ => false)
-    }
+export function run <M extends Match> (handler: Handler<M>) {
+    return new Router<M>((m) =>
+        toObservable(handler(m))
+            .filter(_ => false)
+    );
 }
 
 export interface Matcher <M extends Match = {}, Z extends Match = {}> {
@@ -195,22 +187,21 @@ export function ifMatch <M extends Match> (
     predicateOrMatcher: Predicate<M> | Matcher<M>,
     ifRouterOrHandler: RouterOrHandler,
     elseRouterOrHandler?: RouterOrHandler,
-): Router<M> {
+) {
     const ifRouter = toRouter(ifRouterOrHandler);
     const elseRouter = elseRouterOrHandler
         ? toRouter(elseRouterOrHandler)
         : nullRouter;
-    return {
-        getRoute: (m) =>
-            tryMatch(predicateOrMatcher, m)
-                .defaultIfEmpty(null)
-                .flatMap((n: Match) => n
-                    ? ifRouter.getRoute(n)
-                        .map(route => routeWithCombinedScore(route, n.score))    
-                    : elseRouter.getRoute(m)
-                        .map(route => routeWithCombinedScore(route, m.score))    
-                )
-    }
+    return new Router<M>((m) =>
+        tryMatch(predicateOrMatcher, m)
+            .defaultIfEmpty(null)
+            .flatMap((n: Match) => n
+                ? ifRouter.getRoute(n)
+                    .map(route => routeWithCombinedScore(route, n.score))    
+                : elseRouter.getRoute(m)
+                    .map(route => routeWithCombinedScore(route, m.score))    
+            )
+    );
 }
 
 const thrownRoute: Route = {
@@ -218,17 +209,15 @@ const thrownRoute: Route = {
     action: () => {}
 };
 
-export function throwRoute <M extends Match> (): Router<M> {
-    return {
-        getRoute: (m) => Observable.of(thrownRoute)
-    }
+export function throwRoute <M extends Match> () {
+    return new Router<M>((m) => Observable.of(thrownRoute));
 }
 
 export function catchRoute <M extends Match> (routerOrHandler: RouterOrHandler<M>): Router<M> {
-    return {
-        getRoute: (m) => toRouter(routerOrHandler).getRoute(m)
-            .filter(route => !route.thrown)
-    }
+    return new Router<M>((m) => toRouter(routerOrHandler)
+        .getRoute(m)
+        .filter(route => !route.thrown)
+    );
 }
 
 // ifMatch(m1, ifMatch(m2, router)) === ifMatch(matchAll(m1, m2), router)
