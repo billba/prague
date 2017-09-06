@@ -3,7 +3,7 @@
 const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
-const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, toScore, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute, matchAll, firstMatch, bestMatch } = require('../dist/prague.js');
+const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, toScore, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute, matchAll, firstMatch, bestMatch, before, after } = require('../dist/prague.js');
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -1303,4 +1303,113 @@ describe('catchRoute', () => {
         )
             .subscribe(throwErr, passErr, done);
     });
+});
+
+describe("before", () => {
+    it("should complete and never emit with null router", (done) => {
+        routeMessage(
+            before(
+                throwErr,
+                nullRouter
+            ),
+            foo
+        )
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it("should run 'before' handler and then router's action when handler is supplied", (done) => {
+        let handled;
+        let routed;
+    
+        routeMessage(
+            before(
+                m => {
+                    handled = true;
+                },
+                m => {
+                    expect(handled).to.be.true;
+                    routed = true;
+                }
+            ))
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            });
+    });
+
+    it("should run 'before' handler and then router's action when router is supplied", (done) => {
+        let handled;
+        let routed;
+    
+        routeMessage(
+            before(
+                m => {
+                    handled = true;
+                },
+                simpleRouter(m => {
+                    expect(handled).to.be.true;
+                    routed = true;
+                })
+            ))
+            .subscribe(n => {
+                expect(routed).to.be.true;
+                done();
+            });
+    });
+
+});
+
+
+describe("after", () => {
+    it("should complete and never emit with null router", (done) => {
+        routeMessage(
+            after(
+                nullRouter,
+                throwErr
+            ),
+            foo
+        )
+            .subscribe(throwErr, passErr, done)
+    });
+
+    it("should run router's action and then 'after' handler when handler is supplied", (done) => {
+        let handled;
+        let routed;
+    
+        routeMessage(
+            after(
+                m => {
+                    routed = true;
+                },
+                m => {
+                    expect(routed).to.be.true;
+                    handled = true;
+                }
+            ))
+            .subscribe(n => {
+                expect(handled).to.be.true;
+                done();
+            });
+    });
+
+    it("should run router's action and then 'after' router when router is supplied", (done) => {
+        let handled;
+        let routed;
+    
+        routeMessage(
+            after(
+                simpleRouter(m => {
+                    routed = true;
+                }),
+                m => {
+                    expect(routed).to.be.true;
+                    handled = true;
+                }
+            ))
+            .subscribe(n => {
+                expect(handled).to.be.true;
+                done();
+            });
+    });
+
 });

@@ -217,3 +217,25 @@ export function catchRoute <M extends Match> (routerOrHandler: RouterOrHandler<M
         .filter(route => !route.thrown)
     );
 }
+
+export function before <M extends Match> (beforeHandler: Handler<M>, routerOrHandler: RouterOrHandler<M>) {
+    const router = toRouter(routerOrHandler);
+    return new Router<M>(m => router.getRoute(m)
+        .map(route => ({
+            ... route,
+            action: () => toObservable(beforeHandler(m))
+                .flatMap(_ => toObservable(route.action()))
+        }))
+    );
+}
+
+export function after <M extends Match> (routerOrHandler: RouterOrHandler<M>, afterHandler: Handler<M>) {
+    const router = toRouter(routerOrHandler);
+    return new Router<M>(m => router.getRoute(m)
+        .map(route => ({
+            ... route,
+            action: () => toObservable(route.action())
+                .flatMap(_ => toObservable(afterHandler(m)))
+        }))
+    );
+}
