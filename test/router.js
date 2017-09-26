@@ -323,17 +323,6 @@ describe('Router.route', () => {
     });
 });
 
-describe('Router.isRouter', () => {
-    it('should return true for a router', () => {
-        expect(Router.isRouter(Router.null)).to.be.true;
-    });
-
-     it('should return false for a handler', () => {
-        expect(Router.isRouter(m => true)).to.be.false;
-    });
-
-})
-
 describe('Router.fromHandler', () => {
     it("should convert a handler to a router", (done) => {
         let routed;
@@ -476,12 +465,10 @@ describe('first', () => {
 
 });
 
-const makeRouter = (score, action) => ({
-    getRoute: (m) => Observable.of({
-        score,
-        action
-    })
-});
+const makeRouter = (score, action) => new Router(m => Observable.of({
+    score,
+    action
+}));
 
 describe('best', () => {
     it('should complete and never emit on no routers', (done) =>
