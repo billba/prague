@@ -31,43 +31,43 @@ export interface Match {
     score?: number;
 }
 
-export class Router <M extends Match> {
-    constructor(public getRoute: (m: M) => Observable<Route>) {}
-}
-
-export const nullRouter = new Router<any>(m => Observable.empty());
-
-export function routeMessage <M extends Match> (router: Router<M>, m: M) {
-    return router.getRoute(m)
-        .do(route => konsole.log("handle: matched a route", route))
-        .flatMap(route => toObservable(route.action()))
-        .do(_ => konsole.log("handle: called action"));
-}
-
 export interface Handler <Z extends Match = {}> {
     (m: Z): Observableable<any>;
 }
 
 export type RouterOrHandler <M extends Match = {}> = Router<M> | Handler<M>;
 
-export function isRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>): routerOrHandler is Router<M> {
-    return ((routerOrHandler as any).getRoute !== undefined);
-}
+export class Router <M extends Match> {
+    constructor(public getRoute: (m: M) => Observable<Route>) {}
 
-export function simpleRouter <M extends Match> (handler: Handler<M>) {
-    return new Router<M>(m => Observable.of({
-        action: () => handler(m)
-    } as Route));
-}
+    private static isRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>): routerOrHandler is Router<M> {
+        return ((routerOrHandler as any).getRoute !== undefined);
+    }
+    
+    static fromHandler <M extends Match> (handler: Handler<M>) {
+        return new Router<M>(m => Observable.of({
+            action: () => handler(m)
+        } as Route));
+    }
+    
+    static from <M extends Match> (routerOrHandler: RouterOrHandler<M>) {
+        return Router.isRouter(routerOrHandler) ? routerOrHandler : Router.fromHandler(routerOrHandler);
+    }
 
-export function toRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>) {
-    return isRouter(routerOrHandler) ? routerOrHandler : simpleRouter(routerOrHandler);
+    static null = new Router<any>(m => Observable.empty());
+
+    route (m: M) {
+        return this.getRoute(m)
+            .do(route => konsole.log("handle: matched a route", route))
+            .flatMap(route => toObservable(route.action()))
+            .do(_ => konsole.log("handle: called action"));
+    }
 }
 
 function filteredRouter$ <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
     return Observable.from(routersOrHandlers)
         .filter(routerOrHandler => !!routerOrHandler)
-        .map(routerOrHandler => toRouter(routerOrHandler));
+        .map(routerOrHandler => Router.from(routerOrHandler));
 }
 
 export function first <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
@@ -187,10 +187,10 @@ export function ifMatch <M extends Match> (
     ifRouterOrHandler: RouterOrHandler,
     elseRouterOrHandler?: RouterOrHandler,
 ) {
-    const ifRouter = toRouter(ifRouterOrHandler);
+    const ifRouter = Router.from(ifRouterOrHandler);
     const elseRouter = elseRouterOrHandler
-        ? toRouter(elseRouterOrHandler)
-        : nullRouter;
+        ? Router.from(elseRouterOrHandler)
+        : Router.null;
     return new Router<M>(m => tryMatch(predicateOrMatcher, m)
         .defaultIfEmpty(null)
         .flatMap((n: Match) => n
@@ -212,14 +212,14 @@ export function throwRoute <M extends Match> () {
 }
 
 export function catchRoute <M extends Match> (routerOrHandler: RouterOrHandler<M>): Router<M> {
-    return new Router<M>(m => toRouter(routerOrHandler)
+    return new Router<M>(m => Router.from(routerOrHandler)
         .getRoute(m)
         .filter(route => !route.thrown)
     );
 }
 
 export function before <M extends Match> (beforeHandler: Handler<M>, routerOrHandler: RouterOrHandler<M>) {
-    const router = toRouter(routerOrHandler);
+    const router = Router.from(routerOrHandler);
     return new Router<M>(m => router.getRoute(m)
         .map(route => ({
             ... route,
@@ -230,7 +230,7 @@ export function before <M extends Match> (beforeHandler: Handler<M>, routerOrHan
 }
 
 export function after <M extends Match> (routerOrHandler: RouterOrHandler<M>, afterHandler: Handler<M>) {
-    const router = toRouter(routerOrHandler);
+    const router = Router.from(routerOrHandler);
     return new Router<M>(m => router.getRoute(m)
         .map(route => ({
             ... route,

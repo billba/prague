@@ -3,7 +3,7 @@
 const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
-const { toObservable, toFilteredObservable, isRouter, simpleRouter, toRouter, routeMessage, first, best, run, tryMatch, toScore, routeWithCombinedScore, ifMatch, nullRouter, throwRoute, catchRoute, matchAll, firstMatch, bestMatch, before, after } = require('../dist/prague.js');
+const { toObservable, toFilteredObservable, Router, first, best, run, tryMatch, toScore, routeWithCombinedScore, ifMatch, throwRoute, catchRoute, before, after } = require('../dist/prague.js');
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -274,9 +274,9 @@ describe('toFilteredObservable', () => {
 
 });
 
-describe('nullRouter', () => {
+describe('Router.null', () => {
     it('should not route', (done) => {
-        nullRouter
+        Router.null
             .getRoute(foo)
             .subscribe(throwErr, passErr, done);
     });
@@ -286,11 +286,9 @@ describe('(test code) testRouter', () => {
     it('should route', (done) => {
         let routed;
 
-        const testRouter = {
-            getRoute: (m) => Observable.of({
-                action: () => { routed = true; }
-            })
-        }
+        const testRouter = new Router(m => Observable.of({
+            action: () => { routed = true; }
+        }));
 
         testRouter
             .getRoute(foo)
@@ -302,28 +300,22 @@ describe('(test code) testRouter', () => {
     });
 });
 
-describe('routeMessage', () => {
-    it("should complete and never commit on nullRouter", (done) => {
-        routeMessage(
-            nullRouter,
-            foo
-        )
+describe('Router.route', () => {
+    it("should complete and never commit on Router.null", (done) => {
+        Router.null
+            .route(foo)
             .subscribe(throwErr, passErr, done);
     });
 
     it("should route to testRouter", (done) => {
         let routed;
 
-        const testRouter = {
-            getRoute: (m) => Observable.of({
-                action: () => { routed = true; }
-            })
-        }
+        const testRouter = new Router(m => Observable.of({
+            action: () => { routed = true; }
+        }));
 
-        routeMessage(
-            testRouter,
-            foo
-        )
+        testRouter
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -331,27 +323,25 @@ describe('routeMessage', () => {
     });
 });
 
-describe('isRouter', () => {
+describe('Router.isRouter', () => {
     it('should return true for a router', () => {
-        expect(isRouter(nullRouter)).to.be.true;
+        expect(Router.isRouter(Router.null)).to.be.true;
     });
 
      it('should return false for a handler', () => {
-        expect(isRouter(m => true)).to.be.false;
+        expect(Router.isRouter(m => true)).to.be.false;
     });
 
 })
 
-describe('simpleRouter', () => {
+describe('Router.fromHandler', () => {
     it("should convert a handler to a router", (done) => {
         let routed;
 
-        routeMessage(
-            simpleRouter(m => {
-                routed = true;
-            }),
-            foo
-        )
+        Router.fromHandler(m => {
+            routed = true;
+        })
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -359,16 +349,14 @@ describe('simpleRouter', () => {
     });
 });
 
-describe('toRouter', () => {
+describe('Router.from', () => {
     it('should convert a router to a router', (done) => {
         let routed;
 
-        routeMessage(
-            toRouter(simpleRouter(m => {
-                routed = true;
-            })),
-            foo
-        )
+        Router.from(Router.fromHandler(m => {
+            routed = true;
+        }))
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -378,12 +366,10 @@ describe('toRouter', () => {
     it('should convert a handler to a router', (done) => {
         let routed;
 
-        routeMessage(
-            toRouter(m => {
-                routed = true;
-            }),
-            foo
-        )
+        Router.from(m => {
+            routed = true;
+        })
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -393,57 +379,47 @@ describe('toRouter', () => {
 
 describe('first', () => {
     it('should complete and never emit on no routers', (done) =>
-        routeMessage(
-            first(),
-            foo
-        )
+        first()
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it('should complete and never emit on only null/undefined routers', (done) =>
-        routeMessage(
-            first(
-                null,
-                undefined
-            ),
-            foo
+        first(
+            null,
+            undefined
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it('should complete and never emit on only unsuccessful and null/undefined routers', (done) =>
-        routeMessage(
-            first(
-                nullRouter,
-                null,
-                undefined
-            ),
-            foo
+        first(
+            Router.null,
+            null,
+            undefined
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it('should complete and never emit on no successful routers', (done) => {
-        routeMessage(
-            first(
-                nullRouter
-            ),
-            foo
+        first(
+            Router.null
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     });
 
     it('should convert a handler to a router, and route to it', (done) => {
         let routed;
 
-        routeMessage(
-            first(
-                m => {
-                    routed = true;
-                }
-            ),
-            foo
+        first(
+            m => {
+                routed = true;
+            }
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -453,14 +429,12 @@ describe('first', () => {
     it('should route to a single successful router', (done) => {
         let routed;
 
-        routeMessage(
-            first(
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        first(
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -470,16 +444,14 @@ describe('first', () => {
     it('should ignore null/undefined routers and route to a successful router', (done) => {
         let routed;
 
-        routeMessage(
-            first(
-                null,
-                undefined,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            false
+        first(
+            null,
+            undefined,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -489,15 +461,13 @@ describe('first', () => {
     it('should skip an unsuccessful router and route to a successful router', (done) => {
         let routed;
 
-        routeMessage(
-            first(
-                nullRouter,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        first(
+            Router.null,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -515,57 +485,47 @@ const makeRouter = (score, action) => ({
 
 describe('best', () => {
     it('should complete and never emit on no routers', (done) =>
-        routeMessage(
-            best(),
-            foo
-        )
+        best()
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it('should complete and never emit on only null/undefined routers', (done) =>
-        routeMessage(
-            best(
-                null,
-                undefined
-            ),
-            foo
+        best(
+            null,
+            undefined
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it('should complete and never emit on only unsuccessful and null/undefined routers', (done) =>
-        routeMessage(
-            best(
-                nullRouter,
-                null,
-                undefined
-            ),
-            foo
+        best(
+            Router.null,
+            null,
+            undefined
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it('should complete and never emit on no successful routers', (done) => {
-        routeMessage(
-            best(
-                nullRouter
-            ),
-            foo
+        best(
+            Router.null
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     });
 
     it('should convert a handler to a router, and route to it', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                m => {
-                    routed = true;
-                }
-            ),
-            foo
+        best(
+            m => {
+                routed = true;
+            }
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -575,14 +535,12 @@ describe('best', () => {
     it('should route to a single successful scoreless router', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        best(
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -592,16 +550,14 @@ describe('best', () => {
     it('should ignore null/undefined routers and route to a successful scoreless router', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                null,
-                undefined,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        best(
+            null,
+            undefined,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -611,15 +567,13 @@ describe('best', () => {
     it('should skip an unsuccessful router and route to a successful scoreless router', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                nullRouter,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        best(
+            Router.null,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -629,15 +583,13 @@ describe('best', () => {
     it('should return the first route where score=1, never trying the rest', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                m => {
-                    routed = true;
-                },
-                throwErr
-            ),
-            foo
+        best(
+            m => {
+                routed = true;
+            },
+            throwErr
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -647,13 +599,11 @@ describe('best', () => {
     it('should return the higher scoring route when it is first', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                makeRouter(0.75, _ => { routed = 'first'; }),
-                makeRouter(0.50, _ => { routed = 'second'; })
-            ),
-            foo
+        best(
+            makeRouter(0.75, _ => { routed = 'first'; }),
+            makeRouter(0.50, _ => { routed = 'second'; })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
                 done();
@@ -663,13 +613,11 @@ describe('best', () => {
     it('should return the higher scoring route when it is second', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                makeRouter(0.50, _ => { routed = 'first'; }),
-                makeRouter(0.75, _ => { routed = 'second'; })
-            ),
-            foo
+        best(
+            makeRouter(0.50, _ => { routed = 'first'; }),
+            makeRouter(0.75, _ => { routed = 'second'; })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.eql('second');
                 done();
@@ -679,13 +627,11 @@ describe('best', () => {
     it('should treat missing scores as 1', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                makeRouter(undefined, _ => { routed = 'first'; }),
-                makeRouter(0.75, _ => { routed = 'second'; })
-            ),
-            foo
+        best(
+            makeRouter(undefined, _ => { routed = 'first'; }),
+            makeRouter(0.75, _ => { routed = 'second'; })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
                 done();
@@ -695,13 +641,11 @@ describe('best', () => {
     it('should return the first of two tied scores', (done) => {
         let routed;
 
-        routeMessage(
-            best(
-                makeRouter(0.75, _ => { routed = 'first'; }),
-                makeRouter(0.75, _ => { routed = 'second'; })
-            ),
-            foo
+        best(
+            makeRouter(0.75, _ => { routed = 'first'; }),
+            makeRouter(0.75, _ => { routed = 'second'; })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
                 done();
@@ -714,14 +658,12 @@ describe('run', () => {
     it("should execute the handler, complete, and never emit", (done) => {
         let routed;
 
-        routeMessage(
-            run(
-                m => {
-                    routed = true;
-                }
-            ),
-            foo
+        run(
+            m => {
+                routed = true;
+            }
         )
+            .route(foo)
             .subscribe(throwErr, passErr, _ => {
                 expect(routed).to.be.true;
                 done()
@@ -806,110 +748,92 @@ describe('routeWithCombinedScore', () => {
 
 describe('ifMatch', () => {
     it("should complete and never emit on false predicate when 'else' router doesn't exist", (done) =>
-        routeMessage(
-            ifMatch(
-                m => false,
-                throwErr
-            ),
-            foo
+        ifMatch(
+            m => false,
+            throwErr
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on false predicate when 'else' router doesn't route", (done) =>
-        routeMessage(
-            ifMatch(
-                m => false,
-                throwErr,
-                nullRouter
-            ),
-            foo
+        ifMatch(
+            m => false,
+            throwErr,
+            Router.null
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on no match when 'else' router doesn't exist", (done) =>
-        routeMessage(
-            ifMatch(
-                addBar,
-                throwErr
-            ),
-            notFoo
+        ifMatch(
+            addBar,
+            throwErr
         )
+            .route(notFoo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on no match when 'else' router doesn't route", (done) =>
-        routeMessage(
-            ifMatch(
-                addBar,
-                throwErr,
-                nullRouter
-            ),
-            notFoo
+        ifMatch(
+            addBar,
+            throwErr,
+            Router.null
         )
+            .route(notFoo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on true predicate when 'if' router doesn't route and 'else' router doesn't exist", (done) =>
-        routeMessage(
-            ifMatch(
-                m => true,
-                nullRouter
-            ),
-            foo
+        ifMatch(
+            m => true,
+            Router.null
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on true predicate when 'if' router doesn't route and 'else' router exists", (done) =>
-        routeMessage(
-            ifMatch(
-                m => true,
-                nullRouter,
-                throwErr
-            ),
-            foo
+        ifMatch(
+            m => true,
+            Router.null,
+            throwErr
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on match when 'if' router doesn't route and 'else' router doesn't exist", (done) =>
-        routeMessage(
-            ifMatch(
-                addBar,
-                nullRouter
-            ),
-            foo
+        ifMatch(
+            addBar,
+            Router.null
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
 
     it("should complete and never emit on match when 'if' router doesn't route and 'else' router exists", (done) =>
-        routeMessage(
-            ifMatch(
-                addBar,
-                nullRouter,
-                throwErr
-            ),
-            foo
+        ifMatch(
+            addBar,
+            Router.null,
+            throwErr
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should route message to 'if' handler on true predicate when 'else' router doesn't exist", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                m => true,
-                m => {
-                    routed = true;
-                }
-            ),
-            foo
+        ifMatch(
+            m => true,
+            m => {
+                routed = true;
+            }
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -919,16 +843,14 @@ describe('ifMatch', () => {
     it("should route message to 'if' handler on true predicate when 'else' router exists", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                m => true,
-                m => {
-                    routed = true;
-                },
-                throwErr
-            ),
-            foo
+        ifMatch(
+            m => true,
+            m => {
+                routed = true;
+            },
+            throwErr
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -938,15 +860,13 @@ describe('ifMatch', () => {
     it("should route message to 'if' router on true predicate when 'else' router doesn't exist", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                m => true,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        ifMatch(
+            m => true,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -956,16 +876,14 @@ describe('ifMatch', () => {
     it("should route message to 'if' router on true predicate when 'else' router exists", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                m => true,
-                simpleRouter(m => {
-                    routed = true;
-                }),
-                throwErr
-            ),
-            foo
+        ifMatch(
+            m => true,
+            Router.fromHandler(m => {
+                routed = true;
+            }),
+            throwErr
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -975,15 +893,13 @@ describe('ifMatch', () => {
     it("should route message to 'if' handler on match when 'else' router doesn't exist", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                addBar,
-                m => {
-                    routed = true;
-                }
-            ),
-            foo
+        ifMatch(
+            addBar,
+            m => {
+                routed = true;
+            }
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -993,16 +909,14 @@ describe('ifMatch', () => {
     it("should route message to 'if' handler on match when 'else' router exists", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                addBar,
-                m => {
-                    routed = true;
-                },
-                throwErr
-            ),
-            foo
+        ifMatch(
+            addBar,
+            m => {
+                routed = true;
+            },
+            throwErr
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1012,15 +926,13 @@ describe('ifMatch', () => {
     it("should route message to 'if' router on match when 'else' router doesn't exist", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                addBar,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        ifMatch(
+            addBar,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1030,16 +942,14 @@ describe('ifMatch', () => {
     it("should route message to 'if' router on match when 'else' router exists", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-               addBar,
-                simpleRouter(m => {
-                    routed = true;
-                }),
-                throwErr
-            ),
-            foo
+        ifMatch(
+            addBar,
+            Router.fromHandler(m => {
+                routed = true;
+            }),
+            throwErr
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1050,16 +960,14 @@ describe('ifMatch', () => {
     it("should route message to 'else' handler on false predicate", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                m => false,
-                throwErr,
-                m => {
-                    routed = true;
-                }
-            ),
-            foo
+        ifMatch(
+            m => false,
+            throwErr,
+            m => {
+                routed = true;
+            }
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1069,16 +977,14 @@ describe('ifMatch', () => {
     it("should route message to 'else' router on false predicate", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                m => false,
-                throwErr,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            foo
+        ifMatch(
+            m => false,
+            throwErr,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1088,16 +994,14 @@ describe('ifMatch', () => {
     it("should route message to 'else' handler on no match", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                addBar,
-                throwErr,
-                m => {
-                    routed = true;
-                }
-            ),
-            notFoo
+        ifMatch(
+            addBar,
+            throwErr,
+            m => {
+                routed = true;
+            }
         )
+            .route(notFoo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1107,16 +1011,14 @@ describe('ifMatch', () => {
     it("should route message to 'else' router on no match", (done) => {
         let routed;
 
-        routeMessage(
-            ifMatch(
-                addBar,
-                throwErr,
-                simpleRouter(m => {
-                    routed = true;
-                })
-            ),
-            notFoo
+        ifMatch(
+            addBar,
+            throwErr,
+            Router.fromHandler(m => {
+                routed = true;
+            })
         )
+            .route(notFoo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1267,12 +1169,10 @@ describe('catchRoute', () => {
     it("should pass through the route from a handler", (done) => {
         let routed;
 
-        routeMessage(
-            catchRoute(m => {
-                routed = true;
-            }),
-            foo
-        )
+        catchRoute(m => {
+            routed = true;
+        })
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1282,12 +1182,10 @@ describe('catchRoute', () => {
     it("should pass through the route from a non-throwing router", (done) => {
         let routed;
 
-        routeMessage(
-            catchRoute(simpleRouter(m => {
-                routed = true;
-            })),
-            foo
-        )
+        catchRoute(Router.fromHandler(m => {
+            routed = true;
+        }))
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1297,23 +1195,19 @@ describe('catchRoute', () => {
     it("should complete and never emit with a thrown route", (done) => {
         let routed;
 
-        routeMessage(
-            catchRoute(throwRoute()),
-            foo
-        )
+        catchRoute(throwRoute())
+            .route(foo)
             .subscribe(throwErr, passErr, done);
     });
 });
 
 describe("before", () => {
     it("should complete and never emit with null router", (done) => {
-        routeMessage(
-            before(
-                throwErr,
-                nullRouter
-            ),
-            foo
+        before(
+            throwErr,
+            Router.null
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     });
 
@@ -1321,16 +1215,16 @@ describe("before", () => {
         let handled;
         let routed;
     
-        routeMessage(
-            before(
-                m => {
-                    handled = true;
-                },
-                m => {
-                    expect(handled).to.be.true;
-                    routed = true;
-                }
-            ))
+        before(
+            m => {
+                handled = true;
+            },
+            m => {
+                expect(handled).to.be.true;
+                routed = true;
+            }
+        )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1341,16 +1235,16 @@ describe("before", () => {
         let handled;
         let routed;
     
-        routeMessage(
-            before(
-                m => {
-                    handled = true;
-                },
-                simpleRouter(m => {
-                    expect(handled).to.be.true;
-                    routed = true;
-                })
-            ))
+        before(
+            m => {
+                handled = true;
+            },
+            Router.fromHandler(m => {
+                expect(handled).to.be.true;
+                routed = true;
+            })
+        )
+            .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -1362,13 +1256,11 @@ describe("before", () => {
 
 describe("after", () => {
     it("should complete and never emit with null router", (done) => {
-        routeMessage(
-            after(
-                nullRouter,
-                throwErr
-            ),
-            foo
+        after(
+            Router.null,
+            throwErr
         )
+            .route(foo)
             .subscribe(throwErr, passErr, done)
     });
 
@@ -1376,16 +1268,16 @@ describe("after", () => {
         let handled;
         let routed;
     
-        routeMessage(
-            after(
-                m => {
-                    routed = true;
-                },
-                m => {
-                    expect(routed).to.be.true;
-                    handled = true;
-                }
-            ))
+        after(
+            m => {
+                routed = true;
+            },
+            m => {
+                expect(routed).to.be.true;
+                handled = true;
+            }
+        )
+            .route(foo)
             .subscribe(n => {
                 expect(handled).to.be.true;
                 done();
@@ -1396,16 +1288,16 @@ describe("after", () => {
         let handled;
         let routed;
     
-        routeMessage(
-            after(
-                simpleRouter(m => {
-                    routed = true;
-                }),
-                m => {
-                    expect(routed).to.be.true;
-                    handled = true;
-                }
-            ))
+        after(
+            Router.fromHandler(m => {
+                routed = true;
+            }),
+            m => {
+                expect(routed).to.be.true;
+                handled = true;
+            }
+        )
+            .route(foo)
             .subscribe(n => {
                 expect(handled).to.be.true;
                 done();
