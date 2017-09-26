@@ -40,10 +40,6 @@ export type RouterOrHandler <M extends Match = {}> = Router<M> | Handler<M>;
 export class Router <M extends Match> {
     constructor(public getRoute: (m: M) => Observable<Route>) {}
 
-    private static isRouter <M extends Match> (routerOrHandler: RouterOrHandler<M>): routerOrHandler is Router<M> {
-        return ((routerOrHandler as any).getRoute !== undefined);
-    }
-    
     static fromHandler <M extends Match> (handler: Handler<M>) {
         return new Router<M>(m => Observable.of({
             action: () => handler(m)
@@ -51,7 +47,7 @@ export class Router <M extends Match> {
     }
     
     static from <M extends Match> (routerOrHandler: RouterOrHandler<M>) {
-        return Router.isRouter(routerOrHandler) ? routerOrHandler : Router.fromHandler(routerOrHandler);
+        return routerOrHandler instanceof Router ? routerOrHandler : Router.fromHandler(routerOrHandler);
     }
 
     static null = new Router<any>(m => Observable.empty());
