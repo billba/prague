@@ -46,12 +46,21 @@ export class Router <M extends Match> {
         } as Route));
     }
     
-    static from <M extends Match> (routerOrHandler: RouterOrHandler<M>) {
-        return routerOrHandler instanceof Router ? routerOrHandler : Router.fromHandler(routerOrHandler);
-    }
-
     static null = new Router<any>(m => Observable.empty());
 
+    static from <M extends Match> (routerOrHandler: RouterOrHandler<M>): Router<M> {
+        return routerOrHandler
+            ? routerOrHandler instanceof Router
+                ? routerOrHandler
+                : Router.fromHandler(routerOrHandler)
+            : Router.null;
+    }
+
+    static routersFrom <M extends Match> (routersOrHandlers: RouterOrHandler<M>[]) {
+        return routersOrHandlers
+            .map(routerOrHandler => Router.from(routerOrHandler));
+    }
+    
     route (m: M) {
         return this.getRoute(m)
             .do(route => konsole.log("handle: matched a route", route))
@@ -60,14 +69,8 @@ export class Router <M extends Match> {
     }
 }
 
-function filteredRouter$ <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
-    return Observable.from(routersOrHandlers)
-        .filter(routerOrHandler => !!routerOrHandler)
-        .map(routerOrHandler => Router.from(routerOrHandler));
-}
-
 export function first <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
-    const router$ = filteredRouter$(... routersOrHandlers);
+    const router$ = Observable.from(Router.routersFrom(routersOrHandlers));
     return new Router<M>(m => router$
         .concatMap(
             (router, i) => {
@@ -99,7 +102,7 @@ export function addScore<T extends { score?: number }>(t: T, score: number): T {
 }
 
 export function best <M extends Match> (... routersOrHandlers: RouterOrHandler<M>[]) {
-    const router$ = filteredRouter$(... routersOrHandlers);
+    const router$ = Observable.from(Router.routersFrom(routersOrHandlers)); 
     return new Router<M>(m => new Observable<Route>(observer => {
         let bestRoute: Route = minRoute;
 
@@ -184,9 +187,7 @@ export function ifMatch <M extends Match> (
     elseRouterOrHandler?: RouterOrHandler,
 ) {
     const ifRouter = Router.from(ifRouterOrHandler);
-    const elseRouter = elseRouterOrHandler
-        ? Router.from(elseRouterOrHandler)
-        : Router.null;
+    const elseRouter = Router.from(elseRouterOrHandler);
     return new Router<M>(m => tryMatch(predicateOrMatcher, m)
         .defaultIfEmpty(null)
         .flatMap((n: Match) => n
