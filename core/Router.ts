@@ -175,7 +175,6 @@ export class IfDoRouter <M extends Routable> extends Router<M> {
             .flatMap(n => n
                 ? ifRouter.getRoute(m)
                 : elseRouter.getRoute(m)
-                    .map(route => routeWithCombinedScore(route, m.score))    
             )
         );
     }
@@ -207,7 +206,6 @@ export class IfMatchRouter <M extends Routable, N extends Routable> extends Rout
                 ? ifRouter.getRoute(n)
                     .map(route => routeWithCombinedScore(route, n.score))    
                 : elseRouter.getRoute(m)
-                    .map(route => routeWithCombinedScore(route, m.score))    
             )
         );
     }
