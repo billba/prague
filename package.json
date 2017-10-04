@@ -4,7 +4,7 @@
     "type": "git",
     "url": "git://git@github.com/billba/prague.git"
   },
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "rules-based app engine",
   "main": "dist/prague.js",
   "types": "dist/prague.d.ts",
