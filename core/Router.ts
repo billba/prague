@@ -162,7 +162,7 @@ export function routeWithCombinedScore(route: Route, newScore: number) {
         } as Route;
 }
 
-export class IfDoRouter <M extends Routable> extends Router<M> {
+export class ifTrueRouter <M extends Routable> extends Router<M> {
     constructor (
         predicate: Predicate<M>,
         ifRouterOrHandler: RouterOrHandler<M>,
@@ -180,19 +180,19 @@ export class IfDoRouter <M extends Routable> extends Router<M> {
     }
 }
 
-export function ifDo <M extends Routable> (
+export function ifTrue <M extends Routable> (
     predicate: Predicate<M>,
     ifRouterOrHandler: RouterOrHandler<M>,
     elseRouterOrHandler?: RouterOrHandler<M>
-): IfDoRouter<M> {
-    return new IfDoRouter(predicate, ifRouterOrHandler, elseRouterOrHandler);
+): ifTrueRouter<M> {
+    return new ifTrueRouter(predicate, ifRouterOrHandler, elseRouterOrHandler);
 }
 
 export interface Matcher <M extends Routable = {}, Z extends Routable = {}> {
     (m: M): Observableable<Z>;
 }
 
-export class IfMatchRouter <M extends Routable, N extends Routable> extends Router<M> {
+export class ifMatchesRouter <M extends Routable, N extends Routable> extends Router<M> {
     constructor (
         matcher: Matcher<M, N>,
         ifRouterOrHandler: RouterOrHandler<N>,
@@ -211,12 +211,12 @@ export class IfMatchRouter <M extends Routable, N extends Routable> extends Rout
     }
 }
 
-export function ifMatch <M extends Routable, N extends Routable> (
+export function ifMatches <M extends Routable, N extends Routable> (
     matcher: Matcher<M, N>,
     ifRouterOrHandler: RouterOrHandler<N>,
     elseRouterOrHandler?: RouterOrHandler<M>
-): IfMatchRouter<M, N> {
-    return new IfMatchRouter(matcher, ifRouterOrHandler, elseRouterOrHandler);
+): ifMatchesRouter<M, N> {
+    return new ifMatchesRouter(matcher, ifRouterOrHandler, elseRouterOrHandler);
 }
 
 const thrownRoute: Route = {
