@@ -1153,49 +1153,32 @@ describe('catchRoute', () => {
     });
 });
 
-describe("before", () => {
+describe("Router.before", () => {
     it("should complete and never emit with null router", (done) => {
-        before(
-            throwErr,
-            Router.null
-        )
+        Router
+            .null
+            .doBefore(
+                throwErr
+            )
             .route(foo)
             .subscribe(throwErr, passErr, done)
     });
 
-    it("should run 'before' handler and then router's action when handler is supplied", (done) => {
-        let handled;
-        let routed;
-    
-        before(
-            m => {
-                handled = true;
-            },
-            m => {
-                expect(handled).to.be.true;
-                routed = true;
-            }
-        )
-            .route(foo)
-            .subscribe(n => {
-                expect(routed).to.be.true;
-                done();
-            });
-    });
 
-    it("should run 'before' handler and then router's action when router is supplied", (done) => {
+    it("should run 'before' handler and then router's action", (done) => {
         let handled;
         let routed;
     
-        before(
-            m => {
-                handled = true;
-            },
-            Router.fromHandler(m => {
+        Router
+            .fromHandler(m => {
                 expect(handled).to.be.true;
                 routed = true;
             })
-        )
+            .doBefore(
+                m => {
+                    handled = true;
+                }
+            )
             .route(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
@@ -1208,47 +1191,29 @@ describe("before", () => {
 
 describe("after", () => {
     it("should complete and never emit with null router", (done) => {
-        after(
-            Router.null,
-            throwErr
-        )
+        Router
+            .null
+            .doAfter(
+                throwErr
+            )
             .route(foo)
             .subscribe(throwErr, passErr, done)
-    });
-
-    it("should run router's action and then 'after' handler when handler is supplied", (done) => {
-        let handled;
-        let routed;
-    
-        after(
-            m => {
-                routed = true;
-            },
-            m => {
-                expect(routed).to.be.true;
-                handled = true;
-            }
-        )
-            .route(foo)
-            .subscribe(n => {
-                expect(handled).to.be.true;
-                done();
-            });
     });
 
     it("should run router's action and then 'after' router when router is supplied", (done) => {
         let handled;
         let routed;
     
-        after(
-            Router.fromHandler(m => {
+        Router
+            .fromHandler(m => {
                 routed = true;
-            }),
-            m => {
-                expect(routed).to.be.true;
-                handled = true;
-            }
-        )
+            })
+            .doAfter(
+                m => {
+                    expect(routed).to.be.true;
+                    handled = true;
+                }
+            )
             .route(foo)
             .subscribe(n => {
                 expect(handled).to.be.true;
