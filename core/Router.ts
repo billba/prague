@@ -98,20 +98,22 @@ export function first <M extends Routable> (... routersOrHandlers: RouterOrHandl
     return new FirstRouter(... routersOrHandlers);
 }
 
-const minRoute: Route = {
-    score: 0,
-    action: () => console.warn("This should never be called")
-}
-
 export function toScore (score: number) {
     return score == null ? 1 : score;
 }
 
 export class BestRouter <M extends Routable> extends Router<M> {
+    private static minRoute: Route = {
+        score: 0,
+        action: () => {
+            console.warn("BestRouter.minRoute.action should never be called");
+        }
+    }
+    
     constructor(... routersOrHandlers: RouterOrHandler<M>[]) {
         const router$ = Observable.from(Router.routersFrom(routersOrHandlers)); 
         super(m => new Observable<Route>(observer => {
-            let bestRoute: Route = minRoute;
+            let bestRoute: Route = BestRouter.minRoute;
 
             const subscription = router$
                 .takeWhile(_ => toScore(bestRoute.score) < 1)
@@ -160,18 +162,7 @@ export interface Predicate <M extends Routable = {}> {
     (m: M): Observableable<boolean>;
 }
 
-export function routeWithCombinedScore(route: Route, newScore: number) {
-    const score = toScore(newScore) * toScore(route.score);
-
-    return toScore(route.score) === score
-        ? route
-        : {
-            ... route,
-            score
-        } as Route;
-}
-
-export class ifTrueRouter <M extends Routable> extends Router<M> {
+export class IfTrueRouter <M extends Routable> extends Router<M> {
     constructor (
         predicate: Predicate<M>,
         thenRouterOrHandler: RouterOrHandler<M>,
@@ -193,15 +184,26 @@ export function ifTrue <M extends Routable> (
     predicate: Predicate<M>,
     thenRouterOrHandler: RouterOrHandler<M>,
     elseRouterOrHandler?: RouterOrHandler<M>
-): ifTrueRouter<M> {
-    return new ifTrueRouter(predicate, thenRouterOrHandler, elseRouterOrHandler);
+): IfTrueRouter<M> {
+    return new IfTrueRouter(predicate, thenRouterOrHandler, elseRouterOrHandler);
 }
 
 export interface Matcher <M extends Routable = {}, Z extends Routable = {}> {
     (m: M): Observableable<Z>;
 }
 
-export class ifMatchesRouter <M extends Routable, N extends Routable> extends Router<M> {
+export class IfMatchesRouter <M extends Routable, N extends Routable> extends Router<M> {
+    private static routeWithCombinedScore(route: Route, newScore: number) {
+        const score = toScore(newScore) * toScore(route.score);
+    
+        return toScore(route.score) === score
+            ? route
+            : {
+                ... route,
+                score
+            } as Route;
+    }
+    
     constructor (
         matcher: Matcher<M, N>,
         thenRouterOrHandler: RouterOrHandler<N>,
@@ -213,7 +215,7 @@ export class ifMatchesRouter <M extends Routable, N extends Routable> extends Ro
         super(m => toObservable(matcher(m))
             .flatMap(n => n
                 ? thenRouter.getRoute(n)
-                    .map(route => routeWithCombinedScore(route, n.score))    
+                    .map(route => IfMatchesRouter.routeWithCombinedScore(route, n.score))    
                 : elseRouter.getRoute(m)
             )
         );
@@ -224,8 +226,8 @@ export function ifMatches <M extends Routable, N extends Routable> (
     matcher: Matcher<M, N>,
     thenRouterOrHandler: RouterOrHandler<N>,
     elseRouterOrHandler?: RouterOrHandler<M>
-): ifMatchesRouter<M, N> {
-    return new ifMatchesRouter(matcher, thenRouterOrHandler, elseRouterOrHandler);
+): IfMatchesRouter<M, N> {
+    return new IfMatchesRouter(matcher, thenRouterOrHandler, elseRouterOrHandler);
 }
 
 const thrownRoute: Route = {

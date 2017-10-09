@@ -3,7 +3,7 @@
 const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
-const { toObservable, toFilteredObservable, Router, first, best, run, toScore, routeWithCombinedScore, ifTrue, ifMatches, throwRoute, catchRoute, before, after } = require('../dist/prague.js');
+const { toObservable, toFilteredObservable, Router, first, best, run, toScore, IfMatchesRouter, ifTrue, ifMatches, throwRoute, catchRoute, before, after } = require('../dist/prague.js');
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -658,9 +658,9 @@ describe('run', () => {
     })
 });
 
-describe('routeWithCombinedScore', () => {
+describe('IfMatchesRouter.routeWithCombinedScore', () => {
     it("should return score=1 with both scores undefined", () => {
-        expect(toScore(routeWithCombinedScore(
+        expect(toScore(IfMatchesRouter.routeWithCombinedScore(
             {
                 action: () => {}
             }
@@ -668,7 +668,7 @@ describe('routeWithCombinedScore', () => {
     });
 
     it("should return supplied score when route score undefined", () => {
-        expect(toScore(routeWithCombinedScore(
+        expect(toScore(IfMatchesRouter.routeWithCombinedScore(
             {
                 action: () => {}
             },
@@ -677,7 +677,7 @@ describe('routeWithCombinedScore', () => {
     });
 
     it("should return route score when supplied score undefined", () => {
-        expect(toScore(routeWithCombinedScore(
+        expect(toScore(IfMatchesRouter.routeWithCombinedScore(
             {
                 score: .13,
                 action: () => {}
@@ -686,7 +686,7 @@ describe('routeWithCombinedScore', () => {
     });
 
     it("should return combined score when both scores supplied", () => {
-        expect(toScore(routeWithCombinedScore(
+        expect(toScore(IfMatchesRouter.routeWithCombinedScore(
             {
                 score: .4,
                 action: () => {}
