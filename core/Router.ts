@@ -62,7 +62,8 @@ export class Router <M extends Routable> {
     }
     
     route (m: M) {
-        return this.getRoute(m)
+        return this
+            .getRoute(m)
             .do(route => konsole.log("route: returned a route", route))
             .flatMap(route => toObservable(route.action()))
             .do(_ => konsole.log("route: called action"));
@@ -85,7 +86,8 @@ export class FirstRouter <M extends Routable> extends Router<M> {
             .concatMap(
                 (router, i) => {
                     konsole.log(`first: trying router #${i}`);
-                    return router.getRoute(m)
+                    return router
+                        .getRoute(m)
                         .do(n => konsole.log(`first: router #${i} succeeded`, n));
                 }
             )
@@ -214,9 +216,11 @@ export class IfMatchesRouter <M extends Routable, N extends Routable> extends Ro
 
         super(m => toObservable(matcher(m))
             .flatMap(n => n
-                ? thenRouter.getRoute(n)
+                ? thenRouter
+                    .getRoute(n)
                     .map(route => IfMatchesRouter.routeWithCombinedScore(route, n.score))    
-                : elseRouter.getRoute(m)
+                : elseRouter
+                    .getRoute(m)
             )
         );
     }
@@ -240,7 +244,8 @@ export function throwRoute <M extends Routable> () {
 }
 
 export function catchRoute <M extends Routable> (routerOrHandler: RouterOrHandler<M>): Router<M> {
-    return new Router<M>(m => Router.from(routerOrHandler)
+    return new Router<M>(m => Router
+        .from(routerOrHandler)
         .getRoute(m)
         .filter(route => !route.thrown)
     );
@@ -249,7 +254,9 @@ export function catchRoute <M extends Routable> (routerOrHandler: RouterOrHandle
 export class BeforeRouter <M extends Routable> extends Router<M> {
     constructor (beforeHandler: Handler<M>, routerOrHandler: RouterOrHandler<M>) {
         const router = Router.from(routerOrHandler);
-        super(m => router.getRoute(m)
+
+        super(m => router
+            .getRoute(m)
             .map(route => ({
                 ... route,
                 action: () => toObservable(beforeHandler(m))
@@ -262,7 +269,9 @@ export class BeforeRouter <M extends Routable> extends Router<M> {
 export class AfterRouter <M extends Routable> extends Router<M> {
     constructor (afterHandler: Handler<M>, routerOrHandler: RouterOrHandler<M>) {
         const router = Router.from(routerOrHandler);
-        super(m => router.getRoute(m)
+
+        super(m => router
+            .getRoute(m)
             .map(route => ({
                 ... route,
                 action: () => toObservable(route.action())
