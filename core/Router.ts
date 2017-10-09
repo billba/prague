@@ -83,14 +83,12 @@ export class FirstRouter <M extends Routable> extends Router<M> {
     constructor (... routersOrHandlers: RouterOrHandler<M>[]) {
         const router$ = Observable.from(Router.routersFrom(routersOrHandlers));
         super(m => router$
-            .concatMap(
-                (router, i) => {
-                    konsole.log(`first: trying router #${i}`);
-                    return router
-                        .getRoute(m)
-                        .do(n => konsole.log(`first: router #${i} succeeded`, n));
-                }
-            )
+            .concatMap((router, i) => {
+                konsole.log(`first: trying router #${i}`);
+                return router
+                    .getRoute(m)
+                    .do(n => konsole.log(`first: router #${i} succeeded`, n));
+            })
             .take(1) // so that we don't keep going through routers after we find one that matches
         );    
     }
