@@ -23,30 +23,14 @@ Some types of applications you could build with Prague:
 
 ## Prague recipes
 
-Prague is a low-level framework. If you want to build an app you will want to use (or create) a `recipe`, which is a set of functionality that allows you to exchange messages with a given channel, using a given state store, etc. Here is a list of available recipes. Please post your own!
+Prague is a low-level framework. If you want to build an app you will want to use (or create) a `recipe`, which is a set of functionality that allows you to exchange messages with a given channel, using a given state store, etc.
 
-* [prague-botframework-browserbot](https://www.npmjs.com/package/prague-botframework-browserbot) - Build in-browser bots using the Bot Framework WebChat
-* [prague-nodeconsole](https://www.npmjs.com/package/prague-nodeconsole) - Build Node console bots
+As recipes emerge they will be posted here.
 
 ## Prague samples
 
-Prague includes an ever-growing number of samples which can be built and run by following the directions in each samples' README:
-
-* [Simple Dialog](/samples/simple-dialog)
-* [AlarmBot](/samples/alarmbot)
-* [Scaffold](/samples/scaffold) (this is a great place to start experimenting with your own bot, using concepts from the tutorial and the other samples)
+TBD
 
 # Tutorial
 
-* [Simple routing](docs/Simple.md)
-* [More on routing](docs/MoreRouters.md)
-* [State and routing](docs/State.md)
-* [Dialog](docs/Dialogs.md)
-
-## To be written
-
-* [More on Dialogs](docs/MoreDialogs.md)
-* [Prompts](docs/Prompts.md)
-* [Async](docs/Async.md)
-* [Natural Language](docs/NLP.md)
-* [Inside Prague](docs/Inside.md)
+TBD
