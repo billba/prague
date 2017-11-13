@@ -276,8 +276,13 @@ export class IfMatches <ROUTABLE, VALUE> {
     }
     
     and (predicate: (value: VALUE) => IfTrue<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
+    and (predicate: IfTrue<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
     and <TRANSFORMRESULT> (recognizer: (value: VALUE) => IfMatches<ROUTABLE, TRANSFORMRESULT>): IfMatches<ROUTABLE, TRANSFORMRESULT>;
-    and <TRANSFORMRESULT> (recognizer: (value: VALUE) => IfMatches<ROUTABLE, TRANSFORMRESULT>) {
+    and <TRANSFORMRESULT> (recognizer: IfMatches<ROUTABLE, TRANSFORMRESULT>): IfMatches<ROUTABLE, TRANSFORMRESULT>;
+    and <TRANSFORMRESULT> (arg) {
+        const recognizer = typeof(arg) === 'function'
+            ? arg as (value: VALUE) => IfMatches<ROUTABLE, any>
+            : (value: VALUE) => arg as IfMatches<ROUTABLE, any>;
         return new IfMatches((routable: ROUTABLE) => toObservable(this.matcher(routable))
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
             .flatMap(match => IfMatches.matchIsSuccess(match)

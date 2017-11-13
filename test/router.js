@@ -19,7 +19,7 @@ const bar = {
     bar: "bar"
 }
 
-const addBar = (m) => m.foo == "foo" && Object.assign({}, m, bar);
+const barIfFoo = (m) => m.foo == "foo" && bar;
 
 const fooPlusBar = {
     foo: "foo",
@@ -925,21 +925,21 @@ describe('ifTrue', () => {
 
 describe('ifMatches', () => {
     it("should complete and never emit on no match when 'else' router doesn't exist", (done) =>
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(throwErr)
             .route(notFoo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on no match when 'else' router doesn't exist", (done) =>
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenTry(Router.do(throwErr))
             .route(notFoo)
             .subscribe(throwErr, passErr, done)
     );
 
     it("should complete and never emit on no match when 'else' router doesn't route", (done) =>
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(throwErr)
             .elseTry(Router.no())
             .route(notFoo)
@@ -947,7 +947,7 @@ describe('ifMatches', () => {
     );
 
     it("should complete and never emit on match when 'if' router doesn't route and 'else' router exists", (done) =>
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenTry(Router.no())
             .elseDo(throwErr)
             .route(foo)
@@ -957,7 +957,7 @@ describe('ifMatches', () => {
     it("should route message to 'if' handler on match when 'else' router doesn't exist", (done) => {
         let routed;
 
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(m => {
                 routed = true;
             })
@@ -971,7 +971,7 @@ describe('ifMatches', () => {
     it("should route message to 'if' handler on match when 'else' router exists", (done) => {
         let routed;
 
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(m => {
                 routed = true;
             })
@@ -986,7 +986,7 @@ describe('ifMatches', () => {
     it("should route message to 'else' handler on no match", (done) => {
         let routed;
 
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(throwErr)
             .elseDo(m => {
                 routed = true;
@@ -1001,7 +1001,7 @@ describe('ifMatches', () => {
     it("should route message to 'else' router on no match", (done) => {
         let routed;
 
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(throwErr)
             .elseTry(Router.do(m => {
                 routed = true;
@@ -1014,7 +1014,7 @@ describe('ifMatches', () => {
     });
 
     it("should return score=1 when score not supplied", (done) => {
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(m => {})
             .getRoute(foo)
             .subscribe(route => {
@@ -1047,7 +1047,7 @@ describe('ifMatches', () => {
     });
 
     it("should return combined score when route score supplied", (done) => {
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenTry(Router.do(() => {}, .25))
             .getRoute(foo)
             .subscribe(route => {
@@ -1067,7 +1067,7 @@ describe('ifMatches', () => {
     });
 
     it("should return 'else' route score on no match", (done) => {
-        ifMatches(addBar)
+        ifMatches(barIfFoo)
             .thenDo(throwErr)
             .elseTry(Router.do(() => {}, .5))
             .getRoute(notFoo)
@@ -1076,4 +1076,61 @@ describe('ifMatches', () => {
                 done();
             })
     });
+
+    it("should transform an ifTrue result", (done) => {
+        let handled;
+        ifTrue(c => true)
+            .and(ifMatches(barIfFoo))
+            .thenDo((c, value) => {
+                handled = value;
+            })
+            .route(foo)
+            .subscribe(route => {
+                expect(handled.bar).to.eql("bar");
+                done();
+            });
+    });
+
+    it("should transform an ifTrue result with parameter", (done) => {
+        let handled;
+        ifTrue(c => true)
+            .and(value => ifMatches(barIfFoo))
+            .thenDo((c, value) => {
+                handled = value;
+            })
+            .route(foo)
+            .subscribe(route => {
+                expect(handled.bar).to.eql("bar");
+                done();
+            });
+    });
+
+    it("should transform an ifMatches result", (done) => {
+        let handled;
+        ifMatches(barIfFoo)
+            .and(ifMatches(c => ({ foobar: "foobar" })))
+            .thenDo((c, value) => {
+                handled = value;
+            })
+            .route(foo)
+            .subscribe(route => {
+                expect(handled.foobar).to.eql("foobar");
+                done();
+            });
+    });
+
+    it("should transform an ifMatches result with parameter", (done) => {
+        let handled;
+        ifMatches(barIfFoo)
+            .and(value => ifMatches(c => ({ foobar: value.bar })))
+            .thenDo((c, value) => {
+                handled = value;
+            })
+            .route(foo)
+            .subscribe(route => {
+                expect(handled.foobar).to.eql("bar");
+                done();
+            });
+    });
+
 });
