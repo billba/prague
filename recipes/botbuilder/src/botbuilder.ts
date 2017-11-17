@@ -7,7 +7,6 @@ class BotRouter extends Router<BotContext> {}
 export const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue } = new Helpers<BotContext>();
 export { BotRouter as Router }
 
-
 export const ifMessage = () => ifTrue(c => c.request.type === 'message' || { reason: "ifMessage"});
 
 export const ifText = () => ifMessage()
@@ -17,4 +16,12 @@ export const ifText = () => ifMessage()
     ));
 
 export const ifRegExp = (regexp: RegExp) => ifText()
-    .and(text => ifMatches(c => regexp.exec(text)));
+    .and(text => ifMatches(c => regexp.exec(text) || { reason: "ifRegExp" }));
+
+export const ifNumber = () => ifText()
+    .and(text => ifMatches(c => {
+        const number = Number(text);
+        return isNaN(number)
+            ? { reason: 'ifNumber' }
+            : { value: number }
+    }));
