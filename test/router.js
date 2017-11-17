@@ -4,7 +4,7 @@ const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
 const { toObservable, Router, toScore, routeWithCombinedScore, Helpers } = require('../dist/prague.js');
-const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue } = new Helpers();
+const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, ifTry } = new Helpers();
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -1085,7 +1085,7 @@ describe('ifMatches', () => {
                 handled = value;
             })
             .route(foo)
-            .subscribe(route => {
+            .subscribe(_ => {
                 expect(handled.bar).to.eql("bar");
                 done();
             });
@@ -1099,7 +1099,7 @@ describe('ifMatches', () => {
                 handled = value;
             })
             .route(foo)
-            .subscribe(route => {
+            .subscribe(_ => {
                 expect(handled.bar).to.eql("bar");
                 done();
             });
@@ -1113,7 +1113,7 @@ describe('ifMatches', () => {
                 handled = value;
             })
             .route(foo)
-            .subscribe(route => {
+            .subscribe(_ => {
                 expect(handled.foobar).to.eql("foobar");
                 done();
             });
@@ -1127,10 +1127,34 @@ describe('ifMatches', () => {
                 handled = value;
             })
             .route(foo)
-            .subscribe(route => {
+            .subscribe(_ => {
                 expect(handled.foobar).to.eql("bar");
                 done();
             });
     });
 
+});
+
+describe('ifTry', () => {
+    it("should pass through no route", (done) =>
+        ifTry(c => Router.no())
+            .getRoute(foo)
+            .subscribe(route => {
+                expect(route.type).to.eql('no');
+                done();
+            })
+    );
+
+    it("should run handler", (done) => {
+        let handled;
+
+        ifTry(c => Router.do(c => {
+            handled = true;
+        }))
+            .route(foo)
+            .subscribe(_ => {
+                expect(handled).to.be.true;
+                done();
+            })
+    });
 });

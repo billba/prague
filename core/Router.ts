@@ -109,8 +109,12 @@ export class Helpers <ROUTABLE> {
         return new IfMatches(matcher);
     }
 
-    ifTrue (predicate: Predicate<ROUTABLE>): IfTrue<ROUTABLE> {
+    ifTrue (predicate: Predicate<ROUTABLE>) {
         return new IfTrue(predicate);
+    }
+
+    ifTry(getRouter: (routable: ROUTABLE) => Observableable<Router<ROUTABLE>>) {
+        return new ChooseRouter(getRouter);
     }
 }
 
@@ -424,5 +428,13 @@ export class DefaultRouter <ROUTABLE> extends Router<ROUTABLE> {
                 : getDefaultRouter(route.reason).getRoute(routable)
             )
         );
+    }
+}
+
+export class ChooseRouter <ROUTABLE> extends Router<ROUTABLE> {
+    constructor (getRouter: (routable: ROUTABLE) => Observableable<Router<ROUTABLE>>) {
+        super(routable => toObservable(getRouter(routable))
+            .flatMap(router => router.getRoute(routable))
+        )
     }
 }
