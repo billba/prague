@@ -187,7 +187,7 @@ describe('Router.do', () => {
     it('should create a router returning an ActionRoute using supplied handler and no score', (done) => {
         let handled;
         Router.do(m => { handled = m; })
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('action');
                 expect(route.score).to.eql(1);
@@ -207,7 +207,7 @@ describe('(test code) testRouter', () => {
         )));
 
         testRouter
-            .getRoute(foo)
+            .getRoute$(foo)
             .flatMap(route => toObservable(route.action()))
             .subscribe(n => {
                 expect(routed).to.be.true;
@@ -237,7 +237,7 @@ describe('Router.noRoute', () => {
 describe('Router.no', () => {
     it('should create a router returning a NoRoute with default reason', (done) => {
         Router.no()
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no');
                 expect(route.reason).to.eql('none');
@@ -249,7 +249,7 @@ describe('Router.no', () => {
 
     it('should create a router returning a NoRoute with supplied reason', (done) => {
         Router.no('reason')
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no');
                 expect(route.reason).to.eql('reason');
@@ -261,10 +261,12 @@ describe('Router.no', () => {
 });
 
 describe('Router.route', () => {
-    it("should complete and never emit on Router.no", (done) => {
+    it("should return false on Router.no", (done) => {
         Router.no()
-            .route(foo)
-            .subscribe(throwErr, passErr, done);
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.false;
+            }, passErr, done);
     });
 
     it("should route to testRouter", (done) => {
@@ -275,23 +277,23 @@ describe('Router.route', () => {
         )));
 
         testRouter
-            .route(foo)
-            .subscribe(n => {
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 });
 
 describe("router.beforeDo", () => {
-    it("should complete and never emit with Router.no", (done) => {
+    it("should return false with Router.no", (done) => {
         Router
             .no()
             .beforeDo(
                 throwErr
             )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     });
 
 
@@ -309,24 +311,23 @@ describe("router.beforeDo", () => {
                     handled = true;
                 }
             )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 });
 
 describe("router.afterDo", () => {
-    it("should complete and never emit with Router.no", (done) => {
+    it("should return alse with Router.no", (done) => {
         Router
             .no()
             .afterDo(
                 throwErr
             )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
-    });
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
+        });
 
     it("should run router's action and then 'after' router when router is supplied", (done) => {
         let handled;
@@ -342,11 +343,10 @@ describe("router.afterDo", () => {
                     handled = true;
                 }
             )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(handled).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
 });
@@ -360,11 +360,10 @@ describe("router.defaultDo", () => {
                 routed = true;
             })
             .defaultDo(throwErr)
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should be run when router returns no route", (done) => {
@@ -375,11 +374,10 @@ describe("router.defaultDo", () => {
             .defaultDo(m => {
                 handled = true;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(handled).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 });
 
@@ -392,11 +390,10 @@ describe("router.defaultTry", () => {
                 routed = true;
             })
             .defaultTry(Router.do(throwErr))
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 });
 
@@ -409,11 +406,10 @@ describe("router.defaultTry", () => {
                 routed = true;
             })
             .defaultTry(reason => Router.do(throwErr))
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
     
     it("should be run when router returns no route", (done) => {
@@ -424,46 +420,45 @@ describe("router.defaultTry", () => {
             .defaultTry(reason => Router.do(m => {
                 handled = reason;
             }))
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(handled).to.eql('none');
-                done();
-            });
+            }, passErr, done);
     });
 });
 
 describe('tryInOrder', () => {
-    it('should complete and never emit on no routers', (done) =>
+    it('should return false on no routers', (done) =>
         tryInOrder()
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
-    )
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
+    );
 
-    it('should complete and never emit on only null/undefined routers', (done) =>
+    it('should return false on only null/undefined routers', (done) =>
         tryInOrder(
             null,
             undefined
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it('should complete and never emit on only unsuccessful and null/undefined routers', (done) =>
+    it('should return false on only unsuccessful and null/undefined routers', (done) =>
         tryInOrder(
             Router.no(),
             null,
             undefined
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it('should complete and never emit on no successful routers', (done) => {
+    it('should return false on no successful routers', (done) => {
         tryInOrder(
             Router.no()
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     });
 
     it('should route to a single successful router', (done) => {
@@ -474,11 +469,11 @@ describe('tryInOrder', () => {
                 routed = true;
             })
         )
-            .route(foo)
-            .subscribe(n => {
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should ignore null/undefined routers and route to a successful router', (done) => {
@@ -491,11 +486,10 @@ describe('tryInOrder', () => {
                 routed = true;
             })
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should skip an unsuccessful router and route to a successful router', (done) => {
@@ -507,47 +501,46 @@ describe('tryInOrder', () => {
                 routed = true;
             })
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
 });
 
 describe('tryInScoreOrder', () => {
-    it('should complete and never emit on no routers', (done) =>
+    it('should return false on no routers', (done) =>
         tryInScoreOrder()
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it('should complete and never emit on only null/undefined routers', (done) =>
+    it('should return false on only null/undefined routers', (done) =>
         tryInScoreOrder(
             null,
             undefined
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it('should complete and never emit on only unsuccessful and null/undefined routers', (done) =>
+    it('should return false on only unsuccessful and null/undefined routers', (done) =>
         tryInScoreOrder(
             Router.no(),
             null,
             undefined
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it('should complete and never emit on no successful routers', (done) => {
+    it('should return false on no successful routers', (done) => {
         tryInScoreOrder(
             Router.no()
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     });
 
     it('should route to a single successful scoreless router', (done) => {
@@ -558,11 +551,10 @@ describe('tryInScoreOrder', () => {
                 routed = true;
             })
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should ignore null/undefined routers and route to a successful scoreless router', (done) => {
@@ -575,11 +567,10 @@ describe('tryInScoreOrder', () => {
                 routed = true;
             })
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should skip an unsuccessful router and route to a successful scoreless router', (done) => {
@@ -591,11 +582,10 @@ describe('tryInScoreOrder', () => {
                 routed = true;
             })
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should return the first route where score=1, never trying the rest', (done) => {
@@ -607,11 +597,10 @@ describe('tryInScoreOrder', () => {
             }),
             throwErr
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should return the higher scoring route when it is first', (done) => {
@@ -621,11 +610,10 @@ describe('tryInScoreOrder', () => {
             Router.do(_ => { routed = 'first'; }, 0.75),
             Router.do(_ => { routed = 'second'; }, 0.50)
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should return the higher scoring route when it is second', (done) => {
@@ -635,11 +623,10 @@ describe('tryInScoreOrder', () => {
             Router.do(_ => { routed = 'first'; }, .5),
             Router.do(_ => { routed = 'second'; }, .75)
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.eql('second');
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should treat missing scores as 1', (done) => {
@@ -649,11 +636,10 @@ describe('tryInScoreOrder', () => {
             Router.do(_ => { routed = 'first'; }),
             Router.do(_ => { routed = 'second'; }, .75)
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
-                done();
-            });
+            }, passErr, done);
     });
 
     it('should return the first of two tied scores', (done) => {
@@ -663,16 +649,15 @@ describe('tryInScoreOrder', () => {
             Router.do(_ => { routed = 'first'; }, 0.75),
             Router.do(_ => { routed = 'second'; }, 0.75)
         )
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
-                done();
-            });
+            }, passErr, done);
     });
 });
 
 describe('Router.noop', () => {
-    it("should execute the handler, complete, and never emit", (done) => {
+    it("should execute the handler and return false", (done) => {
         let routed;
 
         Router.noop(
@@ -680,12 +665,12 @@ describe('Router.noop', () => {
                 routed = true;
             }
         )
-            .route(foo)
-            .subscribe(throwErr, passErr, _ => {
+            .route$(foo)
+            .subscribe(n => {
+                expect(n).to.be.false;
                 expect(routed).to.be.true;
-                done()
-            })
-    })
+            }, passErr, done);
+    });
 });
 
 describe('routeWithCombinedScore', () => {
@@ -698,34 +683,34 @@ describe('routeWithCombinedScore', () => {
 })
 
 describe('ifTrue', () => {
-    it("should complete and never emit on false when 'else' router doesn't exist", (done) =>
+    it("should return false on false when 'else' router doesn't exist", (done) =>
         ifTrue(m => false)
             .thenDo(throwErr)
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it("should complete and never emit on false when 'else' router doesn't route", (done) =>
+    it("should return false on false when 'else' router doesn't route", (done) =>
         ifTrue(m => false)
             .thenDo(throwErr)
             .elseTry(Router.no())
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it("should complete and never emit on true when 'if' router doesn't route and 'else' router doesn't exist", (done) =>
+    it("should return false on true when 'if' router doesn't route and 'else' router doesn't exist", (done) =>
         ifTrue(m => true)
             .thenTry(Router.no())
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it("should complete and never emit on true when 'if' router doesn't route and 'else' router exists", (done) =>
+    it("should return false on true when 'if' router doesn't route and 'else' router exists", (done) =>
         ifTrue(m => true)
             .thenTry(Router.no())
             .elseDo(throwErr)
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
     it("should route message to 'if' handler on true predicate when 'else' router doesn't exist", (done) => {
@@ -735,11 +720,10 @@ describe('ifTrue', () => {
             .thenDo(m => {
                 routed = true;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should route message to 'if' handler on true predicate when 'else' router exists", (done) => {
@@ -750,11 +734,10 @@ describe('ifTrue', () => {
                 routed = true;
             })
             .elseDo(throwErr)
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should route message to 'if' router on true predicate when 'else' router doesn't exist", (done) => {
@@ -764,13 +747,12 @@ describe('ifTrue', () => {
             .thenTry(Router.do(m => {
                 routed = true;
             }))
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
-
+    
     it("should route message to 'if' router on true predicate when 'else' router exists", (done) => {
         let routed;
 
@@ -779,11 +761,10 @@ describe('ifTrue', () => {
                 routed = true;
             }))
             .elseDo(throwErr)
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should route message to 'else' handler on false predicate", (done) => {
@@ -794,11 +775,10 @@ describe('ifTrue', () => {
             .elseDo(m => {
                 routed = true;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should route message to 'else' router on false predicate", (done) => {
@@ -809,7 +789,7 @@ describe('ifTrue', () => {
             .elseTry(Router.do(m => {
                 routed = true;
             }))
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
                 done();
@@ -819,49 +799,45 @@ describe('ifTrue', () => {
     it("should return score=1 on true predicate when 'if' score undefined", (done) => {
         ifTrue(m => true)
             .thenDo(m => {})
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(1);
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should return route score on true predicate", (done) => {
         ifTrue(m => true)
             .thenTry(Router.do(() => {}, 0.25))
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.25);
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should return score=1 on false predicate when 'else' score undefined", (done) => {
         ifTrue(m => false)
             .thenDo(throwErr)
             .elseDo(m => {})
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(1);
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should return 'else' route score on false predicate", (done) => {
         ifTrue(m => false)
             .thenDo(throwErr)
             .elseTry(Router.do(_ => {}, .5))
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.5);
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should throw on string", (done) => {
         ifTrue(m => 'foo')
             .thenDo(throwErr)
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(throwErr, error => {
                 done();
             }, throwErr);
@@ -870,7 +846,7 @@ describe('ifTrue', () => {
     it("should throw on object", (done) => {
         ifTrue(m => ({ foo: "foo" }))
             .thenDo(throwErr)
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(throwErr, error => {
                 done();
             }, throwErr);
@@ -879,21 +855,19 @@ describe('ifTrue', () => {
     it("should return a default reason on false", (done) => {
         ifTrue(m => false)
             .thenDo(throwErr)
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.reason).to.eql("none");
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should return supplied reason", (done) => {
         ifTrue(m => ({ reason: 'whatevs' }))
             .thenDo(throwErr)
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.reason).to.eql("whatevs");
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should use formal true value", (done) => {
@@ -901,13 +875,12 @@ describe('ifTrue', () => {
 
         ifTrue(m => ({ value: true, score: .5 }))
             .thenDo(m => { handled = true; })
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 route.action();
                 expect(handled).to.be.true;
                 expect(route.score).to.eql(.5);
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should use formal false value", (done) => {
@@ -915,43 +888,42 @@ describe('ifTrue', () => {
 
         ifTrue(m => ({ value: false }))
             .thenDo(throwErr)
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no')
-                done();
-            });
+            }, passErr, done);
     });
 });
 
 describe('ifMatches', () => {
-    it("should complete and never emit on no match when 'else' router doesn't exist", (done) =>
+    it("should return false on no match when 'else' router doesn't exist", (done) =>
         ifMatches(barIfFoo)
             .thenDo(throwErr)
-            .route(notFoo)
-            .subscribe(throwErr, passErr, done)
+            .route$(notFoo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it("should complete and never emit on no match when 'else' router doesn't exist", (done) =>
+    it("should return false on no match when 'else' router doesn't exist", (done) =>
         ifMatches(barIfFoo)
             .thenTry(Router.do(throwErr))
-            .route(notFoo)
-            .subscribe(throwErr, passErr, done)
+            .route$(notFoo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it("should complete and never emit on no match when 'else' router doesn't route", (done) =>
+    it("should return false on no match when 'else' router doesn't route", (done) =>
         ifMatches(barIfFoo)
             .thenDo(throwErr)
             .elseTry(Router.no())
-            .route(notFoo)
-            .subscribe(throwErr, passErr, done)
+            .route$(notFoo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
-    it("should complete and never emit on match when 'if' router doesn't route and 'else' router exists", (done) =>
+    it("should return false on match when 'if' router doesn't route and 'else' router exists", (done) =>
         ifMatches(barIfFoo)
             .thenTry(Router.no())
             .elseDo(throwErr)
-            .route(foo)
-            .subscribe(throwErr, passErr, done)
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
     it("should route message to 'if' handler on match when 'else' router doesn't exist", (done) => {
@@ -961,11 +933,10 @@ describe('ifMatches', () => {
             .thenDo(m => {
                 routed = true;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should route message to 'if' handler on match when 'else' router exists", (done) => {
@@ -976,11 +947,10 @@ describe('ifMatches', () => {
                 routed = true;
             })
             .elseDo(throwErr)
-            .route(foo)
+            .route$(foo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should route message to 'else' handler on no match", (done) => {
@@ -991,11 +961,10 @@ describe('ifMatches', () => {
             .elseDo(m => {
                 routed = true;
             })
-            .route(notFoo)
+            .route$(notFoo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should route message to 'else' router on no match", (done) => {
@@ -1006,17 +975,16 @@ describe('ifMatches', () => {
             .elseTry(Router.do(m => {
                 routed = true;
             }))
-            .route(notFoo)
+            .route$(notFoo)
             .subscribe(n => {
                 expect(routed).to.be.true;
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should return score=1 when score not supplied", (done) => {
         ifMatches(barIfFoo)
             .thenDo(m => {})
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(1);
                 done();
@@ -1026,11 +994,10 @@ describe('ifMatches', () => {
     it("should return supplied score", (done) => {
         ifMatches(m => ({ value: 'dog', score: 0.4 }))
             .thenDo(m => {})
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.4);
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should pass supplied value to handler", (done) => {
@@ -1039,42 +1006,38 @@ describe('ifMatches', () => {
             .thenDo((m, value) => {
                 handled = value;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(_ => {
                 expect(handled).to.eql('dog');
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should return combined score when route score supplied", (done) => {
         ifMatches(barIfFoo)
             .thenTry(Router.do(() => {}, .25))
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.25);
-                done();
-            })
+            }, passErr, done);
     });
     
     it("should return combined score when both scores supplied", (done) => {
         ifMatches(m => ({ value: 'cat', score: 0.4 }))
             .thenTry(Router.do(() => {}, .25))
-            .getRoute(foo)
+            .getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.1);
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should return 'else' route score on no match", (done) => {
         ifMatches(barIfFoo)
             .thenDo(throwErr)
             .elseTry(Router.do(() => {}, .5))
-            .getRoute(notFoo)
+            .getRoute$(notFoo)
             .subscribe(route => {
                 expect(route.score).to.eql(.5);
-                done();
-            })
+            }, passErr, done);
     });
 
     it("should transform an ifTrue result", (done) => {
@@ -1084,11 +1047,10 @@ describe('ifMatches', () => {
             .thenDo((c, value) => {
                 handled = value;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(_ => {
                 expect(handled.bar).to.eql("bar");
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should transform an ifTrue result with parameter", (done) => {
@@ -1098,11 +1060,10 @@ describe('ifMatches', () => {
             .thenDo((c, value) => {
                 handled = value;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(_ => {
                 expect(handled.bar).to.eql("bar");
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should transform an ifMatches result", (done) => {
@@ -1112,11 +1073,10 @@ describe('ifMatches', () => {
             .thenDo((c, value) => {
                 handled = value;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(_ => {
                 expect(handled.foobar).to.eql("foobar");
-                done();
-            });
+            }, passErr, done);
     });
 
     it("should transform an ifMatches result with parameter", (done) => {
@@ -1126,35 +1086,37 @@ describe('ifMatches', () => {
             .thenDo((c, value) => {
                 handled = value;
             })
-            .route(foo)
+            .route$(foo)
             .subscribe(_ => {
                 expect(handled.foobar).to.eql("bar");
-                done();
-            });
+            }, passErr, done);
     });
 
 });
 
-describe('ifTry', () => {
+describe('inline Router', () => {
     it("should pass through no route", (done) =>
-        ifTry(c => Router.no())
-            .getRoute(foo)
-            .subscribe(route => {
-                expect(route.type).to.eql('no');
-                done();
-            })
+        Router.do(c =>
+            Router.no()
+                .route(c)
+        )
+            .route$(foo)
+            .subscribe(t => expect(t).to.be.true, passErr, done)
     );
 
     it("should run handler", (done) => {
         let handled;
 
-        ifTry(c => Router.do(c => {
-            handled = true;
-        }))
-            .route(foo)
-            .subscribe(_ => {
-                expect(handled).to.be.true;
-                done();
+        Router.do(c =>
+            Router.do(c => {
+                handled = true;
             })
+                .route(c)
+        )
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(handled).to.be.true;
+            }, passErr, done);
     });
 });

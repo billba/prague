@@ -30,7 +30,7 @@ export type Handler <ROUTABLE> =
     (routable: ROUTABLE) => Observableable<any>;
 
 export class Router <ROUTABLE> {
-    constructor(public getRoute: (routable: ROUTABLE) => Observable<Route>) {}
+    constructor(public getRoute$: (routable: ROUTABLE) => Observable<Route>) {}
 
     static actionRoute (
         action: () => Observableable<any>,
@@ -65,13 +65,21 @@ export class Router <ROUTABLE> {
         return new Router<any>(routable => Observable.of(Router.noRoute(reason)));
     }
 
-    route (routable: ROUTABLE) {
+    route$ (routable: ROUTABLE) {
         return this
-            .getRoute(routable)
+            .getRoute$(routable)
             .do(route => konsole.log("route: returned a route", route))
-            .filter(route => route.type === 'action')
-            .flatMap((route: ActionRoute) => toObservable(route.action()))
-            .do(_ => konsole.log("route: called action"));
+            .flatMap(route => route.type === 'action'
+                ? toObservable(route.action())
+                    .do(_ => konsole.log("route: called action"))
+                    .map(_ => true)
+                : Observable.of(false)
+            );
+    }
+
+    route (routable: ROUTABLE) {
+        return this.route$(routable)
+            .toPromise();
     }
 
     beforeDo (handler: Handler<ROUTABLE>) {
@@ -112,10 +120,6 @@ export class Helpers <ROUTABLE> {
     ifTrue (predicate: Predicate<ROUTABLE>) {
         return new IfTrue(predicate);
     }
-
-    ifTry(getRouter: (routable: ROUTABLE) => Observableable<Router<ROUTABLE>>) {
-        return new ChooseRouter(getRouter);
-    }
 }
 
 export class FirstRouter <ROUTABLE> extends Router<ROUTABLE> {
@@ -125,7 +129,7 @@ export class FirstRouter <ROUTABLE> extends Router<ROUTABLE> {
             .concatMap((router, i) => {
                 konsole.log(`first: trying router #${i}`);
                 return router
-                    .getRoute(routable)
+                    .getRoute$(routable)
                     .do(route => konsole.log(`first: router #${i} returned route`, route));
             })
             .filter(route => route.type === 'action')
@@ -150,7 +154,7 @@ export class BestRouter <ROUTABLE> extends Router<ROUTABLE> {
             const subscription = Observable.from(routers)
                 .filter(router => !!router)
                 .takeWhile(_ => bestRoute.score < 1)
-                .concatMap(router => router.getRoute(routable))
+                .concatMap(router => router.getRoute$(routable))
                 .filter(route => route.type === 'action')
                 .defaultIfEmpty(Router.noRoute('tryInScoreOrder'))
                 .subscribe(
@@ -224,13 +228,13 @@ export class IfMatchesElse <ROUTABLE, VALUE> extends Router<ROUTABLE> {
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
             .flatMap(match => IfMatches.matchIsSuccess(match)
                 ? getThenRouter(match.value)
-                    .getRoute(routable)
+                    .getRoute$(routable)
                     .map(route => route.type === 'action'
                         ? routeWithCombinedScore(route, match.score)
                         : route
                     )
                 : getElseRouter(match.reason)
-                    .getRoute(routable)
+                    .getRoute$(routable)
             )
         );
     }
@@ -245,7 +249,7 @@ export class IfMatchesThen <ROUTABLE, VALUE = any> extends Router<ROUTABLE> {
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
             .flatMap(match => IfMatches.matchIsSuccess(match)
                 ? getThenRouter(match.value)
-                    .getRoute(routable)
+                    .getRoute$(routable)
                     .map(route => route.type === 'action'
                         ? routeWithCombinedScore(route, match.score)
                         : route
@@ -388,7 +392,7 @@ export class IfTrue <ROUTABLE> extends IfMatches<ROUTABLE, boolean> {
 export class BeforeRouter <ROUTABLE> extends Router<ROUTABLE> {
     constructor (beforeHandler: Handler<ROUTABLE>, router: Router<ROUTABLE>) {
         super(routable => router
-            .getRoute(routable)
+            .getRoute$(routable)
             .map(route => route.type === 'action'
                 ? {
                     ... route,
@@ -404,7 +408,7 @@ export class BeforeRouter <ROUTABLE> extends Router<ROUTABLE> {
 export class AfterRouter <ROUTABLE> extends Router<ROUTABLE> {
     constructor (afterHandler: Handler<ROUTABLE>, router: Router<ROUTABLE>) {
         super(routable => router
-            .getRoute(routable)
+            .getRoute$(routable)
             .map(route => route.type === 'action'
                 ? {
                     ... route,
@@ -422,19 +426,11 @@ export class DefaultRouter <ROUTABLE> extends Router<ROUTABLE> {
         mainRouter: Router<ROUTABLE>,
         getDefaultRouter: (reason: string) => Router<ROUTABLE>
     ) {
-        super(routable => mainRouter.getRoute(routable)
+        super(routable => mainRouter.getRoute$(routable)
             .flatMap(route => route.type === 'action'
                 ? Observable.of(route)
-                : getDefaultRouter(route.reason).getRoute(routable)
+                : getDefaultRouter(route.reason).getRoute$(routable)
             )
         );
-    }
-}
-
-export class ChooseRouter <ROUTABLE> extends Router<ROUTABLE> {
-    constructor (getRouter: (routable: ROUTABLE) => Observableable<Router<ROUTABLE>>) {
-        super(routable => toObservable(getRouter(routable))
-            .flatMap(router => router.getRoute(routable))
-        )
     }
 }
