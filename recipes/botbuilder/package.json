@@ -1,6 +1,6 @@
 {
   "name": "prague-botbuilder",
-  "version": "0.15.7",
+  "version": "0.15.8",
   "description": "rules-based app engine for BotBuilder 4.x",
   "main": "dist/botbuilder.js",
   "types": "dist/botbuilder.d.ts",
@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "botbuilder-core": "^4.0.0-h3.3",
-    "prague": "^0.15.3",
+    "prague": "^0.15.8",
     "rxjs": "5.5.2"
   }
 }

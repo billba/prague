@@ -4,7 +4,7 @@ const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
 const { toObservable, Router, toScore, routeWithCombinedScore, Helpers } = require('../dist/prague.js');
-const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, ifTry } = new Helpers();
+const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, ifTry, route } = new Helpers();
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -260,7 +260,7 @@ describe('Router.no', () => {
     });
 });
 
-describe('Router.route', () => {
+describe('router.route', () => {
     it("should return false on Router.no", (done) => {
         Router.no()
             .route$(foo)
@@ -1119,4 +1119,26 @@ describe('inline Router', () => {
                 expect(handled).to.be.true;
             }, passErr, done);
     });
+});
+
+describe('route', () => {
+    it("doesn't route NoRoute", done => {
+        route(foo, Router.no())
+            .then(t => {
+                expect(t).to.be.false;
+                done();
+            })
+    })
+
+    it("routes ActionRoute", done => {
+        let routed;
+        route(foo, Router.do(c => { 
+            routed = true;
+        }))
+            .then(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
+                done();
+            })
+    })
 });

@@ -120,6 +120,10 @@ export class Helpers <ROUTABLE> {
     ifTrue (predicate: Predicate<ROUTABLE>) {
         return new IfTrue(predicate);
     }
+
+    route (routable: ROUTABLE, router: Router<ROUTABLE>) {
+        return router.route(routable);
+    }
 }
 
 export class FirstRouter <ROUTABLE> extends Router<ROUTABLE> {
