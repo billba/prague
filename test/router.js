@@ -1128,7 +1128,7 @@ describe('route', () => {
                 expect(t).to.be.false;
                 done();
             })
-    })
+    });
 
     it("routes ActionRoute", done => {
         let routed;
@@ -1140,5 +1140,6 @@ describe('route', () => {
                 expect(routed).to.be.true;
                 done();
             })
-    })
+    });
 });
+
