@@ -124,6 +124,13 @@ export class Helpers <ROUTABLE> {
     route (routable: ROUTABLE, router: Router<ROUTABLE>) {
         return router.route(routable);
     }
+
+    trySwitch(
+        getKey: (routable: ROUTABLE) => Observableable<string>,
+        mapKeyToRouter: Record<string, Router<ROUTABLE>>
+    ) {
+        return new SwitchRouter(getKey, mapKeyToRouter);
+    }
 }
 
 export class FirstRouter <ROUTABLE> extends Router<ROUTABLE> {
@@ -434,6 +441,21 @@ export class DefaultRouter <ROUTABLE> extends Router<ROUTABLE> {
             .flatMap(route => route.type === 'action'
                 ? Observable.of(route)
                 : getDefaultRouter(route.reason).getRoute$(routable)
+            )
+        );
+    }
+}
+
+export class SwitchRouter <ROUTABLE> extends Router<ROUTABLE> {
+    constructor (
+        getKey: (routable: ROUTABLE) => Observableable<string>,
+        mapKeyToRouter: Record<string, Router<ROUTABLE>>
+    ) {
+        super(routable => toObservable(getKey(routable))
+            .map(key => mapKeyToRouter[key])
+            .flatMap(router => router === undefined
+                ? Observable.of(Router.noRoute())
+                : router.getRoute$(routable)
             )
         );
     }

@@ -4,7 +4,7 @@ const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
 const { toObservable, Router, toScore, routeWithCombinedScore, Helpers } = require('../dist/prague.js');
-const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, ifTry, route } = new Helpers();
+const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, ifTry, route, trySwitch } = new Helpers();
 const { Observable } = require('rxjs');
 
 const foo = {
@@ -1143,3 +1143,89 @@ describe('route', () => {
     });
 });
 
+describe('trySwitch', () => {
+    it("doesn't route on undefined key", done => {
+        trySwitch(c => undefined, {
+            foo: Router.do(throwErr)
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.false;                
+            }, passErr, done);
+    });
+
+    it("doesn't route on null key", done => {
+        trySwitch(c => null, {
+            foo: Router.do(throwErr)
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.false;                
+            }, passErr, done);
+    });
+
+    it("doesn't route on non-matching key", done => {
+        trySwitch(c => 'bar', {
+            foo: Router.do(throwErr)
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.false;                
+            }, passErr, done);
+    });
+
+    it("routes matching key", done => {
+        let routed = false;
+        trySwitch(c => 'foo', {
+            foo: Router.do(c => {
+                routed = true;
+            }),
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
+
+    it("routes matching key when first", done => {
+        let routed = false;
+        trySwitch(c => 'foo', {
+            foo: Router.do(c => {
+                routed = true;
+            }),
+            bar: Router.do(throwErr)
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
+
+    it("routes matching key when second", done => {
+        let routed = false;
+        trySwitch(c => 'foo', {
+            bar: Router.do(throwErr),
+            foo: Router.do(c => {
+                routed = true;
+            })
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
+
+    it("doesn't route when router for key doesn't route", done => {
+        trySwitch(c => 'foo', {
+            foo: Router.no()
+        })
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.false;       
+            }, passErr, done);
+    });
+
+});
