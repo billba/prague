@@ -114,11 +114,11 @@ export class Helpers <ROUTABLE> {
     }
 
     ifMatches <VALUE>(matcher: Matcher<ROUTABLE, VALUE>) {
-        return new IfMatches(matcher);
+        return new IfMatchesFluent(matcher);
     }
 
     ifTrue (predicate: Predicate<ROUTABLE>) {
-        return new IfTrue(predicate);
+        return new IfTrueFluent(predicate);
     }
 
     route (routable: ROUTABLE, router: Router<ROUTABLE>) {
@@ -229,7 +229,7 @@ export function routeWithCombinedScore(route: ActionRoute, newScore: number) {
         } as Route;
 }
 
-export class IfMatchesElse <ROUTABLE, VALUE> extends Router<ROUTABLE> {
+export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
     constructor(
         private matcher: Matcher<ROUTABLE, VALUE>,
         private getThenRouter: (value: VALUE) => Router<ROUTABLE>,
@@ -249,95 +249,14 @@ export class IfMatchesElse <ROUTABLE, VALUE> extends Router<ROUTABLE> {
             )
         );
     }
-}
-
-export class IfMatchesThen <ROUTABLE, VALUE = any> extends Router<ROUTABLE> {
-    constructor(
-        private matcher: Matcher<ROUTABLE, VALUE>,
-        private getThenRouter: (value: VALUE) => Router<ROUTABLE>
-    ) {
-        super(routable => toObservable(matcher(routable))
-            .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
-            .flatMap(match => IfMatches.matchIsSuccess(match)
-                ? getThenRouter(match.value)
-                    .getRoute$(routable)
-                    .map(route => route.type === 'action'
-                        ? routeWithCombinedScore(route, match.score)
-                        : route
-                    )
-                : Observable.of(Router.noRoute(match.reason))
-            )
-        );
-    }
-
-    elseDo(elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
-        return this.elseTry(reason => Router.do(routable => elseHandler(routable, reason)));
-    }
-
-    elseTry(elseRouter: Router<ROUTABLE>): IfMatchesElse<ROUTABLE, VALUE>;
-    elseTry(getElseRouter: (reason: string) => Router<ROUTABLE>): IfMatchesElse<ROUTABLE, VALUE>;
-    elseTry(arg) {
-        return new IfMatchesElse(this.matcher, this.getThenRouter, typeof(arg) === 'function'
-            ? arg
-            : reason => arg
-        );
-    }
-}
-
-export class IfMatches <ROUTABLE, VALUE> {
-    constructor (
-        private matcher: Matcher<ROUTABLE, VALUE>
-    ) {
-    }
 
     static matchIsSuccess <VALUE> (match: Match<any>): match is MatchSuccess<VALUE> {
         return ((match as any).reason === undefined);
     }
-    
-    and (predicate: (value: VALUE) => IfTrue<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
-    and (predicate: IfTrue<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
-    and <TRANSFORMRESULT> (recognizer: (value: VALUE) => IfMatches<ROUTABLE, TRANSFORMRESULT>): IfMatches<ROUTABLE, TRANSFORMRESULT>;
-    and <TRANSFORMRESULT> (recognizer: IfMatches<ROUTABLE, TRANSFORMRESULT>): IfMatches<ROUTABLE, TRANSFORMRESULT>;
-    and <TRANSFORMRESULT> (arg) {
-        const recognizer = typeof(arg) === 'function'
-            ? arg as (value: VALUE) => IfMatches<ROUTABLE, any>
-            : (value: VALUE) => arg as IfMatches<ROUTABLE, any>;
-        return new IfMatches((routable: ROUTABLE) => toObservable(this.matcher(routable))
-            .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
-            .flatMap(match => IfMatches.matchIsSuccess(match)
-                ? toObservable(recognizer(match.value))
-                    .flatMap(_ifMatches => toObservable(_ifMatches.matcher(routable))
-                        .map(_response => IfMatches.normalizeMatcherResponse(_response))
-                        .map(_match => IfMatches.matchIsSuccess(_match)
-                            ? _ifMatches instanceof IfTrue
-                                ? match
-                                : {
-                                    value: _match.value,
-                                    score: combineScore(match.score, _match.score)
-                                }
-                            : _match
-                        )
-                    )
-                : Observable.of(match)
-            )
-        );
-    }
 
-    thenDo(thenHandler: (routable: ROUTABLE, value: VALUE) => Observableable<any>) {
-        return this.thenTry(value => Router.do(routable => thenHandler(routable, value)));
-    }
-
-    thenTry(router: Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
-    thenTry(getRouter: (value: VALUE) => Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
-    thenTry(arg) {
-        return new IfMatchesThen(this.matcher, typeof arg === 'function'
-            ? arg
-            : value => arg
-        );
-    }
 
     static defaultReason = "none";
-
+    
     static normalizeMatcherResponse <VALUE> (response: any): Match<VALUE> {
         if (!response)
             return {
@@ -371,9 +290,101 @@ export class IfMatches <ROUTABLE, VALUE> {
     
 }
 
+export class IfMatchesThen <ROUTABLE, VALUE = any> extends Router<ROUTABLE> {
+    constructor(
+        private matcher: Matcher<ROUTABLE, VALUE>,
+        private getThenRouter: (value: VALUE) => Router<ROUTABLE>
+    ) {
+        super(routable => toObservable(matcher(routable))
+            .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
+            .flatMap(match => IfMatches.matchIsSuccess(match)
+                ? getThenRouter(match.value)
+                    .getRoute$(routable)
+                    .map(route => route.type === 'action'
+                        ? routeWithCombinedScore(route, match.score)
+                        : route
+                    )
+                : Observable.of(Router.noRoute(match.reason))
+            )
+        );
+    }
+
+    elseDo(elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
+        return this.elseTry(reason => Router.do(routable => elseHandler(routable, reason)));
+    }
+
+    elseTry(elseRouter: Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
+    elseTry(getElseRouter: (reason: string) => Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
+    elseTry(arg) {
+        return new IfMatches(this.matcher, this.getThenRouter, typeof(arg) === 'function'
+            ? arg
+            : reason => arg
+        );
+    }
+}
+
+export class IfMatchesFluent <ROUTABLE, VALUE> {
+    constructor (
+        private matcher: Matcher<ROUTABLE, VALUE>
+    ) {
+    }
+    
+    and (predicate: (value: VALUE) => IfTrueFluent<ROUTABLE>): IfMatchesFluent<ROUTABLE, VALUE>;
+    and (predicate: IfTrueFluent<ROUTABLE>): IfMatchesFluent<ROUTABLE, VALUE>;
+    and <TRANSFORMRESULT> (recognizer: (value: VALUE) => IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>): IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>;
+    and <TRANSFORMRESULT> (recognizer: IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>): IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>;
+    and <TRANSFORMRESULT> (arg) {
+        const recognizer = typeof(arg) === 'function'
+            ? arg as (value: VALUE) => IfMatchesFluent<ROUTABLE, any>
+            : (value: VALUE) => arg as IfMatchesFluent<ROUTABLE, any>;
+        return new IfMatchesFluent((routable: ROUTABLE) => toObservable(this.matcher(routable))
+            .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
+            .flatMap(match => IfMatches.matchIsSuccess(match)
+                ? toObservable(recognizer(match.value))
+                    .flatMap(_ifMatches => toObservable(_ifMatches.matcher(routable))
+                        .map(_response => IfMatches.normalizeMatcherResponse(_response))
+                        .map(_match => IfMatches.matchIsSuccess(_match)
+                            ? _ifMatches instanceof IfTrueFluent
+                                ? match
+                                : {
+                                    value: _match.value,
+                                    score: combineScore(match.score, _match.score)
+                                }
+                            : _match
+                        )
+                    )
+                : Observable.of(match)
+            )
+        );
+    }
+
+    thenDo(thenHandler: (routable: ROUTABLE, value: VALUE) => Observableable<any>) {
+        return this.thenTry(value => Router.do(routable => thenHandler(routable, value)));
+    }
+
+    thenTry(router: Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
+    thenTry(getRouter: (value: VALUE) => Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
+    thenTry(arg) {
+        return new IfMatchesThen(this.matcher, typeof arg === 'function'
+            ? arg
+            : value => arg
+        );
+    }
+}
+
 export type Predicate <ROUTABLE> = Matcher<ROUTABLE, boolean>;
 
 export class IfTrue <ROUTABLE> extends IfMatches<ROUTABLE, boolean> {
+    constructor(
+        predicate: Predicate<ROUTABLE>,
+        getThenRouter: (value: boolean) => Router<ROUTABLE>,
+        getElseRouter: (reason: string) => Router<ROUTABLE>
+    ) {
+        super(predicate, getThenRouter, getElseRouter);
+    }
+}
+
+export class IfTrueFluent <ROUTABLE> extends IfMatchesFluent<ROUTABLE, boolean> {
     constructor(
         predicate: Predicate<ROUTABLE>
     ) {
