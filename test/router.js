@@ -1000,14 +1000,42 @@ describe('ifMatches', () => {
     it("should route message to 'else' router on no match", (done) => {
         let routed;
 
-        ifMatches(barIfFoo)
+        ifMatches(c => ({ reason: 'reason' }))
             .thenDo(throwErr)
-            .elseTry(Router.do(m => {
-                routed = true;
+            .elseTry((c, reason) => Router.do(m => {
+                routed = reason;
             }))
             .route$(notFoo)
             .subscribe(n => {
-                expect(routed).to.be.true;
+                expect(routed).to.eql('reason');
+            }, passErr, done);
+    });
+
+    it("should pass value to 'then' router on match", (done) => {
+        let routed;
+
+        ifMatches(c => ({ value: 'value' }))
+            .thenTry((_, value) => Router.do(c => {
+                routed = value;
+            }))
+            .elseDo(throwErr)
+            .route$(foo)
+            .subscribe(n => {
+                expect(routed).to.eql('value');
+            }, passErr, done);
+    });
+
+    it("should pass value to 'then' handler on match", (done) => {
+        let routed;
+
+        ifMatches(c => ({ value: 'value' }))
+            .thenDo((c, value) => {
+                routed = value;
+            })
+            .elseDo(throwErr)
+            .route$(foo)
+            .subscribe(n => {
+                expect(routed).to.eql('value');
             }, passErr, done);
     });
 

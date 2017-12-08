@@ -229,19 +229,19 @@ export function routeWithCombinedScore(route: ActionRoute, newScore: number) {
 export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
     constructor(
         protected matcher: Matcher<ROUTABLE, VALUE>,
-        protected getThenRouter: (value: VALUE) => Router<ROUTABLE>,
-        protected getElseRouter: (reason: string) => Router<ROUTABLE>
+        protected getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>,
+        protected getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
     ) {
         super(routable => toObservable(matcher(routable))
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
             .flatMap(match => IfMatches.isMatch(match)
-                ? getThenRouter(match.value)
+                ? getThenRouter(routable, match.value)
                     .getRoute$(routable)
                     .map(route => route.type === 'action'
                         ? routeWithCombinedScore(route, match.score)
                         : route
                     )
-                : getElseRouter(match.reason)
+                : getElseRouter(routable, match.reason)
                     .getRoute$(routable)
             )
         );
@@ -291,21 +291,21 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
 export class IfMatchesThen <ROUTABLE, VALUE> extends IfMatches<ROUTABLE, VALUE> {
     constructor(
         matcher: Matcher<ROUTABLE, VALUE>,
-        getThenRouter: (value: VALUE) => Router<ROUTABLE>
+        getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>
     ) {
-        super(matcher, getThenRouter, reason => Router.no(reason));
+        super(matcher, getThenRouter, (routable, reason) => Router.no(reason));
     }
 
     elseDo(elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
-        return this.elseTry(reason => Router.do(routable => elseHandler(routable, reason)));
+        return this.elseTry((_routable, reason) => Router.do(routable => elseHandler(routable, reason)));
     }
 
     elseTry(elseRouter: Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
-    elseTry(getElseRouter: (reason: string) => Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
-    elseTry(arg) {
+    elseTry(getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
+    elseTry(arg: Router<ROUTABLE> | ((routable: ROUTABLE, reason: string) => Router<ROUTABLE>)) {
         return new IfMatches(this.matcher, this.getThenRouter, typeof(arg) === 'function'
             ? arg
-            : reason => arg
+            : (routable, reason) => arg
         );
     }
 }
@@ -346,15 +346,15 @@ export class IfMatchesFluent <ROUTABLE, VALUE> {
     }
 
     thenDo(thenHandler: (routable: ROUTABLE, value: VALUE) => Observableable<any>) {
-        return this.thenTry(value => Router.do(routable => thenHandler(routable, value)));
+        return this.thenTry((_routable, value) => Router.do(routable => thenHandler(routable, value)));
     }
 
     thenTry(router: Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
-    thenTry(getRouter: (value: VALUE) => Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
-    thenTry(arg) {
+    thenTry(getRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
+    thenTry(arg: Router<ROUTABLE> | ((routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>)) {
         return new IfMatchesThen(this.matcher, typeof arg === 'function'
             ? arg
-            : value => arg
+            : (routable, value) => arg
         );
     }
 }
@@ -364,8 +364,8 @@ export type Predicate <ROUTABLE> = Matcher<ROUTABLE, boolean>;
 export class IfTrue <ROUTABLE> extends IfMatches<ROUTABLE, boolean> {
     constructor(
         predicate: Predicate<ROUTABLE>,
-        getThenRouter: (value: boolean) => Router<ROUTABLE>,
-        getElseRouter: (reason: string) => Router<ROUTABLE>
+        getThenRouter: (routable: ROUTABLE, value: boolean) => Router<ROUTABLE>,
+        getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
     ) {
         super(predicateToMatcher(predicate), getThenRouter, getElseRouter);
     }
