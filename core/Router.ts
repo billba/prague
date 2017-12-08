@@ -234,7 +234,7 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
     ) {
         super(routable => toObservable(matcher(routable))
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
-            .flatMap(match => IfMatches.matchIsSuccess(match)
+            .flatMap(match => IfMatches.isMatch(match)
                 ? getThenRouter(match.value)
                     .getRoute$(routable)
                     .map(route => route.type === 'action'
@@ -247,7 +247,7 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
         );
     }
 
-    static matchIsSuccess <VALUE> (match: MatchResult<any>): match is Match<VALUE> {
+    static isMatch <VALUE> (match: MatchResult<any>): match is Match<VALUE> {
         return ((match as any).reason === undefined);
     }
 
@@ -326,11 +326,11 @@ export class IfMatchesFluent <ROUTABLE, VALUE> {
             : (value: VALUE) => arg as IfMatchesFluent<ROUTABLE, any>;
         return new IfMatchesFluent((routable: ROUTABLE) => toObservable(this.matcher(routable))
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
-            .flatMap(match => IfMatches.matchIsSuccess(match)
+            .flatMap(match => IfMatches.isMatch(match)
                 ? toObservable(recognizer(match.value))
                     .flatMap(_ifMatches => toObservable(_ifMatches.matcher(routable))
                         .map(_response => IfMatches.normalizeMatcherResponse(_response))
-                        .map(_match => IfMatches.matchIsSuccess(_match)
+                        .map(_match => IfMatches.isMatch(_match)
                             ? _ifMatches instanceof IfTrueFluent
                                 ? match
                                 : {
