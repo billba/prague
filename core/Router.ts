@@ -205,12 +205,12 @@ export interface MatchSuccess <VALUE> {
     score?: number;
 }
 
-export interface MatchFailure <VALUE> {
+export interface NoMatch <VALUE> {
     value?: VALUE;
     reason: string;
 }
 
-export type Match <VALUE> = MatchSuccess<VALUE> | MatchFailure<VALUE>;
+export type Match <VALUE> = MatchSuccess<VALUE> | NoMatch<VALUE>;
 
 export type Matcher <ROUTABLE, VALUE> = (routable: ROUTABLE) => Observableable<Match<VALUE> | VALUE>;
 
