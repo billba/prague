@@ -1,6 +1,6 @@
 {
   "name": "prague-botbuilder",
-  "version": "0.15.8",
+  "version": "0.15.9",
   "description": "rules-based app engine for BotBuilder 4.x",
   "main": "dist/botbuilder.js",
   "types": "dist/botbuilder.d.ts",

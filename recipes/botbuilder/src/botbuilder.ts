@@ -1,4 +1,5 @@
 import { Router, Helpers, FirstRouter, BestRouter, IfMatches, MatchSuccess, MatchFailure, IfTrue } from 'prague';
+export * from 'prague';
 import { Observable } from 'rxjs';
 import { Bot } from 'botbuilder-core';
 
