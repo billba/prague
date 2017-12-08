@@ -197,7 +197,7 @@ export class RunRouter <ROUTABLE> extends Router<ROUTABLE> {
     }
 }
 
-export interface MatchSuccess <VALUE> {
+export interface Match <VALUE> {
     value: VALUE;
     score?: number;
 }
@@ -207,9 +207,9 @@ export interface NoMatch <VALUE> {
     reason: string;
 }
 
-export type Match <VALUE> = MatchSuccess<VALUE> | NoMatch<VALUE>;
+export type MatchResult <VALUE> = Match<VALUE> | NoMatch<VALUE>;
 
-export type Matcher <ROUTABLE, VALUE> = (routable: ROUTABLE) => Observableable<Match<VALUE> | VALUE>;
+export type Matcher <ROUTABLE, VALUE> = (routable: ROUTABLE) => Observableable<MatchResult<VALUE> | VALUE>;
 
 function combineScore(score, otherScore) {
     return score * otherScore
@@ -247,13 +247,13 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
         );
     }
 
-    static matchIsSuccess <VALUE> (match: Match<any>): match is MatchSuccess<VALUE> {
+    static matchIsSuccess <VALUE> (match: MatchResult<any>): match is Match<VALUE> {
         return ((match as any).reason === undefined);
     }
 
     static defaultReason = "none";
     
-    static normalizeMatcherResponse <VALUE> (response: any): Match<VALUE> {
+    static normalizeMatcherResponse <VALUE> (response: any): MatchResult<VALUE> {
         if (response == null || response === false)
             return {
                 reason: IfMatches.defaultReason
