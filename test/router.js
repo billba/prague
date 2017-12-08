@@ -3,7 +3,7 @@
 const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
-const { toObservable, Router, toScore, routeWithCombinedScore, Helpers } = require('../dist/prague.js');
+const { toObservable, Router, toScore, Helpers } = require('../dist/prague.js');
 const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, ifTry, route, trySwitch } = new Helpers();
 const { Observable } = require('rxjs');
 
@@ -703,9 +703,9 @@ describe('Router.noop', () => {
     });
 });
 
-describe('routeWithCombinedScore', () => {
+describe('Router.routeWithCombinedScore', () => {
     it("should return combined score", () => {
-        expect(routeWithCombinedScore(
+        expect(Router.routeWithCombinedScore(
             Router.actionRoute(() => {}, .4),
             .25
         ).score).to.eql(.1);
