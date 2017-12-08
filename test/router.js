@@ -368,7 +368,7 @@ describe("router.defaultDo", () => {
 
     it("should be run when router returns no route", (done) => {
         let handled;
-    
+
         Router
             .no()
             .defaultDo(m => {
@@ -384,7 +384,7 @@ describe("router.defaultDo", () => {
 describe("router.defaultTry", () => {
     it("should not be run when router returns an action route", (done) => {
         let routed;
-    
+
         Router
             .do(m => {
                 routed = true;
@@ -416,13 +416,43 @@ describe("router.defaultTry", () => {
         let handled;
     
         Router
-            .no()
-            .defaultTry(reason => Router.do(m => {
+            .no('reason')
+            .defaultTry((c, reason) => Router.do(m => {
                 handled = reason;
             }))
             .route$(foo)
             .subscribe(n => {
-                expect(handled).to.eql('none');
+                expect(handled).to.eql('reason');
+            }, passErr, done);
+    });
+});
+
+describe("router.defaultDo", () => {
+    it("should not be run when router returns an action route", (done) => {
+        let routed;
+
+        Router
+            .do(m => {
+                routed = true;
+            })
+            .defaultDo(throwErr)
+            .route$(foo)
+            .subscribe(n => {
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
+
+    it("should be run when router returns no route", (done) => {
+        let handled;
+    
+        Router
+            .no('reason')
+            .defaultDo((c, reason) => {
+                handled = reason;
+            })
+            .route$(foo)
+            .subscribe(n => {
+                expect(handled).to.eql('reason');
             }, passErr, done);
     });
 });

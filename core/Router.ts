@@ -91,16 +91,13 @@ export class Router <ROUTABLE> {
     }
 
     defaultDo (handler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
-        return this.defaultTry(reason => Router.do(routable => handler(routable, reason)));
+        return this.defaultTry((_routable, reason) => Router.do(routable => handler(routable, reason)));
     }
 
-    defaultTry (getRouter: (reason: string) => Router<ROUTABLE>): Router<ROUTABLE>;
+    defaultTry (getRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): Router<ROUTABLE>;
     defaultTry (router: Router<ROUTABLE>): Router<ROUTABLE>;
     defaultTry (arg) {
-        return new DefaultRouter<ROUTABLE>(this, typeof(arg) === 'function'
-            ? arg
-            : reason => arg
-        );
+        return new DefaultRouter<ROUTABLE>(this, arg);
     }
 }
 
@@ -439,12 +436,23 @@ export class AfterRouter <ROUTABLE> extends Router<ROUTABLE> {
 export class DefaultRouter <ROUTABLE> extends Router<ROUTABLE> {
     constructor (
         mainRouter: Router<ROUTABLE>,
-        getDefaultRouter: (reason: string) => Router<ROUTABLE>
+        getDefaultRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
+    );
+    constructor (
+        mainRouter: Router<ROUTABLE>,
+        defaultRouter: Router<ROUTABLE>
+    );
+    constructor (
+        mainRouter: Router<ROUTABLE>,
+        arg: Router<ROUTABLE> | ((routable: ROUTABLE, reason: string) => Router<ROUTABLE>)
     ) {
+        const getDefaultRouter = typeof(arg) === 'function'
+            ? arg
+            : (routable: ROUTABLE, reason: string) => arg;
         super(routable => mainRouter.getRoute$(routable)
             .flatMap(route => route.type === 'action'
                 ? Observable.of(route)
-                : getDefaultRouter(route.reason).getRoute$(routable)
+                : getDefaultRouter(routable, route.reason).getRoute$(routable)
             )
         );
     }
