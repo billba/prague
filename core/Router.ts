@@ -113,7 +113,10 @@ export class Router <ROUTABLE> {
     defaultTry (getRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): Router<ROUTABLE>;
     defaultTry (router: Router<ROUTABLE>): Router<ROUTABLE>;
     defaultTry (arg) {
-        return new DefaultRouter<ROUTABLE>(this, arg);
+        return new DefaultRouter<ROUTABLE>(this, typeof(arg) === 'function'
+            ? arg
+            : (routable: ROUTABLE, reason: string) => arg
+        );
     }
 }
 
@@ -141,7 +144,7 @@ export class BestRouter <ROUTABLE> extends Router<ROUTABLE> {
         },
         0
     );
-    
+
     constructor(... routers: Router<ROUTABLE>[]) {
         super(routable => new Observable<Route>(observer => {
             let bestRoute = BestRouter.minRoute;
@@ -268,31 +271,32 @@ export class IfTrue <ROUTABLE> extends IfMatches<ROUTABLE, boolean> {
         getThenRouter: (routable: ROUTABLE, value: boolean) => Router<ROUTABLE>,
         getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
     ) {
-        super(predicateToMatcher(predicate), getThenRouter, getElseRouter);
+        super(IfTrue.predicateToMatcher(predicate), getThenRouter, getElseRouter);
     }
-}
 
-export const predicateToMatcher = <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> => (routable: ROUTABLE) =>
-    toObservable(predicate(routable))
-        .map((response: any) => {
-            if (response === true || response === false)
-                return response;
-
-            if (typeof(response) === 'object') {
-                if (response.reason)
+    static predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> {
+        return (routable: ROUTABLE) => toObservable(predicate(routable))
+            .map((response: any) => {
+                if (response === true || response === false)
                     return response;
 
-                if (response.value !== undefined) {
-                    if (response.value === false)
-                        return false;
-                    if (response.value === true)
+                if (typeof(response) === 'object') {
+                    if (response.reason)
                         return response;
-                    throw new Error('When returning a Match from the predicate for IfTrue, the value must be true or false');
-                }
-            }
 
-            throw new Error('The predicate for ifTrue may only return true, false, a Match of true or false, or a NoMatch');
-        })
+                    if (response.value !== undefined) {
+                        if (response.value === false)
+                            return false;
+                        if (response.value === true)
+                            return response;
+                        throw new Error('When returning a Match from the predicate for IfTrue, the value must be true or false');
+                    }
+                }
+
+                throw new Error('The predicate for ifTrue may only return true, false, a Match of true or false, or a NoMatch');
+            });
+    }
+}
 
 export class BeforeRouter <ROUTABLE> extends Router<ROUTABLE> {
     constructor (beforeHandler: Handler<ROUTABLE>, router: Router<ROUTABLE>) {
@@ -330,18 +334,7 @@ export class DefaultRouter <ROUTABLE> extends Router<ROUTABLE> {
     constructor (
         mainRouter: Router<ROUTABLE>,
         getDefaultRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
-    );
-    constructor (
-        mainRouter: Router<ROUTABLE>,
-        defaultRouter: Router<ROUTABLE>
-    );
-    constructor (
-        mainRouter: Router<ROUTABLE>,
-        arg: Router<ROUTABLE> | ((routable: ROUTABLE, reason: string) => Router<ROUTABLE>)
     ) {
-        const getDefaultRouter = typeof(arg) === 'function'
-            ? arg
-            : (routable: ROUTABLE, reason: string) => arg;
         super(routable => mainRouter.getRoute$(routable)
             .flatMap(route => route.type === 'action'
                 ? Observable.of(route)

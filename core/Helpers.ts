@@ -1,4 +1,4 @@
-import { Router, FirstRouter, BestRouter, IfMatches, Matcher, Observableable, toObservable, Predicate, predicateToMatcher, SwitchRouter } from './Router';
+import { Router, FirstRouter, BestRouter, IfMatches, IfTrue, Matcher, Observableable, toObservable, Predicate, SwitchRouter } from './Router';
 import { Observable } from 'rxjs';
 
 export class IfMatchesThen <ROUTABLE, VALUE> extends IfMatches<ROUTABLE, VALUE> {
@@ -76,7 +76,7 @@ export class IfTrueFluent <ROUTABLE> extends IfMatchesFluent<ROUTABLE, boolean> 
     constructor(
         predicate: Predicate<ROUTABLE>
     ) {
-        super(predicateToMatcher(predicate));
+        super(IfTrue.predicateToMatcher(predicate));
     }
 }
 
@@ -108,4 +108,3 @@ export class Helpers <ROUTABLE> {
         return new SwitchRouter(getKey, mapKeyToRouter);
     }
 }
-
