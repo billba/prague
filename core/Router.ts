@@ -231,9 +231,9 @@ export function routeWithCombinedScore(route: ActionRoute, newScore: number) {
 
 export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
     constructor(
-        private matcher: Matcher<ROUTABLE, VALUE>,
-        private getThenRouter: (value: VALUE) => Router<ROUTABLE>,
-        private getElseRouter: (reason: string) => Router<ROUTABLE>
+        protected matcher: Matcher<ROUTABLE, VALUE>,
+        protected getThenRouter: (value: VALUE) => Router<ROUTABLE>,
+        protected getElseRouter: (reason: string) => Router<ROUTABLE>
     ) {
         super(routable => toObservable(matcher(routable))
             .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
@@ -254,11 +254,10 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
         return ((match as any).reason === undefined);
     }
 
-
     static defaultReason = "none";
     
     static normalizeMatcherResponse <VALUE> (response: any): Match<VALUE> {
-        if (!response)
+        if (response == null || response === false)
             return {
                 reason: IfMatches.defaultReason
             }
@@ -267,6 +266,7 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
             if (response.reason) {
                 if (typeof(response.reason) !== 'string')
                     throw new Error('The reason for NoMatch must be a string');
+
                 return {
                     reason: response.reason
                 }
@@ -275,9 +275,10 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
             if (response.value !== undefined) {
                 if (response.score !== undefined && typeof(response.score) !== 'number')
                     throw new Error('The score for Match must be a number');
+
                 return {
                     value: response.value,
-                    score: response.score
+                    score: response.score || 1
                 }
             }
         }
@@ -290,23 +291,12 @@ export class IfMatches <ROUTABLE, VALUE> extends Router<ROUTABLE> {
     
 }
 
-export class IfMatchesThen <ROUTABLE, VALUE = any> extends Router<ROUTABLE> {
+export class IfMatchesThen <ROUTABLE, VALUE> extends IfMatches<ROUTABLE, VALUE> {
     constructor(
-        private matcher: Matcher<ROUTABLE, VALUE>,
-        private getThenRouter: (value: VALUE) => Router<ROUTABLE>
+        matcher: Matcher<ROUTABLE, VALUE>,
+        getThenRouter: (value: VALUE) => Router<ROUTABLE>
     ) {
-        super(routable => toObservable(matcher(routable))
-            .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
-            .flatMap(match => IfMatches.matchIsSuccess(match)
-                ? getThenRouter(match.value)
-                    .getRoute$(routable)
-                    .map(route => route.type === 'action'
-                        ? routeWithCombinedScore(route, match.score)
-                        : route
-                    )
-                : Observable.of(Router.noRoute(match.reason))
-            )
-        );
+        super(matcher, getThenRouter, reason => Router.no(reason));
     }
 
     elseDo(elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
@@ -328,7 +318,7 @@ export class IfMatchesFluent <ROUTABLE, VALUE> {
         private matcher: Matcher<ROUTABLE, VALUE>
     ) {
     }
-    
+
     and (predicate: (value: VALUE) => IfTrueFluent<ROUTABLE>): IfMatchesFluent<ROUTABLE, VALUE>;
     and (predicate: IfTrueFluent<ROUTABLE>): IfMatchesFluent<ROUTABLE, VALUE>;
     and <TRANSFORMRESULT> (recognizer: (value: VALUE) => IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>): IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>;
@@ -380,34 +370,37 @@ export class IfTrue <ROUTABLE> extends IfMatches<ROUTABLE, boolean> {
         getThenRouter: (value: boolean) => Router<ROUTABLE>,
         getElseRouter: (reason: string) => Router<ROUTABLE>
     ) {
-        super(predicate, getThenRouter, getElseRouter);
+        super(predicateToMatcher(predicate), getThenRouter, getElseRouter);
     }
 }
+
+const predicateToMatcher = <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> => (routable: ROUTABLE) =>
+    toObservable(predicate(routable))
+        .map((response: any) => {
+            if (response === true || response === false)
+                return response;
+
+            if (typeof(response) === 'object') {
+                if (response.reason)
+                    return response;
+
+                if (response.value !== undefined) {
+                    if (response.value === false)
+                        return false;
+                    if (response.value === true)
+                        return response;
+                    throw new Error('When returning a Match from the predicate for IfTrue, the value must be true or false');
+                }
+            }
+
+            throw new Error('The predicate for ifTrue may only return true, false, a Match of true or false, or a NoMatch');
+        })
 
 export class IfTrueFluent <ROUTABLE> extends IfMatchesFluent<ROUTABLE, boolean> {
     constructor(
         predicate: Predicate<ROUTABLE>
     ) {
-        super(routable => toObservable(predicate(routable))
-            .map((response: any) => {
-                if (response === true || response === false)
-                    return response;
-
-                if (typeof(response) === 'object') {
-                    if (response.reason)
-                        return response;
-                    if (response.value !== undefined) {
-                        if (response.value === false)
-                            return false;
-                        if (response.value === true)
-                            return response;
-                        throw new Error('When returning a Match from the predicate for IfTrue, the value must be true or false');
-                    }
-                }
-
-                throw new Error('The predicate for ifTrue may only return true, false, a Match of true or false, or a NoMatch');
-            })
-        );
+        super(predicateToMatcher(predicate));
     }
 }
 
