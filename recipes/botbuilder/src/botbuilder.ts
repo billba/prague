@@ -1,11 +1,13 @@
-import { Router, Helpers, FirstRouter, BestRouter, IfMatches, MatchSuccess, MatchFailure, IfTrue } from 'prague';
-export * from 'prague';
+import { Router, Helpers, IfMatchesFluent, IfTrueFluent, Match, NoMatch } from 'prague-fluent';
 import { Observable } from 'rxjs';
 import { Bot } from 'botbuilder-core';
 
+export * from 'prague-fluent';
+
+export const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, trySwitch, route } = new Helpers<BotContext>();
+
 class BotRouter extends Router<BotContext> {}
 
-export const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, route } = new Helpers<BotContext>();
 export { BotRouter as Router }
 
 export const ifMessage = () => ifTrue(c => c.request.type === 'message' || { reason: "ifMessage"});

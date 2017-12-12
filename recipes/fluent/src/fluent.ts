@@ -1,25 +1,27 @@
-import { Router, FirstRouter, BestRouter, IfMatches, IfTrue, Matcher, Observableable, toObservable, Predicate, SwitchRouter, predicateToMatcher } from './Router';
+import { konsole, Matcher, Observableable, toObservable, Predicate, Handler, GetRoute$, Router } from './FluentRouter';
 import { Observable } from 'rxjs';
 
-export class IfMatchesThen <ROUTABLE, VALUE> extends IfMatches<ROUTABLE, VALUE> {
+export * from './FluentRouter';
+
+export class IfMatchesThen <ROUTABLE, VALUE> extends Router<ROUTABLE> {
     constructor(
-        matcher: Matcher<ROUTABLE, VALUE>,
-        getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>
+        private matcher: Matcher<ROUTABLE, VALUE>,
+        private getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>
     ) {
-        super(matcher, getThenRouter, (routable, reason) => Router.no(reason));
+        super(Router.getRouteIfMatches$(matcher, getThenRouter));
     }
 
     elseDo(elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
         return this.elseTry((_routable, reason) => Router.do(routable => elseHandler(routable, reason)));
     }
 
-    elseTry(elseRouter: Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
-    elseTry(getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): IfMatches<ROUTABLE, VALUE>;
+    elseTry(elseRouter: Router<ROUTABLE>): Router<ROUTABLE>;
+    elseTry(getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): Router<ROUTABLE>;
     elseTry(arg: Router<ROUTABLE> | ((routable: ROUTABLE, reason: string) => Router<ROUTABLE>)) {
-        return new IfMatches(this.matcher, this.getThenRouter, typeof(arg) === 'function'
+        return new Router(Router.getRouteIfMatches$(this.matcher, this.getThenRouter, typeof(arg) === 'function'
             ? arg
             : (routable, reason) => arg
-        );
+        ));
     }
 }
 
@@ -38,22 +40,22 @@ export class IfMatchesFluent <ROUTABLE, VALUE> {
             ? arg as (value: VALUE) => IfMatchesFluent<ROUTABLE, any>
             : (value: VALUE) => arg as IfMatchesFluent<ROUTABLE, any>;
         return new IfMatchesFluent((routable: ROUTABLE) => toObservable(this.matcher(routable))
-            .map(response => IfMatches.normalizeMatcherResponse<VALUE>(response))
-            .flatMap(match => IfMatches.isMatch(match)
-                ? toObservable(recognizer(match.value))
+            .map(response => Router.normalizeMatchResult<VALUE>(response))
+            .flatMap(matchResult => Router.isMatch(matchResult)
+                ? toObservable(recognizer(matchResult.value))
                     .flatMap(_ifMatches => toObservable(_ifMatches.matcher(routable))
-                        .map(_response => IfMatches.normalizeMatcherResponse(_response))
-                        .map(_match => IfMatches.isMatch(_match)
+                        .map(_response => Router.normalizeMatchResult(_response))
+                        .map(_matchResult => Router.isMatch(_matchResult)
                             ? _ifMatches instanceof IfTrueFluent
-                                ? match
+                                ? matchResult
                                 : {
-                                    value: _match.value,
-                                    score: Router.combineScore(match.score, _match.score)
+                                    value: _matchResult.value,
+                                    score: Router.combineScore(matchResult.score, _matchResult.score)
                                 }
-                            : _match
+                            : _matchResult
                         )
                     )
-                : Observable.of(match)
+                : Observable.of(matchResult)
             )
         );
     }
@@ -76,17 +78,17 @@ export class IfTrueFluent <ROUTABLE> extends IfMatchesFluent<ROUTABLE, boolean> 
     constructor(
         predicate: Predicate<ROUTABLE>
     ) {
-        super(predicateToMatcher(predicate));
+        super(Router.predicateToMatcher(predicate));
     }
 }
 
 export class Helpers <ROUTABLE> {
-    tryInOrder (... routers:  Router<ROUTABLE>[]) {
-        return new FirstRouter(... routers);
+    tryInOrder (... routers: Router<ROUTABLE>[]) {
+        return new Router(Router.getRouteFirst$(... routers));
     }
 
     tryInScoreOrder (... routers: Router<ROUTABLE>[]) {
-        return new BestRouter(... routers);
+        return new Router(Router.getRouteBest$(... routers));
     }
 
     ifMatches <VALUE>(matcher: Matcher<ROUTABLE, VALUE>) {
@@ -105,6 +107,7 @@ export class Helpers <ROUTABLE> {
         getKey: (routable: ROUTABLE) => Observableable<string>,
         mapKeyToRouter: Record<string, Router<ROUTABLE>>
     ) {
-        return new SwitchRouter(getKey, mapKeyToRouter);
+        return new Router(Router.getRouteSwitch$(getKey, mapKeyToRouter));
     }
 }
+
