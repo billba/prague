@@ -170,14 +170,14 @@ describe('Router.actionRoute', () => {
     });
 });
 
-describe('router.getRoute$', () => {
+describe('router._getRoute$', () => {
     it('should return action route', done => {
         let theRoute = {
             type: 'action',
             action: noop
         }
         new Router(routable => Observable.of(theRoute))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route).to.eql(theRoute);
             }, passErr, done);
@@ -189,7 +189,7 @@ describe('router.getRoute$', () => {
             reason: 'reason'
         }
         new Router(routable => Observable.of(theRoute))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route).to.eql(theRoute);
             }, passErr, done);
@@ -200,7 +200,7 @@ describe('Router.getRouteDo$', () => {
     it('should return an ActionRoute using supplied handler and no score', (done) => {
         let handled;
         routerDo(m => { handled = m; })
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('action');
                 expect(route.score).to.eql(1);
@@ -212,7 +212,7 @@ describe('Router.getRouteDo$', () => {
     it('should return an ActionRoute using supplied handler and score', (done) => {
         let handled;
         routerDo(m => { handled = m; }, .5)
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('action');
                 expect(route.score).to.eql(.5);
@@ -243,7 +243,7 @@ describe('Router.noRoute', () => {
 describe('Router.getRouteNo$', () => {
     it('should return a NoRoute with the default reason', done => {
         routerNo()
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no');
                 expect(route.reason).to.eql('none');
@@ -252,7 +252,7 @@ describe('Router.getRouteNo$', () => {
 
     it('should return a NoRoute with the default reason', done => {
         routerNo('reason')
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no');
                 expect(route.reason).to.eql('reason');
@@ -698,7 +698,7 @@ describe('ifTrue', () => {
             m => true,
             () => routerDo(m => {})
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(1);
             }, passErr, done);
@@ -709,7 +709,7 @@ describe('ifTrue', () => {
             m => true,
             () => routerDo(() => {}, 0.25)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.25);
             }, passErr, done);
@@ -721,7 +721,7 @@ describe('ifTrue', () => {
             () => routernDo(throwErr),
             () => routerDo(m => {})
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(1);
             }, passErr, done);
@@ -733,7 +733,7 @@ describe('ifTrue', () => {
             () => routerDo(throwErr),
             () => routerDo(_ => {}, .5)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.5);
             }, passErr, done);
@@ -744,7 +744,7 @@ describe('ifTrue', () => {
             m => 'foo',
             () => routerDo(throwErr)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(throwErr, error => {
                 done();
             }, throwErr);
@@ -755,7 +755,7 @@ describe('ifTrue', () => {
             m => ({ foo: "foo" }),
             () => routerDo(throwErr)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(throwErr, error => {
                 done();
             }, throwErr);
@@ -766,7 +766,7 @@ describe('ifTrue', () => {
             m => false,
             () => routerDo(throwErr)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.reason).to.eql("none");
             }, passErr, done);
@@ -781,7 +781,7 @@ describe('ifTrue', () => {
                 routed = reason;
             })
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type === 'action');
                 route.action();
@@ -794,7 +794,7 @@ describe('ifTrue', () => {
             m => ({ reason: 'whatevs' }),
             () => routerDo(throwErr)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no');
                 expect(route.reason).to.eql("whatevs");
@@ -808,7 +808,7 @@ describe('ifTrue', () => {
             m => ({ value: true, score: .5 }),
             () => routerDo(m => { handled = true; })
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 route.action();
                 expect(handled).to.be.true;
@@ -823,7 +823,7 @@ describe('ifTrue', () => {
             m => ({ value: false }),
             () => routerDo(throwErr)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.type).to.eql('no')
             }, passErr, done);
@@ -959,7 +959,7 @@ describe('ifMatches', () => {
             barIfFoo,
             () => routerDo(m => {})
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(1);
                 done();
@@ -971,7 +971,7 @@ describe('ifMatches', () => {
             m => ({ value: 'dog', score: 0.4 }),
             () => routerDo(m => {})
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.4);
             }, passErr, done);
@@ -995,7 +995,7 @@ describe('ifMatches', () => {
             barIfFoo,
             () => routerDo(() => {}, .25)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.25);
             }, passErr, done);
@@ -1006,7 +1006,7 @@ describe('ifMatches', () => {
             m => ({ value: 'cat', score: 0.4 }),
             () => routerDo(() => {}, .25)
         ))
-            .getRoute$(foo)
+            ._getRoute$(foo)
             .subscribe(route => {
                 expect(route.score).to.eql(.1);
             }, passErr, done);
@@ -1018,7 +1018,7 @@ describe('ifMatches', () => {
             () => routerDo(throwErr),
             () => routerDo(() => {}, .5)
         ))
-            .getRoute$(notFoo)
+            ._getRoute$(notFoo)
             .subscribe(route => {
                 expect(route.score).to.eql(.5);
             }, passErr, done);
