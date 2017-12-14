@@ -1084,27 +1084,27 @@ describe('inline Router', () => {
 
 describe('trySwitch', () => {
     it("doesn't route on undefined key", done => {
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => undefined, {
-            foo: () => routerDo(throwErr)
-        })))
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => undefined, () => ({
+            foo: routerDo(throwErr)
+        }))))
             .subscribe(t => {
                 expect(t).to.be.false;                
             }, passErr, done);
     });
 
     it("doesn't route on null key", done => {
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => undefined, {
-            foo: () => routerDo(throwErr)
-        })))
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => undefined, () => ({
+            foo: routerDo(throwErr)
+        }))))
             .subscribe(t => {
                 expect(t).to.be.false;                
             }, passErr, done);
     });
 
     it("doesn't route on non-matching key", done => {
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'bar', {
-            foo: () => routerDo(throwErr)
-        })))
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'bar', () => ({
+            foo: routerDo(throwErr)
+        }))))
             .subscribe(t => {
                 expect(t).to.be.false;                
             }, passErr, done);
@@ -1112,11 +1112,11 @@ describe('trySwitch', () => {
 
     it("routes matching key", done => {
         let routed = false;
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            foo: () => routerDo(c => {
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', () => ({
+            foo: routerDo(c => {
                 routed = true;
             }),
-        })))
+        }))))
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -1125,12 +1125,12 @@ describe('trySwitch', () => {
 
     it("routes matching key when first", done => {
         let routed = false;
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            foo: () => routerDo(c => {
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', () => ({
+            foo: routerDo(c => {
                 routed = true;
             }),
             bar: routerDo(throwErr)
-        })))
+        }))))
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -1139,12 +1139,12 @@ describe('trySwitch', () => {
 
     it("routes matching key when second", done => {
         let routed = false;
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            bar: () => routerDo(throwErr),
-            foo: () => routerDo(c => {
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', () => ({
+            bar: routerDo(throwErr),
+            foo: routerDo(c => {
                 routed = true;
             })
-        })))
+        }))))
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -1152,11 +1152,24 @@ describe('trySwitch', () => {
     });
 
     it("doesn't route when router for key doesn't route", done => {
-        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            foo: () => routerNo()
-        })))
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', () => ({
+            foo: routerNo()
+        }))))
             .subscribe(t => {
                 expect(t).to.be.false;       
+            }, passErr, done);
+    });
+
+    it("conditionally routes", done => {
+        let routed;
+        Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', (c) => ({
+            foo: c.foo === 'foo'
+                ? routerDo(c => { routed = true; })
+                : routerDo(throwErr)
+        }))))
+            .subscribe(t => {
+                expect(t).to.be.true;  
+                expect(routed).to.be.true;     
             }, passErr, done);
     });
 });

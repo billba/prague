@@ -317,15 +317,13 @@ export class Router <ROUTABLE> {
 
     static getRouteSwitch$ <ROUTABLE> (
         getKey: (routable: ROUTABLE) => Observableable<string>,
-        mapKeyToGetRouter: Record<string, (routable: ROUTABLE) => Observableable<Router<ROUTABLE>>>
+        getMapKeyToRouter: (routable: ROUTABLE) => Observableable<Record<string, Router<ROUTABLE>>>
     ): GetRoute$<ROUTABLE> {
         return routable => toObservable(getKey(routable))
-            .map(key => mapKeyToGetRouter[key])
-            .flatMap(getRouter => getRouter
-                ? toObservable(getRouter(routable))
-                    .map(Router.toRouter)
-                    .flatMap(router => router._getRoute$(routable))
-                : Observable.of(Router.noRoute())
-            );
+            .flatMap(key => toObservable(getMapKeyToRouter(routable))
+                .map(mapKeyToRouter => mapKeyToRouter[key])
+            )
+            .map(Router.toRouter)
+            .flatMap(router => router._getRoute$(routable));
     }
 }
