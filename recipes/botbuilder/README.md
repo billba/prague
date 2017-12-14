@@ -21,6 +21,6 @@ const router =
 
 const bot = new Bot(adapter)
     // add other middleware here
-    .onReceive(c => router.route(c).toPromise());
+    .onReceive(c => router.route(c));
 
 ```
