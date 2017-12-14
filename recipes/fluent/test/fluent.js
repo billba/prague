@@ -354,6 +354,20 @@ describe('tryInOrder', () => {
             }, passErr, done);
     });
 
+    it('should allow router functions', (done) => {
+        let routed;
+
+        tryInOrder(
+            () => Router.do(m => {
+                routed = true;
+            })
+        )
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
 });
 
 describe('tryInScoreOrder', () => {
@@ -499,6 +513,21 @@ describe('tryInScoreOrder', () => {
             .route$(foo)
             .subscribe(n => {
                 expect(routed).to.eql('first');
+            }, passErr, done);
+    });
+
+    it('should allow router functions', (done) => {
+        let routed;
+
+        tryInScoreOrder(
+            () => Router.do(m => {
+                routed = true;
+            })
+        )
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
             }, passErr, done);
     });
 });
@@ -1105,6 +1134,21 @@ describe('trySwitch', () => {
             .route$(foo)
             .subscribe(t => {
                 expect(t).to.be.false;       
+            }, passErr, done);
+    });
+
+    it("should allow function routers", done => {
+        let routed = false;
+        trySwitch(c => 'foo', () => ({
+            bar: Router.do(throwErr),
+            foo: Router.do(c => {
+                routed = true;
+            })
+        }))
+            .route$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(routed).to.be.true;
             }, passErr, done);
     });
 

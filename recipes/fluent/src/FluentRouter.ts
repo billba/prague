@@ -24,19 +24,11 @@ class FluentRouter <ROUTABLE> extends Router<ROUTABLE> {
     }
 
     route$ (routable: ROUTABLE) {
-        return this
-            ._getRoute$(routable)
-            .do(route => konsole.log("route: returned a route", route))
-            .flatMap(route => route.type === 'action'
-                ? toObservable(route.action())
-                    .do(_ => konsole.log("route: called action"))
-                    .map(_ => true)
-                : Observable.of(false)
-            );
+        return Router.route$(routable, this);
     }
 
     route (routable: ROUTABLE) {
-        return this.route$(routable)
+        return Router.route$(routable, this)
             .toPromise();
     }
 
