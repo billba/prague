@@ -406,7 +406,7 @@ describe('Router.getRouteFirst$', () => {
 
     it('should return false on only unsuccessful and null/undefined routers', (done) =>
         Router.route$(foo, new Router(Router.getRouteFirst$(
-                routerNo(),
+                () => routerNo(),
                 null,
                 undefined
         )))
@@ -415,7 +415,7 @@ describe('Router.getRouteFirst$', () => {
 
     it('should return false on no successful routers', (done) => {
         Router.route$(foo, new Router(Router.getRouteFirst$(
-            routerNo()
+            () => routerNo()
         )))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     });
@@ -424,7 +424,7 @@ describe('Router.getRouteFirst$', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteFirst$(
-            routerDo(m => {
+            () => routerDo(m => {
                 routed = true;
             })
         )))
@@ -440,7 +440,7 @@ describe('Router.getRouteFirst$', () => {
         Router.route$(foo, new Router(Router.getRouteFirst$(
             null,
             undefined,
-            routerDo(m => {
+            () => routerDo(m => {
                 routed = true;
             })
         )))
@@ -453,21 +453,7 @@ describe('Router.getRouteFirst$', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteFirst$(
-            routerNo(),
-            routerDo(m => {
-                routed = true;
-            })
-        )))
-            .subscribe(n => {
-                expect(routed).to.be.true;
-            }, passErr, done);
-    });
-
-    it('should allow router functions', (done) => {
-        let routed;
-
-        Router.route$(foo, new Router(Router.getRouteFirst$(
-            routerNo(),
+            () => routerNo(),
             () => routerDo(m => {
                 routed = true;
             })
@@ -476,7 +462,6 @@ describe('Router.getRouteFirst$', () => {
                 expect(routed).to.be.true;
             }, passErr, done);
     });
-
 });
 
 describe('tryInScoreOrder', () => {
@@ -495,7 +480,7 @@ describe('tryInScoreOrder', () => {
 
     it('should return false on only unsuccessful and null/undefined routers', (done) =>
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerNo(),
+            () => routerNo(),
             null,
             undefined
         )))
@@ -504,7 +489,7 @@ describe('tryInScoreOrder', () => {
 
     it('should return false on no successful routers', (done) => {
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerNo()
+            () => routerNo()
         )))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     });
@@ -513,7 +498,7 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerDo(m => {
+            () => routerDo(m => {
                 routed = true;
             })
         )))
@@ -528,7 +513,7 @@ describe('tryInScoreOrder', () => {
         Router.route$(foo, new Router(Router.getRouteBest$(
             null,
             undefined,
-            routerDo(m => {
+            () => routerDo(m => {
                 routed = true;
             })
         )))
@@ -541,8 +526,8 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerNo(),
-            routerDo(m => {
+            () => routerNo(),
+            () => routerDo(m => {
                 routed = true;
             })
         )))
@@ -555,7 +540,7 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerDo(m => {
+            () => routerDo(m => {
                 routed = true;
             }),
             throwErr
@@ -569,8 +554,8 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerDo(_ => { routed = 'first'; }, 0.75),
-            routerDo(_ => { routed = 'second'; }, 0.50)
+            () => routerDo(_ => { routed = 'first'; }, 0.75),
+            () => routerDo(_ => { routed = 'second'; }, 0.50)
         )))
             .subscribe(n => {
                 expect(routed).to.eql('first');
@@ -581,8 +566,8 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerDo(_ => { routed = 'first'; }, .5),
-            routerDo(_ => { routed = 'second'; }, .75)
+            () => routerDo(_ => { routed = 'first'; }, .5),
+            () => routerDo(_ => { routed = 'second'; }, .75)
         )))
             .subscribe(n => {
                 expect(routed).to.eql('second');
@@ -593,8 +578,8 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerDo(_ => { routed = 'first'; }),
-            routerDo(_ => { routed = 'second'; }, .75)
+            () => routerDo(_ => { routed = 'first'; }),
+            () => routerDo(_ => { routed = 'second'; }, .75)
         )))
             .subscribe(n => {
                 expect(routed).to.eql('first');
@@ -605,28 +590,13 @@ describe('tryInScoreOrder', () => {
         let routed;
 
         Router.route$(foo, new Router(Router.getRouteBest$(
-            routerDo(_ => { routed = 'first'; }, 0.75),
-            routerDo(_ => { routed = 'second'; }, 0.75)
+            () => routerDo(_ => { routed = 'first'; }, 0.75),
+            () => routerDo(_ => { routed = 'second'; }, 0.75)
         )))
             .subscribe(n => {
                 expect(routed).to.eql('first');
             }, passErr, done);
     });
-
-    it('should allow router functions', (done) => {
-        let routed;
-
-        Router.route$(foo, new Router(Router.getRouteBest$(
-            routerNo(),
-            () => routerDo(m => {
-                routed = true;
-            })
-        )))
-            .subscribe(n => {
-                expect(routed).to.be.true;
-            }, passErr, done);
-    });
-
 });
 
 describe('Router.noop', () => {
@@ -1115,7 +1085,7 @@ describe('inline Router', () => {
 describe('trySwitch', () => {
     it("doesn't route on undefined key", done => {
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => undefined, {
-            foo: routerDo(throwErr)
+            foo: () => routerDo(throwErr)
         })))
             .subscribe(t => {
                 expect(t).to.be.false;                
@@ -1124,7 +1094,7 @@ describe('trySwitch', () => {
 
     it("doesn't route on null key", done => {
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => undefined, {
-            foo: routerDo(throwErr)
+            foo: () => routerDo(throwErr)
         })))
             .subscribe(t => {
                 expect(t).to.be.false;                
@@ -1133,7 +1103,7 @@ describe('trySwitch', () => {
 
     it("doesn't route on non-matching key", done => {
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'bar', {
-            foo: routerDo(throwErr)
+            foo: () => routerDo(throwErr)
         })))
             .subscribe(t => {
                 expect(t).to.be.false;                
@@ -1143,7 +1113,7 @@ describe('trySwitch', () => {
     it("routes matching key", done => {
         let routed = false;
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            foo: routerDo(c => {
+            foo: () => routerDo(c => {
                 routed = true;
             }),
         })))
@@ -1156,7 +1126,7 @@ describe('trySwitch', () => {
     it("routes matching key when first", done => {
         let routed = false;
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            foo: routerDo(c => {
+            foo: () => routerDo(c => {
                 routed = true;
             }),
             bar: routerDo(throwErr)
@@ -1170,8 +1140,8 @@ describe('trySwitch', () => {
     it("routes matching key when second", done => {
         let routed = false;
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            bar: routerDo(throwErr),
-            foo: routerDo(c => {
+            bar: () => routerDo(throwErr),
+            foo: () => routerDo(c => {
                 routed = true;
             })
         })))
@@ -1183,7 +1153,7 @@ describe('trySwitch', () => {
 
     it("doesn't route when router for key doesn't route", done => {
         Router.route$(foo, new Router(Router.getRouteSwitch$(c => 'foo', {
-            foo: routerNo()
+            foo: () => routerNo()
         })))
             .subscribe(t => {
                 expect(t).to.be.false;       

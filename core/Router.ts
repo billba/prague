@@ -115,14 +115,12 @@ export class Router <ROUTABLE> {
     }
 
     static getRouteFirst$ <ROUTABLE> (
-        ... routers: (Router<ROUTABLE> | ((routable: ROUTABLE) => Router<ROUTABLE>))[]
+        ... getRouters: ((routable: ROUTABLE) => Observableable<Router<ROUTABLE>>)[]
     ): GetRoute$<ROUTABLE> {
-        return routable => Observable.from(routers)
-            .filter(router => !!router)
-            .map(router => typeof(router) === 'function'
-                ? Router.toRouter(router(routable))
-                : router
-            )
+        return routable => Observable.from(getRouters)
+            .filter(getRouter => !!getRouter)
+            .flatMap(getRouter => toObservable(getRouter(routable)))
+            .map(Router.toRouter)
             .concatMap((router, i) => {
                 konsole.log(`first: trying router #${i}`);
                 return router
@@ -135,21 +133,18 @@ export class Router <ROUTABLE> {
     }
 
     static getRouteBest$ <ROUTABLE> (
-        ... routers: (Router<ROUTABLE> | ((routable: ROUTABLE) => Router<ROUTABLE>))[]
+        ... getRouters: ((routable: ROUTABLE) => Observableable<Router<ROUTABLE>>)[]
     ): GetRoute$<ROUTABLE> {
         return routable => new Observable<Route>(observer => {
             let bestRoute = Router.minRoute;
 
-            const subscription = Observable.from(routers)
-                .filter(router => !!router)
-                .map(router => typeof(router) === 'function'
-                    ? Router.toRouter(router(routable))
-                    : router
-                )
+            const subscription = Observable.from(getRouters)
+                .filter(getRouter => !!getRouter)
+                .flatMap(getRouter => toObservable(getRouter(routable)))
+                .map(Router.toRouter)
                 .takeWhile(_ => bestRoute.score < 1)
                 .concatMap(router => router._getRoute$(routable))
                 .filter(route => route.type === 'action')
-                .defaultIfEmpty(Router.noRoute('tryInScoreOrder'))
                 .subscribe(
                     (route: ActionRoute) => {
                         if (route.score > bestRoute.score) {
@@ -163,8 +158,10 @@ export class Router <ROUTABLE> {
                     error =>
                         observer.error(error),
                     () => {
-                        if (bestRoute.score > 0)
-                            observer.next(bestRoute);
+                        observer.next(bestRoute.score > 0
+                            ? bestRoute
+                            : Router.noRoute('tryInScoreOrder')
+                        );
                         observer.complete();
                     }
                 );
@@ -221,23 +218,25 @@ export class Router <ROUTABLE> {
 
     static getRouteIfMatches$ <ROUTABLE, VALUE> (
         matcher: Matcher<ROUTABLE, VALUE>,
-        getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>,
-        getElseRouter?: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
+        getThenRouter: (routable: ROUTABLE, value: VALUE) => Observableable<Router<ROUTABLE>>,
+        getElseRouter?: (routable: ROUTABLE, reason: string) => Observableable<Router<ROUTABLE>>
     ): GetRoute$<ROUTABLE> {
         if (!getElseRouter)
             getElseRouter = (routable: ROUTABLE, reason: string) => new Router<ROUTABLE>(Router.getRouteNo$(reason));
         return routable => toObservable(matcher(routable))
             .map(response => Router.normalizeMatchResult<VALUE>(response))
             .flatMap(matchResult => Router.isMatch(matchResult)
-                ? Router.toRouter(getThenRouter(routable, matchResult.value))
-                    ._getRoute$(routable)
+                ? toObservable(getThenRouter(routable, matchResult.value))
+                    .map(Router.toRouter)
+                    .flatMap(router => router._getRoute$(routable))
                     .map(route => route.type === 'action'
                         ? Router.routeWithCombinedScore(route, matchResult.score)
                         : route
                     )
-                : Router.toRouter(getElseRouter(routable, matchResult.reason))
-                    ._getRoute$(routable)
-            );
+                : toObservable(getElseRouter(routable, matchResult.reason))
+                    .map(Router.toRouter)
+                    .flatMap(router => router._getRoute$(routable))
+        );
     }
 
     static predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> {
@@ -265,8 +264,8 @@ export class Router <ROUTABLE> {
 
     static getRouteIfTrue$ <ROUTABLE> (
         predicate: Predicate<ROUTABLE>,
-        getThenRouter: (routable: ROUTABLE, value: boolean) => Router<ROUTABLE>,
-        getElseRouter?: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
+        getThenRouter: (routable: ROUTABLE, value: boolean) => Observableable<Router<ROUTABLE>>,
+        getElseRouter?: (routable: ROUTABLE, reason: string) => Observableable<Router<ROUTABLE>>
     ): GetRoute$<ROUTABLE> {
         return Router.getRouteIfMatches$(Router.predicateToMatcher(predicate), getThenRouter, getElseRouter);
     }
@@ -305,22 +304,28 @@ export class Router <ROUTABLE> {
 
     static getRouteDefault$ <ROUTABLE> (
         mainRouter: Router<ROUTABLE>,
-        getDefaultRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>
+        getDefaultRouter: (routable: ROUTABLE, reason: string) => Observableable<Router<ROUTABLE>>
     ): GetRoute$<ROUTABLE> {
         return routable => mainRouter._getRoute$(routable)
             .flatMap(route => route.type === 'action'
                 ? Observable.of(route)
-                : Router.toRouter(getDefaultRouter(routable, route.reason))._getRoute$(routable)
+                : toObservable(getDefaultRouter(routable, route.reason))
+                    .map(Router.toRouter)
+                    .flatMap(router => router._getRoute$(routable))
             );
     }
 
     static getRouteSwitch$ <ROUTABLE> (
         getKey: (routable: ROUTABLE) => Observableable<string>,
-        mapKeyToRouter: Record<string, Router<ROUTABLE>>
+        mapKeyToGetRouter: Record<string, (routable: ROUTABLE) => Observableable<Router<ROUTABLE>>>
     ): GetRoute$<ROUTABLE> {
         return routable => toObservable(getKey(routable))
-            .flatMap(key => Router.toRouter(mapKeyToRouter[key])
-                ._getRoute$(routable)
-            )
+            .map(key => mapKeyToGetRouter[key])
+            .flatMap(getRouter => getRouter
+                ? toObservable(getRouter(routable))
+                    .map(Router.toRouter)
+                    .flatMap(router => router._getRoute$(routable))
+                : Observable.of(Router.noRoute())
+            );
     }
 }
