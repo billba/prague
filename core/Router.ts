@@ -114,9 +114,15 @@ export class Router <ROUTABLE> {
         return routable => Observable.of(Router.actionRoute(() => handler(routable), score));
     }
 
-    static getRouteFirst$ <ROUTABLE> (... routers: Router<ROUTABLE>[]): GetRoute$<ROUTABLE> {
+    static getRouteFirst$ <ROUTABLE> (
+        ... routers: (Router<ROUTABLE> | ((routable: ROUTABLE) => Router<ROUTABLE>))[]
+    ): GetRoute$<ROUTABLE> {
         return routable => Observable.from(routers)
             .filter(router => !!router)
+            .map(router => typeof(router) === 'function'
+                ? Router.toRouter(router(routable))
+                : router
+            )
             .concatMap((router, i) => {
                 konsole.log(`first: trying router #${i}`);
                 return router
@@ -128,12 +134,18 @@ export class Router <ROUTABLE> {
             .defaultIfEmpty(Router.noRoute('tryInOrder'));
     }
 
-    static getRouteBest$ <ROUTABLE> (... routers: Router<ROUTABLE>[]): GetRoute$<ROUTABLE> {
+    static getRouteBest$ <ROUTABLE> (
+        ... routers: (Router<ROUTABLE> | ((routable: ROUTABLE) => Router<ROUTABLE>))[]
+    ): GetRoute$<ROUTABLE> {
         return routable => new Observable<Route>(observer => {
             let bestRoute = Router.minRoute;
 
             const subscription = Observable.from(routers)
                 .filter(router => !!router)
+                .map(router => typeof(router) === 'function'
+                    ? Router.toRouter(router(routable))
+                    : router
+                )
                 .takeWhile(_ => bestRoute.score < 1)
                 .concatMap(router => router._getRoute$(routable))
                 .filter(route => route.type === 'action')
@@ -203,6 +215,10 @@ export class Router <ROUTABLE> {
         }
     }
 
+    static toRouter <ROUTABLE> (router: Router<ROUTABLE>): Router<ROUTABLE> {
+        return router || new Router(Router.getRouteNo$());
+    }
+
     static getRouteIfMatches$ <ROUTABLE, VALUE> (
         matcher: Matcher<ROUTABLE, VALUE>,
         getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>,
@@ -213,13 +229,13 @@ export class Router <ROUTABLE> {
         return routable => toObservable(matcher(routable))
             .map(response => Router.normalizeMatchResult<VALUE>(response))
             .flatMap(matchResult => Router.isMatch(matchResult)
-                ? getThenRouter(routable, matchResult.value)
+                ? Router.toRouter(getThenRouter(routable, matchResult.value))
                     ._getRoute$(routable)
                     .map(route => route.type === 'action'
                         ? Router.routeWithCombinedScore(route, matchResult.score)
                         : route
                     )
-                : getElseRouter(routable, matchResult.reason)
+                : Router.toRouter(getElseRouter(routable, matchResult.reason))
                     ._getRoute$(routable)
             );
     }
@@ -294,7 +310,7 @@ export class Router <ROUTABLE> {
         return routable => mainRouter._getRoute$(routable)
             .flatMap(route => route.type === 'action'
                 ? Observable.of(route)
-                : getDefaultRouter(routable, route.reason)._getRoute$(routable)
+                : Router.toRouter(getDefaultRouter(routable, route.reason))._getRoute$(routable)
             );
     }
 
@@ -303,10 +319,8 @@ export class Router <ROUTABLE> {
         mapKeyToRouter: Record<string, Router<ROUTABLE>>
     ): GetRoute$<ROUTABLE> {
         return routable => toObservable(getKey(routable))
-            .map(key => mapKeyToRouter[key])
-            .flatMap(router => router === undefined
-                ? Observable.of(Router.noRoute())
-                : router._getRoute$(routable)
-            );
+            .flatMap(key => Router.toRouter(mapKeyToRouter[key])
+                ._getRoute$(routable)
+            )
     }
 }

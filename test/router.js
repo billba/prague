@@ -377,6 +377,17 @@ describe("Router.getRouteDefault$", () => {
                 expect(handled).to.be.true;
             }, passErr, done);
     });
+
+    it('should allow undefined result for getDefaultRouter', (done) =>{
+        new Router(Router.getRouteDefault$(
+            routerNo(),
+            () => undefined
+        ))
+            ._getRoute$(foo)
+            .subscribe(route => {
+                expect(route.type).to.eql('no')
+            }, passErr, done);
+    });
 });
 
 describe('Router.getRouteFirst$', () => {
@@ -444,6 +455,20 @@ describe('Router.getRouteFirst$', () => {
         Router.route$(foo, new Router(Router.getRouteFirst$(
             routerNo(),
             routerDo(m => {
+                routed = true;
+            })
+        )))
+            .subscribe(n => {
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
+
+    it('should allow router functions', (done) => {
+        let routed;
+
+        Router.route$(foo, new Router(Router.getRouteFirst$(
+            routerNo(),
+            () => routerDo(m => {
                 routed = true;
             })
         )))
@@ -587,6 +612,21 @@ describe('tryInScoreOrder', () => {
                 expect(routed).to.eql('first');
             }, passErr, done);
     });
+
+    it('should allow router functions', (done) => {
+        let routed;
+
+        Router.route$(foo, new Router(Router.getRouteBest$(
+            routerNo(),
+            () => routerDo(m => {
+                routed = true;
+            })
+        )))
+            .subscribe(n => {
+                expect(routed).to.be.true;
+            }, passErr, done);
+    });
+
 });
 
 describe('Router.noop', () => {
@@ -828,6 +868,30 @@ describe('ifTrue', () => {
                 expect(route.type).to.eql('no')
             }, passErr, done);
     });
+
+    it('should allow undefined result for getThenRouter', (done) =>{
+        new Router(Router.getRouteIfMatches$(
+            c => true,
+            () => undefined
+        ))
+            ._getRoute$(foo)
+            .subscribe(route => {
+                expect(route.type).to.eql('no')
+            }, passErr, done);
+    });
+
+    it('should allow undefined result for getElseRouter', (done) =>{
+        new Router(Router.getRouteIfMatches$(
+            c => false,
+            throwErr,
+            () => undefined
+        ))
+            ._getRoute$(foo)
+            .subscribe(route => {
+                expect(route.type).to.eql('no')
+            }, passErr, done);
+    });
+
 });
 
 describe('ifMatches', () => {
@@ -1023,7 +1087,6 @@ describe('ifMatches', () => {
                 expect(route.score).to.eql(.5);
             }, passErr, done);
     });
-
 });
 
 describe('inline Router', () => {
