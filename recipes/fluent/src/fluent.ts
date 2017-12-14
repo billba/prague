@@ -60,8 +60,11 @@ export class IfMatchesFluent <ROUTABLE, VALUE> {
         );
     }
 
-    thenDo(thenHandler: (routable: ROUTABLE, value: VALUE) => Observableable<any>) {
-        return this.thenTry((_routable, value) => Router.do(routable => thenHandler(routable, value)));
+    thenDo(
+        thenHandler: (routable: ROUTABLE, value: VALUE) => Observableable<any>,
+        score?: number
+    ) {
+        return this.thenTry((_routable, value) => Router.do(routable => thenHandler(routable, value), score));
     }
 
     thenTry(router: Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;

@@ -731,6 +731,21 @@ describe('ifTrue', () => {
                 expect(route.type).to.eql('no')
             }, passErr, done);
     });
+
+    it("should return the handler's score", (done) => {
+        let handled;
+        ifTrue(c => ({ value: true, score: .25 }))
+            .thenDo((c, value) => {
+                handled = value;
+            }, .4)
+            ._getRoute$(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.1);
+                route.action();
+                expect(handled).to.be.true;                
+            }, passErr, done);
+    });
+
 });
 
 describe('ifMatches', () => {
@@ -957,7 +972,6 @@ describe('ifMatches', () => {
                 expect(handled.foobar).to.eql("bar");
             }, passErr, done);
     });
-
 });
 
 describe('inline Router', () => {
