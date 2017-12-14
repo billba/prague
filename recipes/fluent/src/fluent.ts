@@ -11,14 +11,17 @@ export class IfMatchesThen <ROUTABLE, VALUE> extends Router<ROUTABLE> {
         super(Router.getRouteIfMatches$(matcher, getThenRouter));
     }
 
-    elseDo(elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>) {
-        return this.elseTry((_routable, reason) => Router.do(routable => elseHandler(routable, reason)));
+    elseDo(
+        elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>,
+        score?: number
+    ) {
+        return this.elseTry((_routable, reason) => Router.do(routable => elseHandler(routable, reason), score));
     }
 
     elseTry(elseRouter: Router<ROUTABLE>): Router<ROUTABLE>;
 
     elseTry(getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): Router<ROUTABLE>;
-    
+
     elseTry(arg: Router<ROUTABLE> | ((routable: ROUTABLE, reason: string) => Router<ROUTABLE>)) {
         return new Router(Router.getRouteIfMatches$(this.matcher, this.getThenRouter, typeof(arg) === 'function'
             ? arg
@@ -110,7 +113,11 @@ export class Helpers <ROUTABLE> {
             ? getRouter
             : (routable: ROUTABLE) => getRouter
         )));
-}
+    }
+    
+    noop (handler: Handler<ROUTABLE>) {
+        return new Router(Router.getRouteNoop$(handler));
+    }
 
     ifMatches <VALUE>(matcher: Matcher<ROUTABLE, VALUE>) {
         return new IfMatchesFluent(matcher);

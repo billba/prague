@@ -775,6 +775,20 @@ describe('ifTrue', () => {
             }, passErr, done);
     });
 
+    it("should return the handler's score", (done) => {
+        let handled;
+        ifTrue(c => false)
+            .thenDo(throwErr)
+            .elseDo(c => {
+                handled = true;
+            }, .5)
+            ._getRoute$(foo)
+            .subscribe(route => {
+                expect(route.score).to.eql(.5);
+                route.action();
+                expect(handled).to.be.true;                
+            }, passErr, done);
+    });
 });
 
 describe('ifMatches', () => {
