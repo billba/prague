@@ -4,7 +4,7 @@ import { Bot } from 'botbuilder-core';
 
 export * from 'prague-fluent';
 
-export const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, trySwitch, route } = new Helpers<BotContext>();
+export const { tryInOrder, tryInScoreOrder, ifMatches, ifTrue, trySwitch, noop, route } = new Helpers<BotContext>();
 
 class BotRouter extends Router<BotContext> {}
 
