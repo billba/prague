@@ -5,7 +5,7 @@ export type Observableable <T> = T | Observable<T> | Promise<T>;
 
 export function toObservable <T> (t: Observableable<T>) {
     if (t instanceof Observable)
-        return t;
+        return t.take(1);
     if (t instanceof Promise)
         return Observable.fromPromise<T>(t);
     return Observable.of(t);
