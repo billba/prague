@@ -17,3 +17,5 @@ samples/alarmbot/public/bot.js.map
 samples/scaffold/public/bot.js
 
 samples/scaffold/public/bot.js.map
+
+recipes/botbuilder/.npmrc
