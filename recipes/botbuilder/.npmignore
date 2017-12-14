@@ -5,4 +5,5 @@
 /.gitignore
 /.npmignore
 /.vscode
+/test
 debug.log
