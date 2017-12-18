@@ -11,8 +11,8 @@ export function toObservable <T> (t: Observableable<T>) {
     return Observable.of(t);
 }
 
-export interface ActionRoute {
-    type: 'action';
+export interface DoRoute {
+    type: 'do';
     action: () => Observableable<any>;
     score: number;
 }
@@ -22,7 +22,7 @@ export interface NoRoute {
     reason: string;
 }
 
-export type Route = ActionRoute | NoRoute;
+export type Route = DoRoute | NoRoute;
 
 export type GetRoute$ <ROUTABLE> = (routable: ROUTABLE) => Observable<Route>
 
@@ -47,15 +47,15 @@ export type Predicate <ROUTABLE> = Matcher<ROUTABLE, boolean>;
 export class Router <ROUTABLE> {
     constructor(public _getRoute$: GetRoute$<ROUTABLE>) {}
 
-    static actionRoute (
+    static doRoute (
         action: () => Observableable<any>,
         score: number = 1
     ) {
         return {
-            type: 'action',
+            type: 'do',
             action,
             score
-        } as ActionRoute;
+        } as DoRoute;
     }
 
     static noRoute (reason: string = Router.defaultReason) {
@@ -69,7 +69,7 @@ export class Router <ROUTABLE> {
         return score * otherScore
     }
 
-    static routeWithCombinedScore(route: ActionRoute, newScore: number) {
+    static routeWithCombinedScore(route: DoRoute, newScore: number) {
         const score = Router.combineScore(newScore, route.score);
 
         return route.score === score
@@ -84,7 +84,7 @@ export class Router <ROUTABLE> {
         return router
             ._getRoute$(routable)
             .do(route => konsole.log("route: returned a route", route))
-            .flatMap(route => route.type === 'action'
+            .flatMap(route => route.type === 'do'
                 ? toObservable(route.action())
                     .do(_ => konsole.log("route: called action"))
                     .map(_ => true)
@@ -92,7 +92,7 @@ export class Router <ROUTABLE> {
             );
     }
 
-    static minRoute = Router.actionRoute(
+    static minRoute = Router.doRoute(
         () => {
             console.warn("BestRouter.minRoute.action should never be called");
         },
@@ -111,7 +111,7 @@ export class Router <ROUTABLE> {
         handler: Handler<ROUTABLE>,
         score?: number
     ): GetRoute$<ROUTABLE> {
-        return routable => Observable.of(Router.actionRoute(() => handler(routable), score));
+        return routable => Observable.of(Router.doRoute(() => handler(routable), score));
     }
 
     static getRouteFirst$ <ROUTABLE> (
@@ -127,7 +127,7 @@ export class Router <ROUTABLE> {
                     ._getRoute$(routable)
                     .do(route => konsole.log(`first: router #${i} returned route`, route));
             })
-            .filter(route => route.type === 'action')
+            .filter(route => route.type === 'do')
             .take(1) // so that we don't keep going through routers after we find one that matches;
             .defaultIfEmpty(Router.noRoute('tryInOrder'));
     }
@@ -144,9 +144,9 @@ export class Router <ROUTABLE> {
                 .map(Router.toRouter)
                 .takeWhile(_ => bestRoute.score < 1)
                 .concatMap(router => router._getRoute$(routable))
-                .filter(route => route.type === 'action')
+                .filter(route => route.type === 'do')
                 .subscribe(
-                    (route: ActionRoute) => {
+                    (route: DoRoute) => {
                         if (route.score > bestRoute.score) {
                             bestRoute = route;
                             if (bestRoute.score === 1) {
@@ -229,7 +229,7 @@ export class Router <ROUTABLE> {
                 ? toObservable(getThenRouter(routable, matchResult.value))
                     .map(Router.toRouter)
                     .flatMap(router => router._getRoute$(routable))
-                    .map(route => route.type === 'action'
+                    .map(route => route.type === 'do'
                         ? Router.routeWithCombinedScore(route, matchResult.score)
                         : route
                     )
@@ -276,7 +276,7 @@ export class Router <ROUTABLE> {
     ): GetRoute$<ROUTABLE> {
         return routable => router
             ._getRoute$(routable)
-            .map(route => route.type === 'action'
+            .map(route => route.type === 'do'
                 ? {
                     ... route,
                     action: () => toObservable(beforeHandler(routable))
@@ -292,7 +292,7 @@ export class Router <ROUTABLE> {
     ): GetRoute$<ROUTABLE> {
         return routable => router
             ._getRoute$(routable)
-            .map(route => route.type === 'action'
+            .map(route => route.type === 'do'
                 ? {
                     ... route,
                     action: () => toObservable(route.action())
@@ -307,7 +307,7 @@ export class Router <ROUTABLE> {
         getDefaultRouter: (routable: ROUTABLE, reason: string) => Observableable<Router<ROUTABLE>>
     ): GetRoute$<ROUTABLE> {
         return routable => mainRouter._getRoute$(routable)
-            .flatMap(route => route.type === 'action'
+            .flatMap(route => route.type === 'do'
                 ? Observable.of(route)
                 : toObservable(getDefaultRouter(routable, route.reason))
                     .map(Router.toRouter)

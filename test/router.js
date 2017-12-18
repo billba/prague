@@ -151,19 +151,19 @@ describe('toObservable', () => {
 
 });
 
-describe('Router.actionRoute', () => {
-    it('should create an ActionRoute with supplied action and no score', () => {
+describe('Router.doRoute', () => {
+    it('should create an doRoute with supplied action and no score', () => {
         let action = () => {};
-        let route = Router.actionRoute(action);
-        expect(route.type).to.eql('action');
+        let route = Router.doRoute(action);
+        expect(route.type).to.eql('do');
         expect(route.action).to.eql(action);
         expect(route.score).to.eql(1);
     });
 
-    it('should create an ActionRoute with supplied action and score', () => {
+    it('should create an doRoute with supplied action and score', () => {
         let action = () => {};
-        let route = Router.actionRoute(action, 0.5);
-        expect(route.type).to.eql('action');
+        let route = Router.doRoute(action, 0.5);
+        expect(route.type).to.eql('do');
         expect(route.action).to.eql(action);
         expect(route.score).to.eql(.5);
         expect(route.reason).to.be.undefined;
@@ -173,7 +173,7 @@ describe('Router.actionRoute', () => {
 describe('router._getRoute$', () => {
     it('should return action route', done => {
         let theRoute = {
-            type: 'action',
+            type: 'do',
             action: noop
         }
         new Router(routable => Observable.of(theRoute))
@@ -197,24 +197,24 @@ describe('router._getRoute$', () => {
 })
 
 describe('Router.getRouteDo$', () => {
-    it('should return an ActionRoute using supplied handler and no score', (done) => {
+    it('should return an doRoute using supplied handler and no score', (done) => {
         let handled;
         routerDo(m => { handled = m; })
             ._getRoute$(foo)
             .subscribe(route => {
-                expect(route.type).to.eql('action');
+                expect(route.type).to.eql('do');
                 expect(route.score).to.eql(1);
                 route.action();
                 expect(handled).to.eql(foo);
             }, passErr, done);
     });
 
-    it('should return an ActionRoute using supplied handler and score', (done) => {
+    it('should return an doRoute using supplied handler and score', (done) => {
         let handled;
         routerDo(m => { handled = m; }, .5)
             ._getRoute$(foo)
             .subscribe(route => {
-                expect(route.type).to.eql('action');
+                expect(route.type).to.eql('do');
                 expect(route.score).to.eql(.5);
                 route.action();
                 expect(handled).to.eql(foo);
@@ -268,7 +268,7 @@ describe('Router.route$', () => {
             }, passErr, done);
     });
 
-    it("should return true when router returns ActionRoute", (done) => {
+    it("should return true when router returns doRoute", (done) => {
         let routed;
 
         Router.route$(foo, routerDo(() => {
@@ -618,7 +618,7 @@ describe('Router.noop', () => {
 describe('Router.routeWithCombinedScore', () => {
     it("should return combined score", () => {
         expect(Router.routeWithCombinedScore(
-            Router.actionRoute(() => {}, .4),
+            Router.doRoute(() => {}, .4),
             .25
         ).score).to.eql(.1);
     });
@@ -793,7 +793,7 @@ describe('ifTrue', () => {
         ))
             ._getRoute$(foo)
             .subscribe(route => {
-                expect(route.type === 'action');
+                expect(route.type === 'do');
                 route.action();
                 expect(routed).to.eql("whatevs");
             }, passErr, done);
