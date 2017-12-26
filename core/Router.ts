@@ -11,169 +11,147 @@ export function toObservable <T> (t: Observableable<T>) {
     return Observable.of(t);
 }
 
+export class Route {}
+
+export class RouteWithScore extends Route {
+    public score = 1;
+
+    constructor (
+        score?: number
+    ) {
+        super();
+
+        if (score >= 0 && score <= 1)
+            this.score = score;
+    }
+
+    static combinedScore(score, otherScore) {
+        return score * otherScore
+    }
+}
+
 export type Action = () => Observableable<any>;
 
-export interface DoRoute {
-    type: 'do';
-    action: Action;
-    score: number;
+export class DoRoute extends RouteWithScore {
+
+    constructor (
+        public action: Action,
+        score?: number
+    ) {
+        super(score);
+    }
+
+    static is (route: Route): route is DoRoute {
+        return route instanceof DoRoute;
+    }
+          
+    // combinedWithScore(newScore: number) {
+    //     const score = RouteWithScore.combinedScore(newScore, this.score);
+
+    //     return this.score === score
+    //         ? this
+    //         : new DoRoute(this.action, score);
+    // }
 }
 
-export function isDoRoute(route: Route): route is DoRoute {
-    return route.type === 'do';
-}
-
-export function isNoRoute(route: Route): route is NoRoute {
-    return route.type === 'no';
-}
-
-export interface NoRoute {
-    type: 'no';
-    reason: string;
-}
-
-export type Route = DoRoute | NoRoute;
-
-export type RawRoute = Route | {
-    type?: 'do';
-    action: Action;
-    score?: number;
- } | {
-    type?: 'no';
-    reason: string;
- }
-
-export type GetRouteRaw <ROUTABLE> = (routable: ROUTABLE) => Observableable<Route | RawRoute | Action>;
-
-export type GetRoute <ROUTABLE> = (routable: ROUTABLE) => Observableable<Route>;
-export type GetRoute$ <ROUTABLE> = (routable: ROUTABLE) => Observable<Route>;
-
-export type MapRoute <ROUTABLE> = (route: Route) => Observableable<GetRoute<ROUTABLE>>;
-
-export type Handler <ROUTABLE> = (routable: ROUTABLE) => Observableable<any>;
-
-export interface Match <VALUE> {
-    value: VALUE;
-    score?: number;
-}
-
-export interface NoMatch <VALUE> {
-    value?: VALUE;
-    reason: string;
-}
-
-export type MatchResult <VALUE> = Match<VALUE> | NoMatch<VALUE>;
-
-export type Matcher <ROUTABLE, VALUE> = (routable: ROUTABLE) => Observableable<MatchResult<VALUE> | VALUE>;
-
-export type Predicate <ROUTABLE> = Matcher<ROUTABLE, boolean>;
-
-export function doRoute (
-    action: () => Observableable<any>,
-    score: number = 1
-): DoRoute {
-    return {
-        type: 'do',
-        action,
-        score
-    };
-}
-
-export const defaultReason = "none";
-
-export function noRoute (
-    reason: string = defaultReason
-): NoRoute {
-    return {
-        type: 'no',
-        reason
-    };
-}
-
-export function normalizeRoute (rawRoute: RawRoute): Route {
-    if (!rawRoute || (rawRoute as NoRoute).reason)
-        return noRoute(rawRoute && (rawRoute as NoRoute).reason);
-    if (typeof(rawRoute) === 'function')
-        return doRoute(rawRoute);
-    if ((rawRoute as DoRoute).action)
-        return doRoute((rawRoute as DoRoute).action, (rawRoute as DoRoute).score);
-    throw new Error('invalid route');
-}
-
-export const getNormalizedRoute = <ROUTABLE> (routable: ROUTABLE) => (getRoute: GetRouteRaw<ROUTABLE>) => getRoute
-    ? toObservable(getRoute(routable))
-        .map(normalizeRoute)
-    : Observable.of(noRoute());
-
-export function route$ <ROUTABLE> (routable: ROUTABLE, getRoute: GetRouteRaw<ROUTABLE>) {
-    return Observable.of(getRoute)
-        .flatMap(getNormalizedRoute(routable))
-        .do(route => konsole.log("route: returned a route", route))
-        .flatMap(route => isDoRoute(route)
-            ? toObservable(route.action())
-                .do(_ => konsole.log("route: called action"))
-                .map(_ => true)
-            : Observable.of(false)
-        );
-}
-
-export function no <ROUTABLE> (
-    reason?: string
-): GetRoute$<ROUTABLE> {
-    return routable => Observable.of(noRoute(reason));
-}
-
-export function getRouteDo <ROUTABLE> (
-    handler: Handler<ROUTABLE>,
+function _do(
+    action: Action,
     score?: number
-): GetRoute$<ROUTABLE> {
-    return routable => Observable.of(doRoute(() => handler(routable), score));
+) {
+    return () => new DoRoute(action, score);
 }
 
-export { getRouteDo as do }
+export { _do as do }
 
-export function first <ROUTABLE> (
-    ... getRoutes: GetRouteRaw<ROUTABLE>[]
-): GetRoute$<ROUTABLE> {
-    return routable => Observable.from(getRoutes)
-        .concatMap(getNormalizedRoute(routable))
-        .filter(isDoRoute)
+export class NoRoute extends Route{
+
+    static defaultReason = "none";
+    
+    constructor (
+        public reason: string = NoRoute.defaultReason
+    ) {
+        super();
+    }
+
+    static is (route: Route): route is NoRoute {
+        return route instanceof NoRoute;
+    }
+}
+
+export function no (
+    reason?: string
+) {
+    return () => new NoRoute(reason);
+}
+
+// export interface Match <VALUE> {
+//     value: VALUE;
+//     score?: number;
+// }
+
+// export interface NoMatch <VALUE> {
+//     value?: VALUE;
+//     reason: string;
+// }
+
+// export type MatchResult <VALUE> = Match<VALUE> | NoMatch<VALUE>;
+
+// export type Matcher <VALUE> = () => Observableable<MatchResult<VALUE> | VALUE>;
+
+// export type Predicate = Matcher<boolean>;
+
+export function normalizedRoute (rawRoute: Route): Route {
+    return rawRoute || new NoRoute();
+}
+
+export type GetRoute = () => Observableable<Route>;
+
+// export function route$ (getRoute: GetRoute) {
+//     return Observable.of(getRoute)
+//         .flatMap(getNormalizedRoute$)
+//         .do(route => konsole.log("route: returned a route", route))
+//         .flatMap(route => DoRoute.is(route)
+//             ? toObservable(route.action())
+//                 .do(_ => konsole.log("route: called action"))
+//                 .map(_ => true)
+//             : Observable.of(false)
+//         );
+// }
+
+const noRouteFirst = new NoRoute('first');
+
+export function first (
+    ... getRoutes: GetRoute[]
+): GetRoute {
+    return () => Observable.from(getRoutes)
+        // we put concatMap first because it forces everything after it to execute serially
+        .concatMap(getRoute => toObservable(getRoute()))
+        .map(normalizedRoute)
+        .filter(DoRoute.is)
         .take(1) // so that we don't keep going through routers after we find one that matches;
-        .defaultIfEmpty(noRoute('first'));
+        .defaultIfEmpty(noRouteFirst);
 }
 
-export function combinedScore(score, otherScore) {
-    return score * otherScore
-}
+const noRouteBest = new NoRoute('first');
 
-export function routeWithCombinedScore(route: DoRoute, newScore: number) {
-    const score = combinedScore(newScore, route.score);
-
-    return route.score === score
-        ? route
-        : {
-            ... route,
-            score
-        } as Route;
-}
-
-export const minRoute = doRoute(
-    () => {
-        console.warn("BestRouter.minRoute.action should never be called");
-    },
+const minRoute = new DoRoute(
+    () => console.warn("BestRouter.minRoute.action should never be called"),
     0
 );
 
-export function best <ROUTABLE> (
-    ... getRoutes: GetRouteRaw<ROUTABLE>[]
-): GetRoute<ROUTABLE> {
-    return routable => new Observable<Route>(observer => {
+export function best (
+    ... getRoutes: GetRoute[]
+): GetRoute {
+    return () => new Observable<Route>(observer => {
         let bestRoute = minRoute;
 
         const subscription = Observable.from(getRoutes)
+            // we put concatMap first because it forces everything after it to execute serially
+            .concatMap(getRoute => toObservable(getRoute()))
+            // early exit if we've already found a winner (score === 1)
             .takeWhile(_ => bestRoute.score < 1)
-            .concatMap(getNormalizedRoute(routable))
-            .filter(isDoRoute)
+            .map(normalizedRoute)
+            .filter(DoRoute.is)
             .subscribe(
                 (route: DoRoute) => {
                     if (route.score > bestRoute.score) {
@@ -189,7 +167,7 @@ export function best <ROUTABLE> (
                 () => {
                     observer.next(bestRoute.score > 0
                         ? bestRoute
-                        : noRoute('best')
+                        : noRouteBest
                     );
                     observer.complete();
                 }
@@ -199,123 +177,127 @@ export function best <ROUTABLE> (
     });
 }
 
-export function noop <ROUTABLE> (handler: Handler<ROUTABLE>): GetRouteRaw<ROUTABLE> {
-    return routable => toObservable(handler(routable))
-        .map(_ => noRoute('noop'));
+const noRouteNoop = new NoRoute('noop');
+
+export function noop (action: Action): GetRoute {
+    return () => toObservable(action())
+        .mapTo(noRouteNoop);
 }
 
-export function isMatch <VALUE> (match: MatchResult<any>): match is Match<VALUE> {
-    return ((match as any).reason === undefined);
-}
+// export function isMatch <VALUE> (match: MatchResult<any>): match is Match<VALUE> {
+//     return ((match as any).reason === undefined);
+// }
 
-function normalizeMatchResult <VALUE> (response: any): MatchResult<VALUE> {
-    if (response == null || response === false)
-        return {
-            reason: defaultReason
-        }
+// function normalizeMatchResult <VALUE> (response: any): MatchResult<VALUE> {
+//     if (response == null || response === false)
+//         return {
+//             reason: defaultReason
+//         }
 
-    if (typeof(response) === 'object') {
-        if (response.reason) {
-            if (typeof(response.reason) !== 'string')
-                throw new Error('The reason for NoMatch must be a string');
+//     if (typeof(response) === 'object') {
+//         if (response.reason) {
+//             if (typeof(response.reason) !== 'string')
+//                 throw new Error('The reason for NoMatch must be a string');
 
-            return {
-                reason: response.reason
-            }
-        }
+//             return {
+//                 reason: response.reason
+//             }
+//         }
 
-        if (response.value !== undefined) {
-            if (response.score !== undefined && typeof(response.score) !== 'number')
-                throw new Error('The score for Match must be a number');
+//         if (response.value !== undefined) {
+//             if (response.score !== undefined && typeof(response.score) !== 'number')
+//                 throw new Error('The score for Match must be a number');
 
-            return {
-                value: response.value,
-                score: response.score || 1
-            }
-        }
-    }
+//             return {
+//                 value: response.value,
+//                 score: response.score || 1
+//             }
+//         }
+//     }
 
-    return {
-        value: response,
-        score: 1
-    }
-}
+//     return {
+//         value: response,
+//         score: 1
+//     }
+// }
 
-export function getNormalizedMatchResult$ <ROUTABLE, VALUE> (matcher: Matcher<ROUTABLE, VALUE>, routable: ROUTABLE) {
-    return toObservable(matcher(routable))
-        .map(response => normalizeMatchResult<VALUE>(response));
-}
+// export function getNormalizedMatchResult$ <ROUTABLE, VALUE> (matcher: Matcher<ROUTABLE, VALUE>, routable: ROUTABLE) {
+//     return toObservable(matcher(routable))
+//         .map(response => normalizeMatchResult<VALUE>(response));
+// }
 
-function getRouteIfMatches <ROUTABLE, VALUE> (
-    matcher: Matcher<ROUTABLE, VALUE>,
-    getThenGetRoute: (value: VALUE) => Observableable<GetRoute<ROUTABLE>>,
-    elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>> = route => routable => route
-): GetRoute<ROUTABLE> {
-    return routable => getNormalizedMatchResult$(matcher, routable)
-        .flatMap(matchResult => isMatch(matchResult)
-            ? toObservable(getThenGetRoute(matchResult.value))
-                .flatMap(getNormalizedRoute(routable))
-                .map(route => isDoRoute(route)
-                    ? routeWithCombinedScore(route, matchResult.score)
-                    : route
-                )
-            : toObservable(elseMapRoute(noRoute(matchResult.reason)))
-                .flatMap(getNormalizedRoute(routable))
-        );
-}
+// function getRouteIfMatches <ROUTABLE, VALUE> (
+//     matcher: Matcher<ROUTABLE, VALUE>,
+//     getThenGetRoute: (value: VALUE) => Observableable<GetRoute<ROUTABLE>>,
+//     elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>> = route => routable => route
+// ): GetRoute<ROUTABLE> {
+//     return routable => getNormalizedMatchResult$(matcher, routable)
+//         .flatMap(matchResult => isMatch(matchResult)
+//             ? toObservable(getThenGetRoute(matchResult.value))
+//                 .flatMap(getNormalizedRoute(routable))
+//                 .map(route => isDoRoute(route)
+//                     ? routeWithCombinedScore(route, matchResult.score)
+//                     : route
+//                 )
+//             : toObservable(elseMapRoute(noRoute(matchResult.reason)))
+//                 .flatMap(getNormalizedRoute(routable))
+//         );
+// }
 
-export { getRouteIfMatches as ifGet }
+// export { getRouteIfMatches as ifGet }
 
-export function predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> {
-    return routable => toObservable(predicate(routable))
-        .map((response: any) => {
-            if (response === true || response === false)
-                return response;
+// export function predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> {
+//     return routable => toObservable(predicate(routable))
+//         .map((response: any) => {
+//             if (response === true || response === false)
+//                 return response;
 
-            if (typeof(response) === 'object') {
-                if (response.reason)
-                    return response;
+//             if (typeof(response) === 'object') {
+//                 if (response.reason)
+//                     return response;
 
-                if (response.value !== undefined) {
-                    if (response.value === false)
-                        return false;
-                    if (response.value === true)
-                        return response;
-                    throw new Error('When returning a Match from a predicate, the value must be true or false');
-                }
-            }
+//                 if (response.value !== undefined) {
+//                     if (response.value === false)
+//                         return false;
+//                     if (response.value === true)
+//                         return response;
+//                     throw new Error('When returning a Match from a predicate, the value must be true or false');
+//                 }
+//             }
 
-            throw new Error('A predicate may only return true, false, a Match of true or false, or a NoMatch');
-        });
-}
+//             throw new Error('A predicate may only return true, false, a Match of true or false, or a NoMatch');
+//         });
+// }
 
-function getRouteIfTrue <ROUTABLE> (
-    predicate: Predicate<ROUTABLE>,
-    thenGetRoute: GetRoute<ROUTABLE>,
-    elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
-): GetRoute<ROUTABLE> {
-    return getRouteIfMatches(predicateToMatcher(predicate), value => thenGetRoute, elseMapRoute);
-}
+// function getRouteIfTrue <ROUTABLE> (
+//     predicate: Predicate<ROUTABLE>,
+//     thenGetRoute: GetRoute<ROUTABLE>,
+//     elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
+// ): GetRoute<ROUTABLE> {
+//     return getRouteIfMatches(predicateToMatcher(predicate), value => thenGetRoute, elseMapRoute);
+// }
 
-export { getRouteIfTrue as if }
+// export { getRouteIfTrue as if }
 
-export function map <ROUTABLE> (
-    getRoute: GetRoute<ROUTABLE>,
-    mapper: MapRoute<ROUTABLE>
-): GetRoute$<ROUTABLE> {
-    return routable => Observable.of(getRoute)
-        .flatMap(getNormalizedRoute(routable))
+export type MapRoute = (route: Route) => Observableable<Route>;
+
+export function map (
+    getRoute: GetRoute,
+    mapper: MapRoute
+): GetRoute {
+    return () => toObservable(getRoute())
+        .map(normalizedRoute)
         .flatMap(route => toObservable(mapper(route)))
-        .flatMap(getNormalizedRoute(routable))
+        .map(normalizedRoute);
 }
 
-export function before <ROUTABLE> (
-    beforeHandler: Handler<ROUTABLE>,
-    getRoute: GetRoute<ROUTABLE>
-): GetRoute$<ROUTABLE> {
-    return map(getRoute, route => routable => isDoRoute(route)
-        ? doRoute(
-            () => toObservable(beforeHandler(routable))
+export function before (
+    action: Action,
+    getRoute: GetRoute
+) {
+    return map(getRoute, route => DoRoute.is(route)
+        ? new DoRoute(
+            () => toObservable(action())
                 .flatMap(_ => toObservable(route.action())),
             route.score
         )
@@ -323,37 +305,37 @@ export function before <ROUTABLE> (
     );
 }
 
-export function after <ROUTABLE> (
-    afterHandler: Handler<ROUTABLE>,
-    getRoute: GetRoute<ROUTABLE>
-): GetRoute$<ROUTABLE> {
-    return map(getRoute, route => routable => isDoRoute(route)
-        ? doRoute(
+export function after (
+    action: Action,
+    getRoute: GetRoute
+) {
+    return map(getRoute, route => DoRoute.is(route)
+        ? new DoRoute(
             () => toObservable(route.action())
-                .flatMap(_ => toObservable(afterHandler(routable))),
+                .flatMap(_ => toObservable(action())),
             route.score
         )
         : route
     );
 }
 
-function getRouteDefault <ROUTABLE> (
-    getRoute: GetRoute<ROUTABLE>,
-    defaultMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
+function _default <ROUTABLE> (
+    getRoute: GetRoute,
+    mapRoute: MapRoute
 ) {
-    return map(getRoute, route => isNoRoute(route)
-        ? defaultMapRoute(route)
-        : routable => route
+    return map(getRoute, route => NoRoute.is(route)
+        ? mapRoute(route)
+        : route
     );
 }
 
-export { getRouteDefault as default }
+export { _default as default }
 
-function getRouteSwitch <ROUTABLE> (
-    getKey: (routable: ROUTABLE) => Observableable<string>,
-    mapKeyToGetRoute: Record<string, GetRoute<ROUTABLE>>
-) {
-    return getRouteIfMatches(getKey, key => mapKeyToGetRoute[key]);
-}
+// function _switch (
+//     getKey: () => Observableable<string>,
+//     mapKeyToGetRoute: Record<string, GetRoute>
+// ) {
+//     return getRouteIfMatches(getKey, key => mapKeyToGetRoute[key]);
+// }
 
-export { getRouteSwitch as switch }
+// export { _switch as switch }
