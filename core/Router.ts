@@ -117,7 +117,7 @@ export function route$ <ROUTABLE> (routable: ROUTABLE, getRoute: GetRouteRaw<ROU
         );
 }
 
-export function getRouteNo <ROUTABLE> (
+export function no <ROUTABLE> (
     reason?: string
 ): GetRoute$<ROUTABLE> {
     return routable => Observable.of(noRoute(reason));
@@ -130,7 +130,9 @@ export function getRouteDo <ROUTABLE> (
     return routable => Observable.of(doRoute(() => handler(routable), score));
 }
 
-export function getRouteFirst <ROUTABLE> (
+export { getRouteDo as do }
+
+export function first <ROUTABLE> (
     ... getRoutes: GetRouteRaw<ROUTABLE>[]
 ): GetRoute$<ROUTABLE> {
     return routable => Observable.from(getRoutes)
@@ -162,7 +164,7 @@ export const minRoute = doRoute(
     0
 );
 
-export function getRouteBest <ROUTABLE> (
+export function best <ROUTABLE> (
     ... getRoutes: GetRouteRaw<ROUTABLE>[]
 ): GetRoute<ROUTABLE> {
     return routable => new Observable<Route>(observer => {
@@ -197,7 +199,7 @@ export function getRouteBest <ROUTABLE> (
     });
 }
 
-export function getRouteNoop <ROUTABLE> (handler: Handler<ROUTABLE>): GetRouteRaw<ROUTABLE> {
+export function noop <ROUTABLE> (handler: Handler<ROUTABLE>): GetRouteRaw<ROUTABLE> {
     return routable => toObservable(handler(routable))
         .map(_ => noRoute('noop'));
 }
@@ -244,7 +246,7 @@ export function getNormalizedMatchResult$ <ROUTABLE, VALUE> (matcher: Matcher<RO
         .map(response => normalizeMatchResult<VALUE>(response));
 }
 
-export function getRouteIfMatches <ROUTABLE, VALUE> (
+function getRouteIfMatches <ROUTABLE, VALUE> (
     matcher: Matcher<ROUTABLE, VALUE>,
     getThenGetRoute: (value: VALUE) => Observableable<GetRoute<ROUTABLE>>,
     elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>> = route => routable => route
@@ -261,6 +263,8 @@ export function getRouteIfMatches <ROUTABLE, VALUE> (
                 .flatMap(getNormalizedRoute(routable))
         );
 }
+
+export { getRouteIfMatches as ifGet }
 
 export function predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> {
     return routable => toObservable(predicate(routable))
@@ -285,7 +289,7 @@ export function predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): 
         });
 }
 
-export function getRouteIfTrue <ROUTABLE> (
+function getRouteIfTrue <ROUTABLE> (
     predicate: Predicate<ROUTABLE>,
     thenGetRoute: GetRoute<ROUTABLE>,
     elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
@@ -293,7 +297,9 @@ export function getRouteIfTrue <ROUTABLE> (
     return getRouteIfMatches(predicateToMatcher(predicate), value => thenGetRoute, elseMapRoute);
 }
 
-export function mapRoute <ROUTABLE> (
+export { getRouteIfTrue as if }
+
+export function map <ROUTABLE> (
     getRoute: GetRoute<ROUTABLE>,
     mapper: MapRoute<ROUTABLE>
 ): GetRoute$<ROUTABLE> {
@@ -303,11 +309,11 @@ export function mapRoute <ROUTABLE> (
         .flatMap(getNormalizedRoute(routable))
 }
 
-export function getRouteBefore <ROUTABLE> (
+export function before <ROUTABLE> (
     beforeHandler: Handler<ROUTABLE>,
     getRoute: GetRoute<ROUTABLE>
 ): GetRoute$<ROUTABLE> {
-    return mapRoute(getRoute, route => routable => isDoRoute(route)
+    return map(getRoute, route => routable => isDoRoute(route)
         ? doRoute(
             () => toObservable(beforeHandler(routable))
                 .flatMap(_ => toObservable(route.action())),
@@ -317,11 +323,11 @@ export function getRouteBefore <ROUTABLE> (
     );
 }
 
-export function getRouteAfter <ROUTABLE> (
+export function after <ROUTABLE> (
     afterHandler: Handler<ROUTABLE>,
     getRoute: GetRoute<ROUTABLE>
 ): GetRoute$<ROUTABLE> {
-    return mapRoute(getRoute, route => routable => isDoRoute(route)
+    return map(getRoute, route => routable => isDoRoute(route)
         ? doRoute(
             () => toObservable(route.action())
                 .flatMap(_ => toObservable(afterHandler(routable))),
@@ -331,20 +337,23 @@ export function getRouteAfter <ROUTABLE> (
     );
 }
 
-export function getRouteDefault <ROUTABLE> (
+function getRouteDefault <ROUTABLE> (
     getRoute: GetRoute<ROUTABLE>,
     defaultMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
-): GetRoute$<ROUTABLE> {
-    return mapRoute(getRoute, route => isNoRoute(route)
+) {
+    return map(getRoute, route => isNoRoute(route)
         ? defaultMapRoute(route)
         : routable => route
     );
 }
 
-export function getRouteSwitch <ROUTABLE> (
+export { getRouteDefault as default }
+
+function getRouteSwitch <ROUTABLE> (
     getKey: (routable: ROUTABLE) => Observableable<string>,
     mapKeyToGetRoute: Record<string, GetRoute<ROUTABLE>>
-): GetRoute<ROUTABLE> {
+) {
     return getRouteIfMatches(getKey, key => mapKeyToGetRoute[key]);
 }
 
+export { getRouteSwitch as switch }
