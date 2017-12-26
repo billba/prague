@@ -23,6 +23,10 @@ export function isDoRoute(route: Route): route is DoRoute {
     return route.type === 'do';
 }
 
+export function isNoRoute(route: Route): route is NoRoute {
+    return route.type === 'no';
+}
+
 export interface NoRoute {
     type: 'no';
     reason: string;
@@ -43,6 +47,8 @@ export type GetRouteRaw <ROUTABLE> = (routable: ROUTABLE) => Observableable<Rout
 
 export type GetRoute <ROUTABLE> = (routable: ROUTABLE) => Observableable<Route>;
 export type GetRoute$ <ROUTABLE> = (routable: ROUTABLE) => Observable<Route>;
+
+export type MapRoute <ROUTABLE> = (route: Route) => Observableable<GetRoute<ROUTABLE>>;
 
 export type Handler <ROUTABLE> = (routable: ROUTABLE) => Observableable<any>;
 
@@ -241,7 +247,7 @@ export function getNormalizedMatchResult$ <ROUTABLE, VALUE> (matcher: Matcher<RO
 export function getRouteIfMatches <ROUTABLE, VALUE> (
     matcher: Matcher<ROUTABLE, VALUE>,
     getThenGetRoute: (value: VALUE) => Observableable<GetRoute<ROUTABLE>>,
-    getElseGetRoute: (reason: string) => Observableable<GetRoute<ROUTABLE>> = (reason: string) => getRouteNo(reason)
+    elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>> = route => routable => route
 ): GetRoute<ROUTABLE> {
     return routable => getNormalizedMatchResult$(matcher, routable)
         .flatMap(matchResult => isMatch(matchResult)
@@ -251,7 +257,7 @@ export function getRouteIfMatches <ROUTABLE, VALUE> (
                     ? routeWithCombinedScore(route, matchResult.score)
                     : route
                 )
-            : toObservable(getElseGetRoute(matchResult.reason))
+            : toObservable(elseMapRoute(noRoute(matchResult.reason)))
                 .flatMap(getNormalizedRoute(routable))
         );
 }
@@ -282,61 +288,63 @@ export function predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): 
 export function getRouteIfTrue <ROUTABLE> (
     predicate: Predicate<ROUTABLE>,
     thenGetRoute: GetRoute<ROUTABLE>,
-    getElseGetRoute?: (reason: string) => Observableable<GetRoute<ROUTABLE>>
+    elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
 ): GetRoute<ROUTABLE> {
-    return getRouteIfMatches(predicateToMatcher(predicate), value => thenGetRoute, getElseGetRoute);
+    return getRouteIfMatches(predicateToMatcher(predicate), value => thenGetRoute, elseMapRoute);
+}
+
+export function mapRoute <ROUTABLE> (
+    getRoute: GetRoute<ROUTABLE>,
+    mapper: MapRoute<ROUTABLE>
+): GetRoute$<ROUTABLE> {
+    return routable => Observable.of(getRoute)
+        .flatMap(getNormalizedRoute(routable))
+        .flatMap(route => toObservable(mapper(route)))
+        .flatMap(getNormalizedRoute(routable))
 }
 
 export function getRouteBefore <ROUTABLE> (
     beforeHandler: Handler<ROUTABLE>,
     getRoute: GetRoute<ROUTABLE>
-): GetRoute<ROUTABLE> {
-    return routable => Observable.of(getRoute)
-        .flatMap(getNormalizedRoute(routable))
-        .map(route => isDoRoute(route)
-            ? {
-                ... route,
-                action: () => toObservable(beforeHandler(routable))
-                    .flatMap(_ => toObservable(route.action()))
-            }
-            : route
-        );
+): GetRoute$<ROUTABLE> {
+    return mapRoute(getRoute, route => routable => isDoRoute(route)
+        ? doRoute(
+            () => toObservable(beforeHandler(routable))
+                .flatMap(_ => toObservable(route.action())),
+            route.score
+        )
+        : route
+    );
 }
 
 export function getRouteAfter <ROUTABLE> (
     afterHandler: Handler<ROUTABLE>,
     getRoute: GetRoute<ROUTABLE>
-): GetRoute<ROUTABLE> {
-    return routable => Observable.of(getRoute)
-        .flatMap(getNormalizedRoute(routable))
-        .map(route => isDoRoute(route)
-            ? {
-                ... route,
-                action: () => toObservable(route.action())
-                    .flatMap(_ => toObservable(afterHandler(routable)))
-            }
-            : route
-        );
+): GetRoute$<ROUTABLE> {
+    return mapRoute(getRoute, route => routable => isDoRoute(route)
+        ? doRoute(
+            () => toObservable(route.action())
+                .flatMap(_ => toObservable(afterHandler(routable))),
+            route.score
+        )
+        : route
+    );
 }
 
 export function getRouteDefault <ROUTABLE> (
-    mainGetRoute: GetRoute<ROUTABLE>,
-    getDefaultGetRoute: (reason: string) => Observableable<GetRoute<ROUTABLE>>
-): GetRoute<ROUTABLE> {
-    return routable => Observable.of(mainGetRoute)
-        .flatMap(getNormalizedRoute(routable))
-        .flatMap(route => isDoRoute(route)
-            ? Observable.of(route)
-            : toObservable(getDefaultGetRoute(route.reason))
-                .flatMap(getNormalizedRoute(routable))
-            );
+    getRoute: GetRoute<ROUTABLE>,
+    defaultMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
+): GetRoute$<ROUTABLE> {
+    return mapRoute(getRoute, route => isNoRoute(route)
+        ? defaultMapRoute(route)
+        : routable => route
+    );
 }
 
 export function getRouteSwitch <ROUTABLE> (
     getKey: (routable: ROUTABLE) => Observableable<string>,
     mapKeyToGetRoute: Record<string, GetRoute<ROUTABLE>>
 ): GetRoute<ROUTABLE> {
-    return routable => toObservable(getKey(routable))
-        .map(key => mapKeyToGetRoute[key])
-        .flatMap(getNormalizedRoute(routable))
+    return getRouteIfMatches(getKey, key => mapKeyToGetRoute[key]);
 }
+

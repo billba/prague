@@ -747,7 +747,7 @@ describe('Prague.getRouteIfMatches', () => {
         Prague.route$(notFoo, Prague.getRouteIfMatches(
             barIfFoo,
             value => Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteNo()
+            route => Prague.getRouteNo()
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -756,7 +756,7 @@ describe('Prague.getRouteIfMatches', () => {
         Prague.route$(foo, Prague.getRouteIfMatches(
             barIfFoo,
             value => Prague.getRouteNo(),
-            reason => Prague.getRouteDo(throwErr)
+            route => Prague.getRouteDo(throwErr)
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -783,7 +783,7 @@ describe('Prague.getRouteIfMatches', () => {
             value => Prague.getRouteDo(m => {
                 routed = true;
             }),
-            reason => Prague.getRouteDo(throwErr)
+            route => Prague.getRouteDo(throwErr)
         ))
             .subscribe(n => {
                 expect(routed).to.be.true;
@@ -796,7 +796,7 @@ describe('Prague.getRouteIfMatches', () => {
         Prague.route$(notFoo, Prague.getRouteIfMatches(
             barIfFoo,
             value => Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(m => {
+            route => Prague.getRouteDo(m => {
                 routed = true;
             })
         ))
@@ -811,8 +811,8 @@ describe('Prague.getRouteIfMatches', () => {
         Prague.route$(notFoo, Prague.getRouteIfMatches(
             c => ({ reason: 'reason' }),
             value => Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(m => {
-                routed = reason;
+            route => Prague.getRouteDo(m => {
+                routed = route.reason;
             })
         ))
             .subscribe(n => {
@@ -828,7 +828,7 @@ describe('Prague.getRouteIfMatches', () => {
             value => Prague.getRouteDo(c => {
                 routed = value;
             }),
-            reason => Prague.getRouteDo(throwErr)
+            route => Prague.getRouteDo(throwErr)
         ))
             .subscribe(n => {
                 expect(routed).to.eql('value');
@@ -843,7 +843,7 @@ describe('Prague.getRouteIfMatches', () => {
             value => Prague.getRouteDo(() => {
                 routed = value;
             }),
-            reason => Prague.getRouteDo(throwErr)
+            route => Prague.getRouteDo(throwErr)
         ))
             .subscribe(n => {
                 expect(routed).to.eql('value');
@@ -912,7 +912,7 @@ describe('Prague.getRouteIfMatches', () => {
         Prague.getRouteIfMatches(
             barIfFoo,
             value => Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(() => {}, .5)
+            route => Prague.getRouteDo(() => {}, .5)
         )
             (notFoo)
             .subscribe(route => {
@@ -982,7 +982,7 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.route$(foo, Prague.getRouteIfTrue(
             m => false,
             Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteNo()
+            route => Prague.getRouteNo()
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -999,7 +999,7 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.route$(foo, Prague.getRouteIfTrue(
             m => true,
             Prague.getRouteNo(),
-            reason => Prague.getRouteDo(throwErr)
+            route => Prague.getRouteDo(throwErr)
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -1026,7 +1026,7 @@ describe('Prague.getRouteIfTrue', () => {
             Prague.getRouteDo(m => {
                 routed = true;
             }),
-            reason => Prague.getRouteDo(throwErr)
+            route => Prague.getRouteDo(throwErr)
         ))
             .subscribe(n => {
                 expect(routed).to.be.true;
@@ -1039,7 +1039,7 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.route$(foo, Prague.getRouteIfTrue(
             m => false,
             Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(m => {
+            route => Prague.getRouteDo(m => {
                 routed = true;
             })
         ))
@@ -1074,7 +1074,7 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.getRouteIfTrue(
             m => false,
             Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(m => {})
+            route => Prague.getRouteDo(m => {})
         )
             (foo)
             .subscribe(route => {
@@ -1086,7 +1086,7 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.getRouteIfTrue(
             m => false,
             Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(_ => {}, .5)
+            route => Prague.getRouteDo(_ => {}, .5)
         )
             (foo)
             .subscribe(route => {
@@ -1132,8 +1132,8 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.getRouteIfTrue(
             m => ({ reason: 'whatevs' }),
             Prague.getRouteDo(throwErr),
-            reason => Prague.getRouteDo(m => {
-                routed = reason;
+            route => Prague.getRouteDo(m => {
+                routed = route.reason;
             })
         )
             (foo)
@@ -1199,7 +1199,7 @@ describe('Prague.getRouteIfTrue', () => {
         Prague.getRouteIfTrue(
             c => false,
             throwErr,
-            reason => undefined
+            route => undefined
         )
             (foo)
             .subscribe(route => {
@@ -1291,8 +1291,8 @@ describe("Prague.getRouteDefault", () => {
 
         Prague.route$(foo, Prague.getRouteDefault(
             Prague.getRouteNo('reason'),
-            reason => Prague.getRouteDo(m => {
-                handled = reason;
+            route => Prague.getRouteDo(m => {
+                handled = route.reason;
             })
         ))
             .subscribe(n => {
@@ -1303,7 +1303,7 @@ describe("Prague.getRouteDefault", () => {
     it('should allow undefined result for getDefaultRouter', (done) =>{
         Prague.getRouteDefault(
             Prague.getRouteNo('reason'),
-            () => undefined
+            route => undefined
         )
             (foo)
             .subscribe(route => {
