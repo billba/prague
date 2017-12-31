@@ -747,7 +747,7 @@ describe('p.ifGet', () => {
     it("should return false on no match when 'else' router doesn't exist", (done) =>
         p.route$(p.ifGet(
             () => undefined,
-            value => p.do(throwErr)
+            p.do(throwErr)
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -755,7 +755,7 @@ describe('p.ifGet', () => {
     it("should return false on no match when 'else' router doesn't exist", (done) =>
         p.route$(p.ifGet(
             () => undefined,
-            value => p.do(throwErr)
+            p.do(throwErr)
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -763,8 +763,8 @@ describe('p.ifGet', () => {
     it("should return false on no match when 'else' router doesn't route", (done) =>
         p.route$(p.ifGet(
             () => undefined,
-            value => p.do(throwErr),
-            route => p.no()
+            p.do(throwErr),
+            p.no()
         ))
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
@@ -773,8 +773,8 @@ describe('p.ifGet', () => {
         p.route$(
             v => p.ifGet(
                 () => barIfFoo(v),
-                value => p.no(),
-                route => p.do(throwErr)
+                p.no(),
+                p.do(throwErr)
             ),
             foo
         )
@@ -787,7 +787,7 @@ describe('p.ifGet', () => {
         p.route$(
             v => p.ifGet(
                 () => barIfFoo(v),
-                value => p.do(m => {
+                p.do(m => {
                     routed = true;
                 })
             ),
@@ -804,10 +804,10 @@ describe('p.ifGet', () => {
         p.route$(
             v => p.ifGet(
                 () => barIfFoo(v),
-                value => p.do(m => {
+                p.do(m => {
                     routed = true;
                 }),
-                route => p.do(throwErr)
+                p.do(throwErr)
             ),
             foo
         )
@@ -820,134 +820,150 @@ describe('p.ifGet', () => {
         let routed;
 
         p.route$(
-            v => p.ifGet(
-                () => barIfFoo(v),
-                value => p.do(throwErr),
-                route => p.do(m => {
+            p.ifGet(
+                () => undefined,
+                p.do(throwErr),
+                p.do(m => {
                     routed = true;
                 })
-            ),
-            notFoo
+            )
         )
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
     });
 
-    // it("should route message to 'else' router on no match", (done) => {
-    //     let routed;
+    it("should route message to 'else' router on no match", (done) => {
+        let routed;
 
-    //     p.route$(notFoo, p.ifGet(
-    //         c => ({ reason: 'reason' }),
-    //         value => p.do(throwErr),
-    //         route => p.do(m => {
-    //             routed = route.reason;
-    //         })
-    //     ))
-    //         .subscribe(n => {
-    //             expect(routed).to.eql('reason');
-    //         }, passErr, done);
-    // });
+        p.route$(
+            p.ifGet(
+                () => ({ reason: 'reason' }),
+                p.do(throwErr),
+                p.do(route => {
+                    routed = route.reason;
+                })
+            )
+        )
+            .subscribe(n => {
+                expect(routed).to.eql('reason');
+            }, passErr, done);
+    });
 
-    // it("should pass value to 'then' router on match", (done) => {
-    //     let routed;
+    it("should pass value to 'then' router on match", (done) => {
+        let routed;
 
-    //     p.route$(foo, p.ifGet(
-    //         c => ({ value: 'value' }),
-    //         value => p.do(c => {
-    //             routed = value;
-    //         }),
-    //         route => p.do(throwErr)
-    //     ))
-    //         .subscribe(n => {
-    //             expect(routed).to.eql('value');
-    //         }, passErr, done);
-    // });
+        p.route$(
+            p.ifGet(
+                () => ({ value: 'value' }),
+                p.do(match => {
+                    routed = match.value;
+                }),
+                p.do(throwErr)
+            )
+        )
+            .subscribe(n => {
+                expect(routed).to.eql('value');
+            }, passErr, done);
+    });
 
-    // it("should pass value to 'then' handler on match", (done) => {
-    //     let routed;
+    it("should return score=1 when score not supplied", (done) => {
+        p.ifGet(
+            () => ({ value: 5 }),
+            p.do(() => {})
+        )
+            ()
+            .subscribe(route => {
+                expect(route.score).to.eql(1);
+                done();
+            })
+    });
 
-    //     p.route$(foo, p.ifGet(
-    //         c => ({ value: 'value' }),
-    //         value => p.do(() => {
-    //             routed = value;
-    //         }),
-    //         route => p.do(throwErr)
-    //     ))
-    //         .subscribe(n => {
-    //             expect(routed).to.eql('value');
-    //         }, passErr, done);
-    // });
+    it("should return supplied score", (done) => {
+        p.ifGet(
+            () => ({ value: 'dog', score: 0.4 }),
+            p.do(m => {})
+        )
+            ()
+            .subscribe(route => {
+                expect(route.score).to.eql(.4);
+            }, passErr, done);
+    });
 
-    // it("should return score=1 when score not supplied", (done) => {
-    //     p.ifGet(
-    //         barIfFoo,
-    //         value => p.do(m => {})
-    //     )
-    //         (foo)
-    //         .subscribe(route => {
-    //             expect(route.score).to.eql(1);
-    //             done();
-    //         })
-    // });
+    it("should pass supplied value to handler", (done) => {
+        let handled;
+        p.route$(p.ifGet(
+            () => ({ value: 'dog' }),
+            p.do(match => {
+                handled = match.value;
+            })
+        ))
+            .subscribe(_ => {
+                expect(handled).to.eql('dog');
+            }, passErr, done);
+    });
 
-    // it("should return supplied score", (done) => {
-    //     p.ifGet(
-    //         m => ({ value: 'dog', score: 0.4 }),
-    //         value => p.do(m => {})
-    //     )
-    //         (foo)
-    //         .subscribe(route => {
-    //             expect(route.score).to.eql(.4);
-    //         }, passErr, done);
-    // });
+    it("should return route score when no match score supplied", (done) => {
+        p.ifGet(
+            () => ({ value: "dog" }),
+            p.do(() => {}, .25)
+        )
+            ()
+            .subscribe(route => {
+                expect(route.score).to.eql(.25);
+            }, passErr, done);
+    });
 
-    // it("should pass supplied value to handler", (done) => {
-    //     let handled;
-    //     p.route$(foo, p.ifGet(
-    //         m => ({ value: 'dog' }),
-    //         value => p.do(() => {
-    //             handled = value;
-    //         })
-    //     ))
-    //         .subscribe(_ => {
-    //             expect(handled).to.eql('dog');
-    //         }, passErr, done);
-    // });
+    it("should return combined score when both scores supplied", (done) => {
+        p.ifGet(
+            () => ({ value: 'cat', score: 0.4 }),
+            p.do(() => {}, .25)
+        )
+            ()
+            .subscribe(route => {
+                expect(route.score).to.eql(.1);
+            }, passErr, done);
+    });
 
-    // it("should return combined score when route score supplied", (done) => {
-    //     p.ifGet(
-    //         barIfFoo,
-    //         value => p.do(() => {}, .25)
-    //     )
-    //         (foo)
-    //         .subscribe(route => {
-    //             expect(route.score).to.eql(.25);
-    //         }, passErr, done);
-    // });
+    it("should return 'else' route score on no match", (done) => {
+        p.ifGet(
+            () => undefined,
+            p.do(throwErr),
+            p.do(() => {}, .5)
+        )
+            ()
+            .subscribe(route => {
+                expect(route.score).to.eql(.5);
+            }, passErr, done);
+    });
 
-    // it("should return combined score when both scores supplied", (done) => {
-    //     p.ifGet(
-    //         m => ({ value: 'cat', score: 0.4 }),
-    //         value => p.do(() => {}, .25)
-    //     )
-    //         (foo)
-    //         .subscribe(route => {
-    //             expect(route.score).to.eql(.1);
-    //         }, passErr, done);
-    // });
+    it("should pass supplied argument all the way through", (done) => {
+        let routed;
+        p.route$(
+            greeting => p.ifGet(
+                () => ({ value: greeting }),
+                p.do(match => { routed = match.value })
+            ),
+            "hey"
+        )
+            .subscribe(_ => {
+                expect(routed).to.eql("hey");
+            }, passErr, done);
+    });
 
-    // it("should return 'else' route score on no match", (done) => {
-    //     p.ifGet(
-    //         barIfFoo,
-    //         value => p.do(throwErr),
-    //         route => p.do(() => {}, .5)
-    //     )
-    //         (notFoo)
-    //         .subscribe(route => {
-    //             expect(route.score).to.eql(.5);
-    //         }, passErr, done);
-    // });
+    it("should pass supplied argument all the way through using long form", (done) => {
+        let routed;
+        p.route$(
+            greeting => p.ifGet(
+                () => ({ value: greeting }),
+                match => p.do(() => { routed = match.value })
+            ),
+            "hey"
+        )
+            .subscribe(_ => {
+                expect(routed).to.eql("hey");
+            }, passErr, done);
+    });
 });
 
 // describe("p.predicateToMatcher", () => {

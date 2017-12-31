@@ -197,8 +197,6 @@ export type MatchResult <VALUE> = Match<VALUE> | NoMatch<VALUE>;
 
 export type Matcher <VALUE> = () => Observableable<MatchResult<VALUE> | VALUE>;
 
-export type Predicate = Matcher<boolean>;
-
 export function isMatch <VALUE> (matchResult: MatchResult<any>): matchResult is Match<VALUE> {
     return ((matchResult as any).reason === undefined);
 }
@@ -254,12 +252,12 @@ const defaultElseMapRoute: Router<NoRoute> = (route: NoRoute) => route;
 
 export function ifGet <VALUE> (
     matcher: Matcher<VALUE>,
-    thenRouter: Router<VALUE>,
+    thenRouter: Router<Match<VALUE>>,
     elseMapRoute = defaultElseMapRoute
-) {
+): Router {
     return () => getMatchResult$(matcher)
         .flatMap(matchResult => isMatch(matchResult)
-            ? getRoute$(thenRouter, matchResult.value)
+            ? getRoute$(thenRouter, matchResult)
                 .flatMap(mapRouteIf(DoRoute.is, route => 
                     route.clone(DoRoute.combinedScore(route.score, matchResult.score))
                 ))
@@ -267,38 +265,40 @@ export function ifGet <VALUE> (
         );
 }
 
-// export function predicateToMatcher <ROUTABLE> (predicate: Predicate<ROUTABLE>): Matcher<ROUTABLE, boolean> {
-//     return routable => toObservable(predicate(routable))
-//         .map((response: any) => {
-//             if (response === true || response === false)
-//                 return response;
+export type Predicate = Matcher<boolean>;
 
-//             if (typeof(response) === 'object') {
-//                 if (response.reason)
-//                     return response;
+export function predicateToMatcher (predicate: Predicate): Matcher<boolean> {
+    return () => toObservable(predicate())
+        .map((response: any) => {
+            if (response === true || response === false)
+                return response;
 
-//                 if (response.value !== undefined) {
-//                     if (response.value === false)
-//                         return false;
-//                     if (response.value === true)
-//                         return response;
-//                     throw new Error('When returning a Match from a predicate, the value must be true or false');
-//                 }
-//             }
+            if (typeof(response) === 'object') {
+                if (response.reason)
+                    return response;
 
-//             throw new Error('A predicate may only return true, false, a Match of true or false, or a NoMatch');
-//         });
-// }
+                if (response.value !== undefined) {
+                    if (response.value === false)
+                        return false;
+                    if (response.value === true)
+                        return response;
+                    throw new Error('When returning a Match from a predicate, the value must be true or false');
+                }
+            }
 
-// function _if <ROUTABLE> (
-//     predicate: Predicate<ROUTABLE>,
-//     thenGetRoute: GetRoute<ROUTABLE>,
-//     elseMapRoute: (route: NoRoute) => Observableable<GetRoute<ROUTABLE>>
-// ) {
-//     return ifGet(predicateToMatcher(predicate), value => thenGetRoute, elseMapRoute);
-// }
+            throw new Error('A predicate may only return true, false, a Match of true or false, or a NoMatch');
+        });
+}
 
-// export { _if as if }
+function _if (
+    predicate: Predicate,
+    thenRouter: Router<Match<boolean>>,
+    elseMapRoute?: Router<NoRoute>
+): Router {
+    return ifGet(predicateToMatcher(predicate), thenRouter, elseMapRoute);
+}
+
+export { _if as if }
 
 export function mapRouter <VALUE, XRoute extends Route = Route> (
     router: Router<VALUE>,
@@ -343,7 +343,7 @@ function _switch (
     getKey: () => Observableable<string>,
     mapKeyToRouter: Record<string, Router>
 ) {
-    return ifGet(getKey, key => mapKeyToRouter[key]);
+    return ifGet(getKey, match => mapKeyToRouter[match.value]);
 }
 
 export { _switch as switch }
