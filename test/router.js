@@ -229,6 +229,14 @@ describe('p.getRoute$', () => {
             .subscribe(throwErr, error => done(), throwErr);
     });
 
+    it('should throw on a router that throws.', (done) => {
+        p
+            .getRoute$(() => {
+                throw new Error('like this');
+            })
+            .subscribe(throwErr, error => done(), throwErr);
+    });
+
     it('should return a MatchRoute on a function returning a non-route', (done) => {
         p
             .getRoute$(() => "non-route")

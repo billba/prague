@@ -137,7 +137,8 @@ export function getRoute$ <ARG> (
     if (typeof router !== 'function')
         return Observable.throw(new Error('router must be a function'));
 
-    return toObservable(router(value))
+    return Observable.of(router)
+        .flatMap(router => toObservable(router(value)))
         .flatMap(result => typeof(result) === 'function'
             ? toObservable((result as Function)())
             : Observable.of(result)
@@ -152,7 +153,6 @@ export function getRoute$ <ARG> (
 
             return new MatchRoute(result);
         })
-        .catch(error => Observable.throw(error));
 }
 
 export function route$ <VALUE> (
