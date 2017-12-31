@@ -186,55 +186,6 @@ describe('p.noRoute', () => {
     });
 });
 
-// describe('p.normalizeRoute', () => {
-//     it('should normalize undefined', () => {
-//         let route = p.normalizedRoute(undefined);
-
-//         expect(route instanceof p.NoRoute).to.be.true;
-//         expect(route.reason).to.eql('none');
-//         expect(route.action).to.be.undefined;
-//         expect(route.score).to.be.undefined;
-//     });
-
-//     it('should normalize a noRoute without a reason', () => {
-//         let route = p.normalizedRoute(new p.NoRoute());
-
-//         expect(route instanceof p.NoRoute).to.be.true;
-//         expect(route.reason).to.eql('none');
-//         expect(route.action).to.be.undefined;
-//         expect(route.score).to.be.undefined;
-//     });
-
-//     it('should normalize a noRoute with a reason', () => {
-//         let route = p.normalizedRoute(new p.NoRoute('reason'));
-
-//         expect(route instanceof p.NoRoute).to.be.true;
-//         expect(route.reason).to.eql('reason');
-//         expect(route.action).to.be.undefined;
-//         expect(route.score).to.be.undefined;
-//     });
-
-//     it('should normalize a doRoute without a score', () => {
-//         let action = () => {}
-//         let route = p.normalizedRoute(new p.DoRoute(action));
-
-//         expect(route instanceof p.DoRoute).to.be.true;
-//         expect(route.action).to.eql(action);
-//         expect(route.score).to.eql(1);
-//         expect(route.reason).to.be.undefined;
-//     });
-
-//     it('should normalize a doRoute with a score', () => {
-//         let action = () => {}
-//         let route = p.normalizedRoute(new p.DoRoute(action, .5));
-
-//         expect(route instanceof p.DoRoute).to.be.true;
-//         expect(route.action).to.eql(action);
-//         expect(route.score).to.eql(.5);
-//         expect(route.reason).to.be.undefined;
-//     });
-// });
-
 describe('p.do', () => {
     it('should return a function returning doRoute using supplied action and no score', () => {
         let handled;
@@ -485,20 +436,17 @@ describe('p.first', () => {
     });
 });
 
-// describe('p.DoRoute.combinedScore', () => {
-//     it("should return combined score", () => {
-//         expect(p.DoRoute.combinedScore(.4, .25)).to.eql(.1);
-//     });
-// })
+describe('p.ScoredRoute.combinedScore', () => {
+    it("should return combined score", () => {
+        expect(p.ScoredRoute.combinedScore(.4, .25)).to.eql(.1);
+    });
+})
 
-// describe('p.routeWithCombinedScore', () => {
-//     it("should return route with combined score", () => {
-//         expect(p.routeWithCombinedScore(
-//             p.doRoute(() => {}, .4),
-//             .25
-//         ).score).to.eql(.1);
-//     });
-// })
+describe('p.DoScore.clone', () => {
+    it("should return route with supplied score", () => {
+        expect(new p.DoRoute(() => {}, .4).clone(.25).score).to.eql(.25);
+    });
+})
 
 
 describe('p.best', () => {

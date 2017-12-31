@@ -12,6 +12,9 @@ export function toObservable <T> (t: Observableable<T>) {
 }
 
 export abstract class Route {
+    static is (route: any): route is Route {
+        return route instanceof Route;
+    }
 }
 
 export abstract class ScoredRoute extends Route {
@@ -25,6 +28,10 @@ export abstract class ScoredRoute extends Route {
         this.score = score != null && score >= 0 && score < 1
             ? score
             : 1;
+    }
+
+    static is (route: Route): route is ScoredRoute {
+        return route instanceof ScoredRoute;
     }
 
     abstract clone(score?: number);
@@ -135,18 +142,17 @@ export function getRoute$ <ARG> (
             ? toObservable((result as Function)())
             : Observable.of(result)
         )
-        .map(normalizedRoute)
+        // normalize result
+        .map(result => {
+            if (result == null)
+                return NoRoute.default;
+
+            if (Route.is(result))
+                return result;
+
+            return new MatchRoute(result);
+        })
         .catch(error => Observable.throw(error));
-}
-
-export function normalizedRoute <VALUE> (rawRoute: any): Route {
-    if (rawRoute == null)
-        return NoRoute.default;
-
-    if (rawRoute instanceof Route)
-        return rawRoute;
-
-    return new MatchRoute<VALUE>(rawRoute);
 }
 
 export function route$ <VALUE> (
@@ -271,7 +277,7 @@ function _if (
 ) {
     return ifGet(
         mapRouter(predicate, route => {
-            if (route instanceof MatchRoute) {
+            if (MatchRoute.is(route)) {
                 if (route.value === true)
                     return route;
                 if (route.value === false)
