@@ -381,7 +381,7 @@ export function after (
     router: Router,
     action: Action
 ) {
-    return mapRouterByType(router,{
+    return mapRouterByType(router, {
         do: route => new DoRoute(
             () => toObservable(route.action())
                 .flatMap(_ => toObservable(action())),
