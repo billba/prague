@@ -254,34 +254,69 @@ export function mapRouter <ARG, VALUE, ROUTE extends Route = Route> (
         .flatMap(route => getRoute$(mapRoute, route));
 }
 
-const defaultMapNoRoute = route => route;
+export interface MapTypeToRouter {
+    route: AnyRouter<Route>;
+    scored: AnyRouter<ScoredRoute>;
+    do: AnyRouter<DoRoute>;
+    match: AnyRouter<MatchRoute>;
+    no: AnyRouter<NoRoute>;
+    default: AnyRouter<Route>;
+}
+
+function getRouter (
+    route: Route,
+    mapTypeToRouter: Partial<MapTypeToRouter>
+): AnyRouter {    
+    if (mapTypeToRouter["no"] && NoRoute.is(route))
+        return mapTypeToRouter["no"];
+
+    if (mapTypeToRouter["do"] && DoRoute.is(route))
+        return mapTypeToRouter["do"];
+    
+    if (mapTypeToRouter["match"] && MatchRoute.is(route))
+        return mapTypeToRouter["match"];
+
+    if (mapTypeToRouter["scored"] && ScoredRoute.is(route))
+        return mapTypeToRouter["scored"];
+    
+    if (mapTypeToRouter["route"] && Route.is(route))
+        return mapTypeToRouter["route"];
+
+    if (mapTypeToRouter["default"])
+        return mapTypeToRouter["default"];
+
+    return route => route;
+}
+
+function mapRouteByType (
+    mapTypeToRouter: Partial<MapTypeToRouter>
+) {
+    return (route: Route) => getRoute$(getRouter(route, mapTypeToRouter), route);
+}
+
+export function mapRouterByType <ARG, VALUE> (
+    router: AnyRouter<ARG, VALUE>,
+    mapTypeToRouter: Partial<MapTypeToRouter>
+) {
+    return mapRouter(router, mapRouteByType(mapTypeToRouter));
+}
+
+const mapRouteIdentity = route => route;
 
 export function ifGet <VALUE> (
     getMatch: AnyRouter<undefined, VALUE>,
     mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
-    mapNoRoute: AnyRouter<NoRoute<VALUE>> = defaultMapNoRoute
+    mapNoRoute?: AnyRouter<NoRoute<VALUE>>
 ) {
-    return mapRouter(getMatch, route => {
-        if (MatchRoute.is<VALUE>(route))
-            return getRoute$(
-                mapRouter(mapMatchRoute, mapRouteIf(DoRoute.is, _route => 
-                    _route.clone(DoRoute.combinedScore(_route.score, route.score))
-                )),
-                route
-            );
-        if (NoRoute.is<VALUE>(route))
-            return getRoute$(mapNoRoute, route);
-        throw new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
+    return mapRouterByType(getMatch, {
+        match: route => mapRouterByType(mapMatchRoute, {
+            do: _route => _route.clone(DoRoute.combinedScore(_route.score, route.score))
+        })(route),
+        no: mapNoRoute || mapRouteIdentity,
+        default: () => {
+            throw new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
+        }
     });
-}
-
-export function mapRouteIf <ROUTE extends Route> (
-    predicate: (route: Route) => route is ROUTE,
-    mapRoute: AnyRouter<ROUTE>
-) {
-    return (route: Route) => predicate(route)
-        ? getRoute$(mapRoute, route)
-        : Observable.of(route);
 }
 
 // _if is a special case of ifGet
@@ -294,13 +329,19 @@ function _if (
     mapNoRoute?: AnyRouter<NoRoute<boolean>>
 ) {
     return ifGet(
-        mapRouter(predicate, mapRouteIf(MatchRoute.is, route => {
-            if (route.value === true)
-                return route;
-            if (route.value === false)
-                return NoRoute.default;
-            throw new Error("if's predicate must have value of true or false");
-        })),
+        mapRouterByType(predicate, {
+            match: route => {
+                if (route.value === true)
+                    return route;
+                if (route.value === false)
+                    return NoRoute.default;
+                throw new Error("if's predicate must have value of true or false");
+            },
+            no: mapRouteIdentity,
+            default: () => {
+                throw new Error("if's predicate must only return MatchRoute or NoRoute");
+            }
+        }),
         mapMatchRoute,
         mapNoRoute
     );
@@ -312,7 +353,9 @@ function _default <ROUTABLE> (
     router: Router,
     mapNoRoute: AnyRouter<NoRoute>
 ) {
-    return mapRouter(router, mapRouteIf(NoRoute.is, mapNoRoute));
+    return mapRouterByType(router, {
+        no: mapNoRoute
+    });
 }
 
 export { _default as default }
@@ -321,22 +364,34 @@ export function before (
     router: Router,
     action: Action
 ) {
-    return mapRouter(router, mapRouteIf(DoRoute.is, route => new DoRoute(
-        () => toObservable(action())
-            .flatMap(_ => toObservable(route.action())),
-        route.score
-    )));
+    return mapRouterByType(router, {
+        do: route => new DoRoute(
+            () => toObservable(action())
+                .flatMap(_ => toObservable(route.action())),
+            route.score
+        ),
+        no: mapRouteIdentity,
+        default: () => {
+            throw new Error("before's router must only return DoRoute or NoRoute");
+        }
+    });
 }
 
 export function after (
     router: Router,
     action: Action
 ) {
-    return mapRouter(router, mapRouteIf(DoRoute.is, route => new DoRoute(
-        () => toObservable(route.action())
-            .flatMap(_ => toObservable(action())),
-        route.score
-    )));
+    return mapRouterByType(router,{
+        do: route => new DoRoute(
+            () => toObservable(route.action())
+                .flatMap(_ => toObservable(action())),
+            route.score
+        ),
+        no: mapRouteIdentity,
+        default: () => {
+            throw new Error("after's router must only return DoRoute or NoRoute");
+        }
+    });
 }
 
 function _switch (
