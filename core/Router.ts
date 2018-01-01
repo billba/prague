@@ -12,6 +12,8 @@ export function toObservable <T> (t: Observableable<T>) {
 }
 
 export abstract class Route {
+    private _route: undefined; // hack so that TypeScript will do better type checking on Routes
+
     static is (route: any): route is Route {
         return route instanceof Route;
     }
@@ -125,11 +127,13 @@ function _no <VALUE> (
 
 export { _no as no }
 
-export type Router <ARG = undefined, VALUE = undefined> = (arg: ARG) => (Observableable<Route | VALUE> | (() => Observableable<Route | VALUE>));
+export type Router <ARG = undefined, VALUE = undefined> = (arg?: ARG) => Observableable<Route | VALUE>;
+export type CompoundRouter <ARG = undefined, VALUE = undefined> = (arg: ARG) => Router<undefined, VALUE>;    
+export type AnyRouter <ARG = undefined, VALUE = undefined> = Router<ARG, VALUE> | CompoundRouter<ARG, VALUE>;
 
-export function getRoute$ <ARG> (
-    router: Router<ARG>,
-    value?: ARG
+export function getRoute$ <ARG, VALUE> (
+    router: AnyRouter<ARG, VALUE>,
+    arg?: ARG
 ): Observable<Route> {
     if (router == null)
         return NoRoute.default$;
@@ -138,7 +142,7 @@ export function getRoute$ <ARG> (
         return Observable.throw(new Error('router must be a function'));
 
     return Observable.of(router)
-        .flatMap(router => toObservable(router(value)))
+        .flatMap(router => toObservable((router as Function)(arg)))
         .flatMap(result => typeof(result) === 'function'
             ? toObservable((result as Function)())
             : Observable.of(result)
@@ -155,15 +159,22 @@ export function getRoute$ <ARG> (
         })
 }
 
-export function route$ <VALUE> (
-    router: Router<VALUE>,
-    value?: VALUE
+export function route$ <ARG> (
+    router: Router<ARG>,
+    value?: ARG
 ) {
     return getRoute$(router, value)
         .filter(DoRoute.is)
         .flatMap(route => toObservable(route.action()))
         .mapTo(true)
         .defaultIfEmpty(false);
+}
+
+export function route <ARG> (
+    router: Router<ARG>,
+    value?: ARG
+) {
+    return route$(router, value).toPromise();
 }
 
 function strictlyFilterDo(route: Route): route is DoRoute {
@@ -176,7 +187,7 @@ function strictlyFilterDo(route: Route): route is DoRoute {
 
 export function first (
     ... routers: Router[]
-): Router {
+) {
     return () => Observable.from(routers)
         // we put concatMap here because it forces everything after it to execute serially
         .concatMap(router => getRoute$(router))
@@ -192,7 +203,7 @@ const minRoute = new DoRoute(
 
 export function best (
     ... routers: Router[]
-): Router {
+) {
     return () => new Observable<Route>(observer => {
         let bestRoute = minRoute;
 
@@ -230,41 +241,48 @@ export function best (
 
 export function noop (
     action: Action
-): Router {
+) {
     return () => toObservable(action())
         .mapTo(NoRoute.default);
+}
+
+export function mapRouter <ARG, VALUE, ROUTE extends Route = Route> (
+    router: AnyRouter<ARG, VALUE>,
+    mapRoute: AnyRouter<ROUTE>
+) {
+    return (arg: ARG) => getRoute$(router, arg)
+        .flatMap(route => getRoute$(mapRoute, route));
 }
 
 const defaultMapNoRoute = route => route;
 
 export function ifGet <VALUE> (
-    matchRouter: Router<undefined, VALUE>,
-    thenMapMatchRoute: Router<MatchRoute<VALUE>>,
-    elseMapNoRoute: Router<NoRoute<VALUE>> = defaultMapNoRoute
+    getMatch: AnyRouter<undefined, VALUE>,
+    mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
+    mapNoRoute: AnyRouter<NoRoute<VALUE>> = defaultMapNoRoute
 ) {
-    return mapRouter(matchRouter, route => {
+    return mapRouter(getMatch, route => {
         if (MatchRoute.is<VALUE>(route))
             return getRoute$(
-                mapRouter(thenMapMatchRoute, mapRouteIf(DoRoute.is, _route => 
+                mapRouter(mapMatchRoute, mapRouteIf(DoRoute.is, _route => 
                     _route.clone(DoRoute.combinedScore(_route.score, route.score))
                 )),
                 route
             );
         if (NoRoute.is<VALUE>(route))
-            return getRoute$(elseMapNoRoute, route);
-        throw new Error('matchRouter should only return MatchRoute or NoRoute');
+            return getRoute$(mapNoRoute, route);
+        throw new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
     });
 }
 
-export function mapRouter <VALUE, ROUTE extends Route = Route> (
-    router: Router<VALUE>,
-    mapRoute: Router<ROUTE>
-): Router<VALUE> {
-    return (value: VALUE) => getRoute$(router, value)
-        .flatMap(route => getRoute$(mapRoute, route));
+export function mapRouteIf <ROUTE extends Route> (
+    predicate: (route: Route) => route is ROUTE,
+    mapRoute: AnyRouter<ROUTE>
+) {
+    return (route: Route) => predicate(route)
+        ? getRoute$(mapRoute, route)
+        : Observable.of(route);
 }
-
-type Predicate = Router<undefined, boolean>;
 
 // _if is a special case of ifGet
 // value of MatchRoute must be true or false
@@ -272,41 +290,29 @@ type Predicate = Router<undefined, boolean>;
 
 function _if (
     predicate: Router<undefined, boolean>,
-    thenMapMatchRoute: Router<MatchRoute<boolean>>,
-    elseMapNoRoute?: Router<NoRoute<boolean>>
+    mapMatchRoute: AnyRouter<MatchRoute<boolean>>,
+    mapNoRoute?: AnyRouter<NoRoute<boolean>>
 ) {
     return ifGet(
-        mapRouter(predicate, route => {
-            if (MatchRoute.is(route)) {
-                if (route.value === true)
-                    return route;
-                if (route.value === false)
-                    return NoRoute.default;
-                throw new Error('predicate must have value of true or false')
-            }
-            return route;
-        }),
-        thenMapMatchRoute,
-        elseMapNoRoute
+        mapRouter(predicate, mapRouteIf(MatchRoute.is, route => {
+            if (route.value === true)
+                return route;
+            if (route.value === false)
+                return NoRoute.default;
+            throw new Error("if's predicate must have value of true or false");
+        })),
+        mapMatchRoute,
+        mapNoRoute
     );
 }
 
 export { _if as if }
 
-export function mapRouteIf <ROUTE extends Route> (
-    predicate: (route: Route) => route is ROUTE,
-    mapRoute: Router<ROUTE>
-) {
-    return (route: Route) => predicate(route)
-        ? getRoute$(mapRoute, route)
-        : Observable.of(route);
-}
-
 function _default <ROUTABLE> (
     router: Router,
-    mapRoute: Router<NoRoute>
+    mapNoRoute: AnyRouter<NoRoute>
 ) {
-    return mapRouter(router, mapRouteIf(NoRoute.is, mapRoute));
+    return mapRouter(router, mapRouteIf(NoRoute.is, mapNoRoute));
 }
 
 export { _default as default }
