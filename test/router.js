@@ -451,11 +451,46 @@ describe('p.ScoredRoute.combinedScore', () => {
 })
 
 describe('p.DoScore.clone', () => {
+    it("should return original route when supplied score matches route score", () => {
+        let action = () => {}
+        let original = new p.DoRoute(action, .4);
+        let route = original.clone(.4);
+
+        expect(route instanceof p.DoRoute).to.be.true;
+        expect(route).to.eql(original);
+    });
+
     it("should return route with supplied score", () => {
-        expect(new p.DoRoute(() => {}, .4).clone(.25).score).to.eql(.25);
+        let action = () => {}
+        let original = new p.DoRoute(action, .4);
+        let route = original.clone(.25);
+
+        expect(route instanceof p.DoRoute).to.be.true;
+        expect(route.action).to.eql(action);
+        expect(route.score).to.eql(.25);
+    });
+});
+
+describe('p.DoScore.cloneWithCombinedScore', () => {
+    it("should return original route when score to be combined is 1", () => {
+        let action = () => {}
+        let original = new p.DoRoute(action, .4);
+        let route = original.cloneWithCombinedScore();
+
+        expect(route instanceof p.DoRoute).to.be.true;        
+        expect(route).to.eql(original);
+    });
+
+    it("should return new route when score to be combined is not 1", () => {
+        let action = () => {}
+        let original = new p.DoRoute(action, .4);
+        let route = original.cloneWithCombinedScore(.25);
+
+        expect(route instanceof p.DoRoute).to.be.true;
+        expect(route.action).to.eql(action);
+        expect(route.score).to.eql(.1);
     });
 })
-
 
 describe('p.best', () => {
     it('should return NoRoute on no routers', (done) => {

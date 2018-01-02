@@ -27,7 +27,11 @@ export abstract class ScoredRoute extends Route {
     ) {
         super();
 
-        this.score = score != null && score >= 0 && score < 1
+        this.score = ScoredRoute.normalizedScore(score);
+    }
+
+    static normalizedScore(score?: number) {
+        return score != null && score >= 0 && score < 1
             ? score
             : 1;
     }
@@ -36,10 +40,20 @@ export abstract class ScoredRoute extends Route {
         return route instanceof ScoredRoute;
     }
 
-    abstract clone(score?: number);
-    
     static combinedScore(score, otherScore) {
         return score * otherScore
+    }
+
+    clone(score?: number): this {
+        score = ScoredRoute.normalizedScore(score);
+
+        return score === this.score
+            ? this
+            : Object.assign(Object.create(this.constructor.prototype), this, { score });
+    }
+
+    cloneWithCombinedScore(score?: number) {
+        return this.clone(ScoredRoute.combinedScore(this.score, ScoredRoute.normalizedScore(score)));
     }
 }
 
@@ -55,12 +69,6 @@ export class DoRoute extends ScoredRoute {
 
     static is (route: Route): route is DoRoute {
         return route instanceof DoRoute;
-    }
-
-    clone(score = this.score): this {
-        return score === this.score
-            ? this
-            : this.constructor(this.action, score);
     }
 }
 
@@ -83,12 +91,6 @@ export class MatchRoute <VALUE = undefined> extends ScoredRoute {
 
     static is <VALUE = undefined> (route: Route): route is MatchRoute<VALUE> {
         return route instanceof MatchRoute;
-    }
-
-    clone(score = this.score): this {
-        return score === this.score
-            ? this
-            : this.constructor(this.value, score);
     }
 }
 
@@ -177,12 +179,14 @@ export function route <ARG> (
     return route$(router, value).toPromise();
 }
 
+const strictlyFilterError = new Error("route isn't DoRoute or NoRoute");
+
 function strictlyFilterDo(route: Route): route is DoRoute {
     if (DoRoute.is(route))
         return true;
     if (NoRoute.is(route))
         return false;
-    throw new Error("route isn't DoRoute or NoRoute");
+    throw strictlyFilterError;
 }
 
 export function first (
@@ -196,8 +200,12 @@ export function first (
         .defaultIfEmpty(NoRoute.default);
 }
 
+const minRouteError = new Error("minRoute.action should never be called");
+
 const minRoute = new DoRoute(
-    () => console.warn("minRoute.action should never be called"),
+    () => {
+        throw minRouteError;
+    },
     0
 );
 
@@ -208,7 +216,6 @@ export function best (
         let bestRoute = minRoute;
 
         const subscription = Observable.from(routers)
-            .defaultIfEmpty(_no())
             // we put concatMap here because it forces everything after it to execute serially
             .concatMap(router => getRoute$(router))
             // early exit if we've already found a winner (score === 1)
@@ -303,6 +310,8 @@ export function mapRouterByType <ARG, VALUE> (
 
 const mapRouteIdentity = route => route;
 
+const getMatchError = new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
+
 export function ifGet <VALUE> (
     getMatch: AnyRouter<undefined, VALUE>,
     mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
@@ -310,11 +319,11 @@ export function ifGet <VALUE> (
 ) {
     return mapRouterByType(getMatch, {
         match: route => mapRouterByType(mapMatchRoute, {
-            do: _route => _route.clone(DoRoute.combinedScore(_route.score, route.score))
+            scored: _route => _route.cloneWithCombinedScore(route.score)
         })(route),
         no: mapNoRoute || mapRouteIdentity,
         default: () => {
-            throw new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
+            throw getMatchError;
         }
     });
 }
@@ -322,6 +331,9 @@ export function ifGet <VALUE> (
 // _if is a special case of ifGet
 // value of MatchRoute must be true or false
 // if value is false, NoRoute is instead returned
+
+const ifPredicateError = new Error("if's predicate must have value of true or false");
+const ifPredicateMatchError = new Error("if's predicate must only return MatchRoute or NoRoute");
 
 function _if (
     predicate: Router<undefined, boolean>,
@@ -335,11 +347,11 @@ function _if (
                     return route;
                 if (route.value === false)
                     return NoRoute.default;
-                throw new Error("if's predicate must have value of true or false");
+                throw ifPredicateError;
             },
             no: mapRouteIdentity,
             default: () => {
-                throw new Error("if's predicate must only return MatchRoute or NoRoute");
+                throw ifPredicateMatchError;
             }
         }),
         mapMatchRoute,
@@ -360,6 +372,8 @@ function _default <ROUTABLE> (
 
 export { _default as default }
 
+const beforeError = new Error("before's router must only return DoRoute or NoRoute");
+
 export function before (
     router: Router,
     action: Action
@@ -372,10 +386,11 @@ export function before (
         ),
         no: mapRouteIdentity,
         default: () => {
-            throw new Error("before's router must only return DoRoute or NoRoute");
+            throw beforeError;
         }
     });
 }
+const afterError = new Error("after's router must only return DoRoute or NoRoute");
 
 export function after (
     router: Router,
@@ -389,7 +404,7 @@ export function after (
         ),
         no: mapRouteIdentity,
         default: () => {
-            throw new Error("after's router must only return DoRoute or NoRoute");
+            throw afterError;
         }
     });
 }
