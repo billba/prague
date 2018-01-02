@@ -129,7 +129,7 @@ function _no <VALUE> (
 
 export { _no as no }
 
-export type Router <ARG = undefined, VALUE = undefined> = (arg?: ARG) => Observableable<Route | VALUE>;
+export type Router <ARG = undefined, VALUE = undefined> = (arg: ARG) => Observableable<Route | VALUE>;
 export type CompoundRouter <ARG = undefined, VALUE = undefined> = (arg: ARG) => Router<undefined, VALUE>;    
 export type AnyRouter <ARG = undefined, VALUE = undefined> = Router<ARG, VALUE> | CompoundRouter<ARG, VALUE>;
 
