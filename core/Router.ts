@@ -19,7 +19,7 @@ export abstract class Route {
     }
 }
 
-export abstract class ScoredRoute extends Route {
+export class ScoredRoute extends Route {
     score: number;
     
     constructor (
@@ -181,8 +181,8 @@ export function route <ARG> (
 
 const strictlyFilterError = new Error("route isn't DoRoute or NoRoute");
 
-function strictlyFilterDo(route: Route): route is DoRoute {
-    if (DoRoute.is(route))
+function strictlyFilterScored(route: Route): route is ScoredRoute {
+    if (ScoredRoute.is(route))
         return true;
     if (NoRoute.is(route))
         return false;
@@ -195,7 +195,7 @@ export function first (
     return () => Observable.from(routers)
         // we put concatMap here because it forces everything after it to execute serially
         .concatMap(router => getRoute$(router))
-        .filter(strictlyFilterDo)
+        .filter(strictlyFilterScored)
         .take(1) // so that we don't keep going through routers after we find one that matches
         .defaultIfEmpty(NoRoute.default);
 }
@@ -213,14 +213,14 @@ export function best (
     ... routers: Router[]
 ) {
     return () => new Observable<Route>(observer => {
-        let bestRoute = minRoute;
+        let bestRoute: ScoredRoute = minRoute;
 
         const subscription = Observable.from(routers)
             // we put concatMap here because it forces everything after it to execute serially
             .concatMap(router => getRoute$(router))
             // early exit if we've already found a winner (score === 1)
             .takeWhile(_ => bestRoute.score < 1)
-            .filter(strictlyFilterDo)
+            .filter(strictlyFilterScored)
             .subscribe(
                 route => {
                     if (route.score > bestRoute.score) {
