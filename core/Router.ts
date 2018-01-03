@@ -143,7 +143,8 @@ export function getRoute$ <ARG, VALUE> (
     if (typeof router !== 'function')
         return Observable.throw(getRouteError);
 
-    return Observable.of(router)
+    return Observable
+        .of(router)
         .flatMap(router => toObservable(router(arg)))
         // normalize result
         .map(result => {
@@ -194,9 +195,9 @@ function strictlyFilterScored(route: Route): route is ScoredRoute {
     throw strictlyFilterError;
 }
 
-export function first (
+export function _first (
     ... routers: Router[]
-) {
+): Observable<Route> {
     return Observable.from(routers)
         // we put concatMap here because it forces everything after it to execute serially
         .concatMap(router => getRoute$(router))
@@ -214,9 +215,9 @@ const minRoute = new DoRoute(
     0
 );
 
-export function best (
+export function _best (
     ... routers: Router[]
-) {
+): Observable<Route> {
     return new Observable<Route>(observer => {
         let bestRoute: ScoredRoute = minRoute;
 
@@ -304,7 +305,7 @@ const mapRouteIdentity = route => route;
 
 const getMatchError = new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
 
-export function ifGet <VALUE> (
+export function _ifGet <VALUE> (
     getMatch: Router<undefined, VALUE>,
     mapMatchRoute: Router<MatchRoute<VALUE>>,
     mapNoRoute?: Router<NoRoute<VALUE>>
@@ -330,12 +331,12 @@ export function ifGet <VALUE> (
 const ifPredicateError = new Error("if's predicate must have value of true or false");
 const ifPredicateMatchError = new Error("if's predicate must only return MatchRoute or NoRoute");
 
-function _if (
+export function _if (
     predicate: Router<undefined, boolean>,
     mapMatchRoute: Router<MatchRoute<boolean>>,
     mapNoRoute?: Router<NoRoute<boolean>>
 ) {
-    return ifGet<boolean>(
+    return _ifGet<boolean>(
         () => mapRouteByType$(
             predicate, {
                 match: route => {
@@ -356,9 +357,7 @@ function _if (
     );
 }
 
-export { _if as if }
-
-export function ifNo <ROUTABLE> (
+export function _ifNo <ROUTABLE> (
     router: Router,
     mapNoRoute: Router<NoRoute>
 ) {
@@ -369,7 +368,7 @@ export function ifNo <ROUTABLE> (
 
 const beforeError = new Error("before's router must only return DoRoute or NoRoute");
 
-export function before (
+export function _before (
     router: Router,
     action: Action
 ) {
@@ -387,7 +386,7 @@ export function before (
 }
 const afterError = new Error("after's router must only return DoRoute or NoRoute");
 
-export function after (
+export function _after (
     router: Router,
     action: Action
 ) {
@@ -404,14 +403,12 @@ export function after (
     });
 }
 
-function _switch (
+export function _switch (
     getKey: Router<undefined, string>,
     mapKeyToRouter: Record<string, Router>
 ) {
-    return ifGet(getKey, match => {
+    return _ifGet(getKey, match => {
         const router = mapKeyToRouter[match.value];
         return router && router();
     });
 }
-
-export { _switch as switch }
