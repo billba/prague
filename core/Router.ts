@@ -361,7 +361,7 @@ function _if (
 
 export { _if as if }
 
-function _default <ROUTABLE> (
+function ifNo <ROUTABLE> (
     router: Router,
     mapNoRoute: AnyRouter<NoRoute>
 ) {
@@ -370,7 +370,7 @@ function _default <ROUTABLE> (
     });
 }
 
-export { _default as default }
+ifNo(() => new NoRoute(), no => )
 
 const beforeError = new Error("before's router must only return DoRoute or NoRoute");
 
