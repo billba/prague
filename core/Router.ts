@@ -11,15 +11,15 @@ export function toObservable <T> (t: Observableable<T>) {
     return Observable.of(t);
 }
 
-export abstract class Route {
+export abstract class Route <VALUE = any> {
     private _route: undefined; // hack so that TypeScript will do better type checking on Routes
 
-    static is (route: any): route is Route {
+    static is <VALUE> (route: any): route is Route<VALUE> {
         return route instanceof Route;
     }
 }
 
-export class ScoredRoute extends Route {
+export class ScoredRoute <VALUE = any> extends Route<VALUE> {
     score: number;
     
     constructor (
@@ -59,7 +59,7 @@ export class ScoredRoute extends Route {
 
 export type Action = () => Observableable<any>;
 
-export class DoRoute extends ScoredRoute {
+export class DoRoute extends ScoredRoute<undefined> {
     constructor (
         public action: Action,
         score?: number
@@ -79,7 +79,7 @@ export function _do <VALUE = any> (
     return (value: VALUE) => new DoRoute(() => action(value), score);
 }
 
-export class MatchRoute <VALUE = any> extends ScoredRoute {
+export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
     constructor(
         public value: VALUE,
         score?: number
@@ -87,7 +87,7 @@ export class MatchRoute <VALUE = any> extends ScoredRoute {
         super(score);
     }
 
-    static is <VALUE = any> (route: Route): route is MatchRoute<VALUE> {
+    static is <VALUE = any> (route: Route<VALUE>): route is MatchRoute<VALUE> {
         return route instanceof MatchRoute;
     }
 }
@@ -99,7 +99,7 @@ export function _match <VALUE = any> (
     return () => new MatchRoute(value, score);
 }
 
-export class NoRoute <VALUE = any> extends Route {
+export class NoRoute <VALUE = any> extends Route<VALUE> {
     static defaultReason = "none";
     
     constructor (
@@ -125,14 +125,14 @@ export function _no <VALUE> (
     return () => new NoRoute(reason, value);
 }
 
-export type Router <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route | VALUE>;
+export type Router <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 
 const getRouteError = new Error('router must be a function');
 
 export function getRoute$ <ARG, VALUE> (
     router: Router<ARG, VALUE>,
     arg?: ARG
-): Observable<Route> {
+): Observable<Route<VALUE>> {
     if (router == null)
         return NoRoute.default$;
 
@@ -154,7 +154,7 @@ export function getRoute$ <ARG, VALUE> (
         })
 }
 
-export function mapRoute$ <ARG, VALUE, ROUTE extends Route = Route> (
+export function mapRoute$ <ARG, VALUE, ROUTE extends Route<VALUE> = Route<VALUE>> (
     router: Router<ARG, VALUE>,
     mapRoute: Router<ROUTE>,
     arg?: ARG
@@ -184,9 +184,9 @@ function strictlyFilterScored(route: Route): route is ScoredRoute {
     throw strictlyFilterError;
 }
 
-export function _first (
-    ... routers: Router[]
-): Observable<Route> {
+export function _first <VALUE> (
+    ... routers: Router<undefined, VALUE>[]
+): Observable<Route<VALUE>> {
     return Observable.from(routers)
         // we put concatMap here because it forces everything after it to execute serially
         .concatMap(router => getRoute$(router))
@@ -204,9 +204,9 @@ const minRoute = new DoRoute(
     0
 );
 
-export function _best (
-    ... routers: Router[]
-): Observable<Route> {
+export function _best  <VALUE = any> (
+    ... routers: Router<VALUE> []
+): Observable<Route<VALUE>> {
     return new Observable<Route>(observer => {
         let bestRoute: ScoredRoute = minRoute;
 
@@ -248,16 +248,16 @@ export function noop (
         .mapTo(NoRoute.default);
 }
 
-export interface MapTypeToRouteClass {
-    route: Route,
-    scored: ScoredRoute,
+export interface MapTypeToRouteClass <VALUE> {
+    route: Route<VALUE>,
+    scored: ScoredRoute<VALUE>,
     do: DoRoute,
-    match: MatchRoute,
-    no: NoRoute,
+    match: MatchRoute<VALUE>,
+    no: NoRoute<VALUE>,
     default: Route,
 }
 
-export type RouteTypes = keyof MapTypeToRouteClass;
+export type RouteTypes <VALUE> = keyof MapTypeToRouteClass<VALUE>;
 
 export function* getTypesFromRoute(
     route: Route
@@ -280,16 +280,16 @@ export function* getTypesFromRoute(
     yield 'default';
 }
 
-export type MapTypeToRouter = { [P in RouteTypes]: Router<MapTypeToRouteClass[P]> }
+export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: Router<MapTypeToRouteClass<VALUE>[P]> }
 
-function getRouteByType<T> (
-    route: Route,
-    mapTypeToRouter: Partial<MapTypeToRouter>
+function getRouteByType <VALUE> (
+    route: Route<VALUE>,
+    mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
 ): Observableable<Route> {
     for (let type of getTypesFromRoute(route)) {
         const router = mapTypeToRouter[type];
         if (router)
-            return (router as Router<Route>)(route);
+            return getRoute$(router, route);
     }
 
     return route;
@@ -297,7 +297,7 @@ function getRouteByType<T> (
 
 export function mapRouteByType$ <ARG, VALUE> (
     router: Router<ARG, VALUE>,
-    mapTypeToRouter: Partial<MapTypeToRouter>,
+    mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>,
     arg?: ARG
 ) {
     return mapRoute$(router, route => getRouteByType(route, mapTypeToRouter), arg);
@@ -361,7 +361,7 @@ export function _if (
 
 export function _ifNo <ARG, VALUE> (
     router: Router<ARG, VALUE>,
-    mapNoRoute: Router<NoRoute>
+    mapNoRoute: Router<NoRoute<VALUE>>
 ) {
     return mapRouteByType$(router, {
         no: mapNoRoute

@@ -7,16 +7,16 @@ export type AnyRouter <ARG = undefined, VALUE = any> = Router<ARG, VALUE> | Flue
 
 export type FlexRouter <ARG = undefined, VALUE = any> = AnyRouter<ARG, VALUE> | ((arg?: ARG) => Observableable<FluentRouter>);
 
-export type MapTypeToFlexRouter = { [P in RouteTypes]: FlexRouter<MapTypeToRouteClass[P]> }
+export type MapTypeToFlexRouter <VALUE> = { [P in RouteTypes<VALUE>]: FlexRouter<MapTypeToRouteClass<VALUE>[P]> }
 
-function getRouteByType (
+function getRouteByType <VALUE> (
     route: Route,
-    mapTypeToFlexRouter: Partial<MapTypeToFlexRouter>
+    mapTypeToFlexRouter: Partial<MapTypeToFlexRouter<VALUE>>
 ): Observableable<Route> {
     for (let type of getTypesFromRoute(route)) {
         const router = mapTypeToFlexRouter[type];
         if (router)
-            return FluentRouter.flexRouterToRouter(router)(route);
+            return getRoute$(FluentRouter.flexRouterToRouter(router), route);
     }
 
     return route;
@@ -26,10 +26,7 @@ export class FluentRouter <ARG = undefined, VALUE = any> {
     constructor(public router: Router<ARG, VALUE>) {
     }
 
-    static from <VALUE> (route: MatchRoute<VALUE> | NoRoute<VALUE>): FluentRouter<undefined, VALUE>;
-    static from (route: Route): FluentRouter<undefined, any>;
-    static from (route: Route)
-    {
+    static from <VALUE> (route: Route<VALUE>) {
         return new FluentRouter(() => route);
     }
 
@@ -63,16 +60,16 @@ export class FluentRouter <ARG = undefined, VALUE = any> {
                 );
     }
 
-    static toRouters(routers: AnyRouter[]) {
+    static toRouters (routers: AnyRouter[]) {
         return routers.map(FluentRouter.anyRouterToRouter);
     }
 
-    toObservable(arg?: ARG) {
+    toObservable (arg?: ARG) {
         return getRoute$(this.router, arg);
     }
 
-    toPromise(arg?: ARG) {
-        return toObservable(arg).toPromise();
+    toPromise (arg?: ARG) {
+        return this.toObservable(arg).toPromise();
     }
 
     route$ (arg?: ARG) {
@@ -84,12 +81,12 @@ export class FluentRouter <ARG = undefined, VALUE = any> {
             .toPromise();
     }
 
-    map (mapRoute: AnyRouter<Route>) {
+    map (mapRoute: AnyRouter<Route<VALUE>>) {
         return new FluentRouter(() => mapRoute$(this.router, FluentRouter.anyRouterToRouter(mapRoute)));
     }
 
     mapByType (
-        mapTypeToFlexRouter: Partial<MapTypeToFlexRouter>
+        mapTypeToFlexRouter: Partial<MapTypeToFlexRouter<VALUE>>
     ) {
         return this.map(route => getRouteByType(route, mapTypeToFlexRouter));
     }
@@ -107,16 +104,16 @@ export class FluentRouter <ARG = undefined, VALUE = any> {
     }
 }
 
-export function first (
-        ... routers: AnyRouter[]
+export function first <VALUE = any> (
+    ... routers: AnyRouter<undefined, VALUE>[]
 ) {
     return new FluentRouter(() => _first(
         ... FluentRouter.toRouters(routers)
     ));
 }
 
-export function best(
-    ... routers: AnyRouter[]
+export function best <VALUE = any> (
+    ... routers: AnyRouter<undefined, VALUE>[]
 ) {
     return new FluentRouter(() => _best(
         ... FluentRouter.toRouters(routers)
