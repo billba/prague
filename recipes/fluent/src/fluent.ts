@@ -116,7 +116,7 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
 
     static router = () => NoRoute.default$;
 
-    static is <VALUE = any> (route: Route): route is NoRoute<VALUE> {
+    static is <VALUE = any> (route: Route<VALUE>): route is NoRoute<VALUE> {
         return route instanceof NoRoute;
     }
 }
@@ -212,7 +212,7 @@ export class Router <ARG = undefined, VALUE = any> {
         return this.map(typeRouter(mapTypeToFlexRouter));
     }
 
-    do <VALUE> (fn: (route: Route<VALUE>) => Observableable<any>) {
+    tap <VALUE> (fn: (route: Route<VALUE>) => Observableable<any>) {
         return this.map(route => toObservable(fn(route)).mapTo(route));
     }
 
@@ -221,6 +221,34 @@ export class Router <ARG = undefined, VALUE = any> {
     ) {
         return this.mapByType({
             no: router
+        });
+    }
+
+    beforeDo(
+        action: Action
+    ) {
+        return this
+            .map(filterForDoRoute)
+            .mapByType({
+                do: route => new DoRoute(
+                    () => toObservable(action())
+                        .flatMap(_ => toObservable(route.action())),
+                    route.score
+                )
+        });
+    }
+
+    afterDo(
+        action: Action
+    ) {
+        return this
+            .map(filterForDoRoute)
+            .mapByType({
+                do: route => new DoRoute(
+                    () => toObservable(route.action())
+                        .flatMap(_ => toObservable(action())),
+                    route.score
+                )
         });
     }
 }
@@ -370,15 +398,7 @@ export function ifGet <VALUE> (
     return Router
         .from(getMatch)
         .mapByType({
-            match: route => Router
-                .from(mapMatchRoute)
-                .getRoute$(route)
-                .flatMap(Router
-                    .from(typeRouter({
-                        scored: _route => _route.cloneWithCombinedScore(route.score)
-                    }))
-                    .getRoute$
-                ),
+            match: mapMatchRoute,
             no: mapNoRoute || mapRouteIdentity,
             default: () => {
                 throw getMatchError;
@@ -425,34 +445,6 @@ export const filterForDoRoute = <VALUE> (route: Route<VALUE>) => {
         return route;
 
     throw doError;
-}
-
-export function before (
-    action: Action
-) {
-    return Router
-        .from(filterForDoRoute)
-        .mapByType({
-            do: route => new DoRoute(
-                () => toObservable(action())
-                    .flatMap(_ => toObservable(route.action())),
-                route.score
-            )
-        });
-}
-
-export function after (
-    action: Action
-) {
-    return Router
-        .from(filterForDoRoute)
-        .mapByType({
-            do: route => new DoRoute(
-                () => toObservable(route.action())
-                    .flatMap(_ => toObservable(action())),
-                route.score
-            )
-        });
 }
 
 export function _switch (
