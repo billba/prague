@@ -18,7 +18,6 @@
     "typescript": "2.6.1"
   },
   "dependencies": {
-    "prague": "../..",
     "rxjs": "5.5.2"
   }
 }

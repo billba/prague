@@ -72,12 +72,14 @@ export class DoRoute extends ScoredRoute<undefined> {
     }
 }
 
-export function _do <VALUE = any> (
+function _do <VALUE = any> (
     action: (value?: VALUE) => Observableable<any>,
     score?: number
 ) {
     return (value: VALUE) => new DoRoute(() => action(value), score);
 }
+
+export { _do as do }
 
 export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
     constructor(
@@ -92,7 +94,7 @@ export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
     }
 }
 
-export function _match <VALUE = any> (
+export function match <VALUE = any> (
     value: VALUE,
     score?: number
 ) {
@@ -118,12 +120,14 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
     }
 }
 
-export function _no <VALUE> (
+function _no <VALUE> (
     reason?: string,
     value?: VALUE
 ) {
     return () => new NoRoute(reason, value);
 }
+
+export { _no as no }
 
 export type Router <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 
@@ -184,7 +188,7 @@ function strictlyFilterScored(route: Route): route is ScoredRoute {
     throw strictlyFilterError;
 }
 
-export function _first <VALUE> (
+export function first <VALUE> (
     ... routers: Router<undefined, VALUE>[]
 ): Observable<Route<VALUE>> {
     return Observable.from(routers)
@@ -204,7 +208,7 @@ const minRoute = new DoRoute(
     0
 );
 
-export function _best  <VALUE = any> (
+export function best  <VALUE = any> (
     ... routers: Router<VALUE> []
 ): Observable<Route<VALUE>> {
     return new Observable<Route>(observer => {
@@ -307,7 +311,7 @@ const mapRouteIdentity = route => route;
 
 const getMatchError = new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
 
-export function _ifGet <VALUE> (
+export function ifGet <VALUE> (
     getMatch: Router<undefined, VALUE>,
     mapMatchRoute: Router<MatchRoute<VALUE>>,
     mapNoRoute?: Router<NoRoute<VALUE>>
@@ -333,12 +337,12 @@ export function _ifGet <VALUE> (
 const ifPredicateError = new Error("if's predicate must have value of true or false");
 const ifPredicateMatchError = new Error("if's predicate must only return MatchRoute or NoRoute");
 
-export function _if (
+function _if (
     predicate: Router<undefined, boolean>,
     mapMatchRoute: Router<MatchRoute<boolean>>,
     mapNoRoute?: Router<NoRoute<boolean>>
 ) {
-    return _ifGet<boolean>(
+    return ifGet<boolean>(
         () => mapRouteByType$(
             predicate, {
                 match: route => {
@@ -359,7 +363,9 @@ export function _if (
     );
 }
 
-export function _ifNo <ARG, VALUE> (
+export { _if as if }
+
+export function ifNo <ARG, VALUE> (
     router: Router<ARG, VALUE>,
     mapNoRoute: Router<NoRoute<VALUE>>
 ) {
@@ -370,7 +376,7 @@ export function _ifNo <ARG, VALUE> (
 
 const beforeError = new Error("before's router must only return DoRoute or NoRoute");
 
-export function _before <ARG, VALUE> (
+export function before <ARG, VALUE> (
     router: Router<ARG, VALUE>,
     action: Action
 ) {
@@ -388,7 +394,7 @@ export function _before <ARG, VALUE> (
 }
 const afterError = new Error("after's router must only return DoRoute or NoRoute");
 
-export function _after <ARG, VALUE> (
+export function after <ARG, VALUE> (
     router: Router<ARG, VALUE>,
     action: Action
 ) {
@@ -405,9 +411,11 @@ export function _after <ARG, VALUE> (
     });
 }
 
-export function _switch (
+function _switch (
     getKey: Router<undefined, string>,
     mapKeyToRouter: Record<string, Router>
 ) {
-    return _ifGet(getKey, match => getRoute$(mapKeyToRouter[match.value]));
+    return ifGet(getKey, match => getRoute$(mapKeyToRouter[match.value]));
 }
+
+export { _switch as switch }

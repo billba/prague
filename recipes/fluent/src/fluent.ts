@@ -1,302 +1,465 @@
-import { _first, _best, _if, _ifGet, _ifNo, _before, _after, Action, Route, ScoredRoute, MatchRoute, DoRoute, NoRoute, Router, Observableable, toObservable, getRoute$, mapRoute$, route$, RouteTypes, getTypesFromRoute, MapTypeToRouteClass } from 'prague';
 import { Observable } from 'rxjs';
 
-export * from 'prague';
+export type Observableable <T> = T | Observable<T> | Promise<T>;
 
-export type AnyRouter <ARG = undefined, VALUE = any> = Router<ARG, VALUE> | FluentRouter<ARG, VALUE>;
-
-export type FlexRouter <ARG = undefined, VALUE = any> = AnyRouter<ARG, VALUE> | ((arg?: ARG) => Observableable<FluentRouter>);
-
-export type MapTypeToFlexRouter <VALUE> = { [P in RouteTypes<VALUE>]: FlexRouter<MapTypeToRouteClass<VALUE>[P]> }
-
-function getRouteByType <VALUE> (
-    route: Route,
-    mapTypeToFlexRouter: Partial<MapTypeToFlexRouter<VALUE>>
-): Observableable<Route> {
-    for (let type of getTypesFromRoute(route)) {
-        const router = mapTypeToFlexRouter[type];
-        if (router)
-            return getRoute$(FluentRouter.flexRouterToRouter(router), route);
-    }
-
-    return route;
+export function toObservable <T> (t: Observableable<T>) {
+    if (t instanceof Observable)
+        return t.take(1);
+    if (t instanceof Promise)
+        return Observable.fromPromise<T>(t);
+    return Observable.of(t);
 }
 
-export class FluentRouter <ARG = undefined, VALUE = any> {
-    constructor(public router: Router<ARG, VALUE>) {
-    }
+export abstract class Route <VALUE = any> {
+    private _route: undefined; // hack so that TypeScript will do better type checking on Routes
 
-    static from <VALUE> (route: Route<VALUE>) {
-        return new FluentRouter(() => route);
+    static is <VALUE> (route: any): route is Route<VALUE> {
+        return route instanceof Route;
     }
+}
 
-    static is <ARG, VALUE, T> (router: T | FluentRouter<ARG, VALUE>): router is FluentRouter<ARG, VALUE> {
-        return router instanceof FluentRouter;
-    }
-
-    static anyRouterToRouter <ARG, VALUE> (
-        router: AnyRouter<ARG, VALUE>
+export class ScoredRoute <VALUE = any> extends Route<VALUE> {
+    score: number;
+    
+    constructor (
+        score?: number
     ) {
-        return FluentRouter.is(router)
-            ? router.router
-            : router
+        super();
+
+        this.score = ScoredRoute.normalizedScore(score);
     }
 
-    static flexRouterToRouter <ARG, VALUE> (
-        router: FlexRouter<ARG, VALUE>
-    ): Router<ARG, VALUE> {
-        if (router == null)
-            return;
-
-        return FluentRouter.is(router)
-            ? router.router
-            : (arg: ARG) => Observable
-                .of(router)
-                .map(router => router(arg))
-                .flatMap(toObservable)
-                .flatMap(result => FluentRouter.is(result)
-                    ? toObservable(result.router())
-                    : Observable.of(result)
-                );
+    static normalizedScore(score?: number) {
+        return score != null && score >= 0 && score < 1
+            ? score
+            : 1;
     }
 
-    static toRouters (routers: AnyRouter[]) {
-        return routers.map(FluentRouter.anyRouterToRouter);
+    static is (route: Route): route is ScoredRoute {
+        return route instanceof ScoredRoute;
     }
 
-    toObservable (arg?: ARG) {
-        return getRoute$(this.router, arg);
+    static combinedScore(score, otherScore) {
+        return score * otherScore
     }
 
-    toPromise (arg?: ARG) {
-        return this.toObservable(arg).toPromise();
+    clone(score?: number): this {
+        score = ScoredRoute.normalizedScore(score);
+
+        return score === this.score
+            ? this
+            : Object.assign(Object.create(this.constructor.prototype), this, { score });
     }
 
-    route$ (arg?: ARG) {
-        return route$(this.router, arg);
+    cloneWithCombinedScore(score?: number) {
+        return this.clone(ScoredRoute.combinedScore(this.score, ScoredRoute.normalizedScore(score)));
     }
+}
 
-    route (arg?: ARG) {
-        return this.route$(arg)
-            .toPromise();
-    }
+export type Action = () => Observableable<any>;
 
-    map (mapRoute: AnyRouter<Route<VALUE>>) {
-        return new FluentRouter(() => mapRoute$(this.router, FluentRouter.anyRouterToRouter(mapRoute)));
-    }
-
-    mapByType (
-        mapTypeToFlexRouter: Partial<MapTypeToFlexRouter<VALUE>>
+export class DoRoute extends ScoredRoute<undefined> {
+    constructor (
+        public action: Action,
+        score?: number
     ) {
-        return this.map(route => getRouteByType(route, mapTypeToFlexRouter));
+        super(score);
     }
 
-    do (fn: (route: Route) => Observableable<any>) {
-        return this.map(route => toObservable(fn(route))
-            .mapTo(route)
-        );
-    }
-
-    default (
-        router: FlexRouter<NoRoute>
-    ) {
-        return this.mapByType({ no: router });
+    static is (route: Route): route is DoRoute {
+        return route instanceof DoRoute;
     }
 }
 
-export function first <VALUE = any> (
-    ... routers: AnyRouter<undefined, VALUE>[]
-) {
-    return new FluentRouter(() => _first(
-        ... FluentRouter.toRouters(routers)
-    ));
-}
-
-export function best <VALUE = any> (
-    ... routers: AnyRouter<undefined, VALUE>[]
-) {
-    return new FluentRouter(() => _best(
-        ... FluentRouter.toRouters(routers)
-    ));
-}
-
-export function ifGet <VALUE> (
-    getMatch: AnyRouter<undefined, VALUE>,
-    mapMatchRoute: FlexRouter<MatchRoute<VALUE>>,
-    mapNoRoute?: FlexRouter<NoRoute<VALUE>>
-) {
-    return new FluentRouter(() => _ifGet(
-        FluentRouter.anyRouterToRouter(getMatch),
-        FluentRouter.flexRouterToRouter(mapMatchRoute),
-        FluentRouter.flexRouterToRouter(mapNoRoute)
-    ));
-}
-
-function if_ (
-    predicate: AnyRouter<undefined, boolean>,
-    mapMatchRoute: FlexRouter<MatchRoute<boolean>>,
-    mapNoRoute?: FlexRouter<NoRoute<boolean>>
-) {
-    return new FluentRouter(() => _if(
-        FluentRouter.anyRouterToRouter(predicate),
-        FluentRouter.flexRouterToRouter(mapMatchRoute),
-        FluentRouter.flexRouterToRouter(mapNoRoute)
-    ));
-}
-
-export { if_ as if }
-
-export function ifNo <ARG, VALUE> (
-    router: AnyRouter<ARG, VALUE>,
-    mapNoRoute: FlexRouter<NoRoute>
-) {
-    return new FluentRouter(() => _ifNo(
-        FluentRouter.anyRouterToRouter(router),
-        FluentRouter.flexRouterToRouter(mapNoRoute)
-    ));
-}
-
-export function before <ARG, VALUE> (
-    router: AnyRouter<ARG, VALUE>,
-    action: Action
-) {
-    return new FluentRouter(() => _before(
-        FluentRouter.anyRouterToRouter(router),
-        action
-    ));
-}
-
-export function after <ARG, VALUE> (
-    router: AnyRouter<ARG, VALUE>,
-    action: Action
-) {
-    return new FluentRouter(() => _after(
-        FluentRouter.anyRouterToRouter(router),
-        action
-    ));
-}
-
-function switch_ (
-    getKey: AnyRouter<undefined, string>,
-    mapKeyToRouter: Record<string, AnyRouter>
-) {
-    return ifGet(getKey, match => getRoute$(FluentRouter.anyRouterToRouter(mapKeyToRouter[match.value])));
-}
-
-export { switch_ as switch }
-
-function do_ <ARG = undefined> (
+export function _do <ARG = any> (
     action: (arg?: ARG) => Observableable<any>,
     score?: number
 ) {
-    return new FluentRouter<ARG>((arg?: ARG) => new DoRoute(() => action(arg), score));
+    return Router.from((arg: ARG) => new DoRoute(() => action(arg), score));
 }
 
-export { do_ as do }
+export { _do as do }
+
+export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
+    constructor(
+        public value: VALUE,
+        score?: number
+    ) {
+        super(score);
+    }
+
+    static is <VALUE = any> (route: Route<VALUE>): route is MatchRoute<VALUE> {
+        return route instanceof MatchRoute;
+    }
+}
 
 export function match <VALUE = any> (
     value: VALUE,
     score?: number
 ) {
-    return new FluentRouter(() => new MatchRoute(value, score));
+    return Router.from(() => new MatchRoute(value, score));
 }
 
-function no_ <VALUE> (
+export class NoRoute <VALUE = any> extends Route<VALUE> {
+    static defaultReason = "none";
+    
+    constructor (
+        public reason = NoRoute.defaultReason,
+        public value?: VALUE
+    ) {
+        super();
+    }
+
+    static default = new NoRoute();
+
+    static default$ = Observable.of(NoRoute.default);
+
+    static router = () => NoRoute.default$;
+
+    static is <VALUE = any> (route: Route): route is NoRoute<VALUE> {
+        return route instanceof NoRoute;
+    }
+}
+
+function _no <VALUE> (
     reason?: string,
     value?: VALUE
 ) {
-    return new FluentRouter(() => new NoRoute(reason, value));
+    return Router.from(() => new NoRoute(reason, value));
 }
 
-export { no_ as no }
+export { _no as no }
 
-// export class IfMatchesThen <ROUTABLE, VALUE> extends Router<ROUTABLE> {
-//     constructor(
-//         private matcher: Matcher<ROUTABLE, VALUE>,
-//         private getThenRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>
-//     ) {
-//         super(Router.getRouteIfMatches$(matcher, getThenRouter));
-//     }
+export type GetRoute <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 
-//     elseDo(
-//         elseHandler: (routable: ROUTABLE, reason: string) => Observableable<any>,
-//         score?: number
-//     ) {
-//         return this.elseTry((_routable, reason) => Router.do(routable => elseHandler(routable, reason), score));
-//     }
+const getRouteError = new Error('router must be a function');
 
-//     elseTry(elseRouter: Router<ROUTABLE>): Router<ROUTABLE>;
+export type AnyRouter <ARG = undefined, VALUE = any> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
 
-//     elseTry(getElseRouter: (routable: ROUTABLE, reason: string) => Router<ROUTABLE>): Router<ROUTABLE>;
+export class Router <ARG = undefined, VALUE = any> {
+    getRoute$: (arg?: ARG) => Observable<Route<VALUE>>;
 
-//     elseTry(arg: Router<ROUTABLE> | ((routable: ROUTABLE, reason: string) => Router<ROUTABLE>)) {
-//         return new Router(Router.getRouteIfMatches$(this.matcher, this.getThenRouter, typeof(arg) === 'function'
-//             ? arg
-//             : (routable, reason) => arg
-//         ));
-//     }
-// }
+    getRoute (arg?: ARG) {
+        return this.getRoute$(arg).toPromise();
+    }
 
-// export class IfMatchesFluent <ROUTABLE, VALUE> {
-//     constructor (
-//         private matcher: Matcher<ROUTABLE, VALUE>
-//     ) {
-//     }
+    constructor(router?: AnyRouter<ARG, VALUE>) {
+        if (router == null)
+            this.getRoute$ = NoRoute.router;
+        else if (Router.is(router))
+            this.getRoute$ = router.getRoute$;
+        else if (typeof router !== 'function')
+            throw getRouteError;
+        else {
+            this.getRoute$ = (arg: ARG) => Observable
+                .of(router)
+                .map(router => router(arg))
+                .flatMap(toObservable)
+                .flatMap(result => Router.is(result)
+                    ? result.getRoute$()
+                    : Observable.of(Router.normalizedRoute(result))
+                );
+        }
+    }
 
-//     and (predicate: (value: VALUE) => IfTrueFluent<ROUTABLE>): IfMatchesFluent<ROUTABLE, VALUE>;
+    private static normalizedRoute <VALUE> (
+        route: Route<VALUE> | VALUE,
+    ): Route<VALUE> {
+        if (route == null)
+            return NoRoute.default;
 
-//     and (predicate: IfTrueFluent<ROUTABLE>): IfMatchesFluent<ROUTABLE, VALUE>;
+        if (Route.is(route))
+            return route;
 
-//     and <TRANSFORMRESULT> (recognizer: (value: VALUE) => IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>): IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>;
+        return new MatchRoute(route);
+    };
 
-//     and <TRANSFORMRESULT> (recognizer: IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>): IfMatchesFluent<ROUTABLE, TRANSFORMRESULT>;
+    static from <ARG, VALUE> (router?: AnyRouter<ARG, VALUE>) {
+        return Router.is(router)
+            ? router
+            : new Router(router);
+    }
 
-//     and <TRANSFORMRESULT> (arg) {
-//         const recognizer = typeof(arg) === 'function'
-//             ? arg as (value: VALUE) => IfMatchesFluent<ROUTABLE, any>
-//             : (value: VALUE) => arg as IfMatchesFluent<ROUTABLE, any>;
-//         return new IfMatchesFluent((routable: ROUTABLE) => Router.getNormalizedMatchResult$(matcher, routable)
-//             .flatMap(matchResult => Router.isMatch(matchResult)
-//                 ? toObservable(recognizer(matchResult.value))
-//                     .flatMap(_ifMatches => Router.getNormalizedMatchResult$(_ifMatches.matcher, routable)
-//                         .map(_matchResult => Router.isMatch(_matchResult)
-//                             ? _ifMatches instanceof IfTrueFluent
-//                                 ? matchResult
-//                                 : {
-//                                     value: _matchResult.value,
-//                                     score: Router.combineScore(matchResult.score, _matchResult.score)
-//                                 }
-//                             : _matchResult
-//                         )
-//                     )
-//                 : Observable.of(matchResult)
-//             )
-//         );
-//     }
+    static is <ARG, VALUE> (router: any | AnyRouter<ARG, VALUE>): router is Router<ARG, VALUE> {
+        return router instanceof Router;
+    }
 
-//     thenDo(
-//         thenHandler: (routable: ROUTABLE, value: VALUE) => Observableable<any>,
-//         score?: number
-//     ) {
-//         return this.thenTry((_routable, value) => Router.do(routable => thenHandler(routable, value), score));
-//     }
+    route$ (arg?: ARG) {
+        return this
+            .getRoute$(arg)
+            .filter(DoRoute.is)
+            .flatMap(route => toObservable(route.action()))
+            .mapTo(true)
+            .defaultIfEmpty(false);
+    }
 
-//     thenTry(router: Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
+    route (arg?: ARG) {
+        return this
+            .route$(arg)
+            .toPromise();
+    }
 
-//     thenTry(getRouter: (routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>): IfMatchesThen<ROUTABLE, VALUE>;
+    map (mapRoute: AnyRouter<Route<VALUE>>) {
+        return new Router((arg?: ARG) => this
+            .getRoute$(arg)
+            .flatMap(Router.from(mapRoute).getRoute$)
+        );
+    }
 
-//     thenTry(arg: Router<ROUTABLE> | ((routable: ROUTABLE, value: VALUE) => Router<ROUTABLE>)) {
-//         return new IfMatchesThen(this.matcher, typeof arg === 'function'
-//             ? arg
-//             : (routable, value) => arg
-//         );
-//     }
-// }
+    mapByType (
+        mapTypeToFlexRouter: Partial<MapTypeToRouter<VALUE>>
+    ) {
+        return this.map(typeRouter(mapTypeToFlexRouter));
+    }
 
-// export class IfTrueFluent <ROUTABLE> extends IfMatchesFluent<ROUTABLE, boolean> {
-//     constructor(
-//         predicate: Predicate<ROUTABLE>
-//     ) {
-//         super(Router.predicateToMatcher(predicate));
-//     }
-// }
+    do <VALUE> (fn: (route: Route<VALUE>) => Observableable<any>) {
+        return this.map(route => toObservable(fn(route)).mapTo(route));
+    }
+
+    default (
+        router: AnyRouter<NoRoute>
+    ) {
+        return this.mapByType({
+            no: router
+        });
+    }
+}
+
+const strictlyFilterError = new Error("route isn't DoRoute or NoRoute");
+
+function strictlyFilterScored(route: Route): route is ScoredRoute {
+    if (ScoredRoute.is(route))
+        return true;
+
+    if (NoRoute.is(route))
+        return false;
+
+    throw strictlyFilterError;
+}
+
+export function first <VALUE> (
+    ... routers: AnyRouter<undefined, VALUE>[]
+) {
+    return Router.from(() => Observable
+        .from(routers)
+        // we put concatMap here because it forces everything after it to execute serially
+        .concatMap(router => Router
+            .from(router)
+            .getRoute$()
+        )
+        .filter(strictlyFilterScored)
+        .take(1) // so that we don't keep going through routers after we find one that matches
+        .defaultIfEmpty(NoRoute.default)
+    );
+}
+
+const minRouteError = new Error("minRoute.action should never be called");
+
+const minRoute = new DoRoute(
+    () => {
+        throw minRouteError;
+    },
+    0
+);
+
+export function best  <VALUE = any> (
+    ... routers: AnyRouter<VALUE> []
+) {
+    return Router.from(() => new Observable<Route>(observer => {
+        let bestRoute: ScoredRoute = minRoute;
+
+        const subscription = Observable.from(routers)
+            // we put concatMap here because it forces everything after it to execute serially
+            .concatMap(router => Router
+                .from(router)
+                .getRoute$()
+            )
+            // early exit if we've already found a winner (score === 1)
+            .takeWhile(_ => bestRoute.score < 1)
+            .filter(strictlyFilterScored)
+            .subscribe(
+                route => {
+                    if (route.score > bestRoute.score) {
+                        bestRoute = route;
+                        if (bestRoute.score === 1) {
+                            observer.next(bestRoute);
+                            observer.complete();
+                        }
+                    }
+                },
+                error =>
+                    observer.error(error),
+                () => {
+                    observer.next(bestRoute.score > 0
+                        ? bestRoute
+                        : NoRoute.default
+                    );
+                    observer.complete();
+                }
+            );
+
+        return () => subscription.unsubscribe();
+    }));
+}
+
+export function noop (
+    action: Action
+) {
+    return Router
+        .from()
+        .do(action)
+}
+
+export interface MapTypeToRouteClass <VALUE> {
+    route: Route<VALUE>,
+    scored: ScoredRoute<VALUE>,
+    do: DoRoute,
+    match: MatchRoute<VALUE>,
+    no: NoRoute<VALUE>,
+    default: Route,
+}
+
+export type RouteTypes <VALUE> = keyof MapTypeToRouteClass<VALUE>;
+
+export function* getTypesFromRoute(
+    route: Route
+) {
+    if (NoRoute.is(route))
+        yield 'no';
+    
+    if (DoRoute.is(route))
+        yield 'do';
+    
+    if (MatchRoute.is(route))
+        yield 'match';
+
+    if (ScoredRoute.is(route))
+        yield 'scored';
+    
+    if (Route.is(route))
+        yield 'route';
+    
+    yield 'default';
+}
+
+export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: AnyRouter<MapTypeToRouteClass<VALUE>[P]> }
+
+function typeRouter <VALUE> (
+    mapTypeToFlexRouter: Partial<MapTypeToRouter<VALUE>>
+) {
+    return Router.from((route: Route<VALUE>) => {
+        for (let type of getTypesFromRoute(route)) {
+            const router = mapTypeToFlexRouter[type];
+            if (router)
+                return Router.from(router).getRoute$(route);
+        }
+
+        return route;
+    })
+}
+
+const mapRouteIdentity = <VALUE> (route: Route<VALUE>) => route;
+
+const getMatchError = new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
+
+export function ifGet <VALUE> (
+    getMatch: AnyRouter<undefined, VALUE>,
+    mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
+    mapNoRoute?: AnyRouter<NoRoute<VALUE>>
+) {
+    return Router
+        .from(getMatch)
+        .mapByType({
+            match: route => Router
+                .from(mapMatchRoute)
+                .getRoute$(route)
+                .flatMap(Router
+                    .from(typeRouter({
+                        scored: _route => _route.cloneWithCombinedScore(route.score)
+                    }))
+                    .getRoute$
+                ),
+            no: mapNoRoute || mapRouteIdentity,
+            default: () => {
+                throw getMatchError;
+            }
+        });
+}
+
+// _if is a special case of ifGet
+// value of MatchRoute must be true or false
+// if value is false, NoRoute is instead returned
+
+const ifPredicateError = new Error("predicate must have value of true or false");
+
+export function _if (
+    predicate: AnyRouter<undefined, boolean>,
+    mapMatchRoute: AnyRouter<MatchRoute<boolean>>,
+    mapNoRoute?: AnyRouter<NoRoute<boolean>>
+) {
+    return ifGet<boolean>(
+        Router
+            .from(predicate)
+            .mapByType({
+                match: route => {
+                    if (route.value === true)
+                        return route;
+
+                    if (route.value === false)
+                        return NoRoute.default;
+
+                    throw ifPredicateError;
+                }
+            }),
+        mapMatchRoute,
+        mapNoRoute
+    );
+}
+
+export { _if as if }
+
+const doError = new Error("this router must only return DoRoute or NoRoute");
+
+export const filterForDoRoute = <VALUE> (route: Route<VALUE>) => {
+    if (DoRoute.is(route) || NoRoute.is<VALUE>(route))
+        return route;
+
+    throw doError;
+}
+
+export function before (
+    action: Action
+) {
+    return Router
+        .from(filterForDoRoute)
+        .mapByType({
+            do: route => new DoRoute(
+                () => toObservable(action())
+                    .flatMap(_ => toObservable(route.action())),
+                route.score
+            )
+        });
+}
+
+export function after (
+    action: Action
+) {
+    return Router
+        .from(filterForDoRoute)
+        .mapByType({
+            do: route => new DoRoute(
+                () => toObservable(route.action())
+                    .flatMap(_ => toObservable(action())),
+                route.score
+            )
+        });
+}
+
+export function _switch (
+    getKey: GetRoute<undefined, string>,
+    mapKeyToRouter: Record<string, GetRoute>
+) {
+    return ifGet(getKey, match => mapKeyToRouter[match.value]);
+}
+
+export { _switch as switch }
