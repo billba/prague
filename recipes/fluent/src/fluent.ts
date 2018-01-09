@@ -334,8 +334,8 @@ export function noop (
     action: Action
 ) {
     return Router
-        .from()
-        .do(action)
+    .from()
+        .tap(action)
 }
 
 export interface MapTypeToRouteClass <VALUE> {
