@@ -956,56 +956,6 @@ describe('p.if', () => {
             }, passErr, done);
     });
 
-    it("should return score=1 on true predicate when 'if' score undefined", (done) => {
-        p
-            .if(
-                () => true,
-                p.do(() => {})
-            )
-            .getRoute$()
-            .subscribe(route => {
-                expect(route.score).to.eql(1);
-            }, passErr, done);
-    });
-
-    it("should return route score on true predicate", (done) => {
-        p
-            .if(
-                () => true,
-                p.do(() => {}, 0.25)
-            )
-            .getRoute$()
-            .subscribe(route => {
-                expect(route.score).to.eql(.25);
-            }, passErr, done);
-    });
-
-    it("should return score=1 on false predicate when 'else' score undefined", (done) => {
-        p
-            .if(
-                () => false,
-                p.do(throwErr),
-                p.do(m => {})
-            )
-            .getRoute$()
-            .subscribe(route => {
-                expect(route.score).to.eql(1);
-            }, passErr, done);
-    });
-
-    it("should return 'else' route score on false predicate", (done) => {
-        p
-            .if(
-                () => false,
-                p.do(throwErr),
-                p.do(_ => {}, .5)
-            )
-            .getRoute$()
-            .subscribe(route => {
-                expect(route.score).to.eql(.5);
-            }, passErr, done);
-    });
-
     it("should throw on string", (done) => {
         p
             .if(
@@ -1081,7 +1031,7 @@ describe('p.if', () => {
             .subscribe(route => {
                 route.action();
                 expect(handled).to.be.true;
-                expect(route.score).to.eql(.5);
+                expect(route.score).to.eql(1);
             }, passErr, done);
     });
 
