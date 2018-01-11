@@ -1491,7 +1491,6 @@ describe('p.doable', () => {
             .getRoute$()
             .subscribe(throwErr, passErr => done(), throwErr)
     })
-
 })
 
 describe("router.before", () => {
