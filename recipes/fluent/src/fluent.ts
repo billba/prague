@@ -35,7 +35,7 @@ export class ScoredRoute <VALUE = any> extends Route<VALUE> {
             : 1;
     }
 
-    static is (route: Route): route is ScoredRoute {
+    static is (route: any): route is ScoredRoute {
         return route instanceof ScoredRoute;
     }
 
@@ -56,6 +56,62 @@ export class ScoredRoute <VALUE = any> extends Route<VALUE> {
     }
 }
 
+export class TemplateRoute <ACTION, ARGS> extends ScoredRoute {
+    constructor (
+        public action: ACTION,
+        public args: ARGS,
+        score?: number
+    ) {
+        super(score);
+    }
+
+    static is <ACTION, ARGS> (route: any): route is TemplateRoute<ACTION, ARGS> {
+        return route instanceof TemplateRoute;
+    }
+}
+
+export type TemplateActions <TEMPLATES> = keyof TEMPLATES;
+
+export type MapTemplateActionToRouter <TEMPLATES> = { [P in TemplateActions<TEMPLATES>]: AnyRouter<TEMPLATES[P]> }
+
+const templateError = new Error('action not present in mapActionToRouter')
+
+export class Templates <TEMPLATES> {
+    constructor(
+        private mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>>
+    ) {
+    }
+
+    route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+        action: ACTION,
+        args: ARGS
+    ) {
+        if (!this.mapActionToRouter[action])
+            throw templateError;
+
+        return new TemplateRoute(action, args);
+    }
+
+    router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+        action: ACTION,
+        args: ARGS
+    ) {
+        return () => this.route(action, args);
+    }
+
+    map (
+        route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>
+    ) {
+        const router: AnyRouter<TEMPLATES[keyof TEMPLATES], any> = this.mapActionToRouter[route.action];
+    
+        return router
+            ? Router
+                .from(router)
+                .getRoute$(route.args)
+            : route;
+    }
+}
+
 export type Action = () => Observableable<any>;
 
 export class DoRoute extends ScoredRoute<undefined> {
@@ -66,7 +122,7 @@ export class DoRoute extends ScoredRoute<undefined> {
         super(score);
     }
 
-    static is (route: Route): route is DoRoute {
+    static is (route: any): route is DoRoute {
         return route instanceof DoRoute;
     }
 }
@@ -88,7 +144,7 @@ export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
         super(score);
     }
 
-    static is <VALUE = any> (route: Route<VALUE>): route is MatchRoute<VALUE> {
+    static is <VALUE = any> (route: any): route is MatchRoute<VALUE> {
         return route instanceof MatchRoute;
     }
 }
@@ -116,7 +172,7 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
 
     static router = () => NoRoute.default$;
 
-    static is <VALUE = any> (route: Route<VALUE>): route is NoRoute<VALUE> {
+    static is <VALUE = any> (route: any): route is NoRoute<VALUE> {
         return route instanceof NoRoute;
     }
 }
@@ -133,6 +189,7 @@ export { _no as no }
 export type GetRoute <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 
 const getRouteError = new Error('router must be a function');
+const route$Error = new Error('route must be a DoRoute or a NoRoute');
 
 export type AnyRouter <ARG = undefined, VALUE = any> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
 
@@ -180,17 +237,20 @@ export class Router <ARG = undefined, VALUE = any> {
             : new Router(router);
     }
 
-    static is <ARG, VALUE> (router: any | AnyRouter<ARG, VALUE>): router is Router<ARG, VALUE> {
+    static is <ARG, VALUE> (router: any): router is Router<ARG, VALUE> {
         return router instanceof Router;
     }
 
     route$ (arg?: ARG) {
         return this
             .getRoute$(arg)
-            .filter(DoRoute.is)
-            .flatMap(route => toObservable(route.action()))
-            .mapTo(true)
-            .defaultIfEmpty(false);
+            .flatMap(route => {
+                if (DoRoute.is(route))
+                    return toObservable(route.action()).mapTo(true);
+                if (NoRoute.is(route))
+                    return Observable.of(false);
+                throw route$Error;
+            });
     }
 
     route (arg?: ARG) {
@@ -207,9 +267,17 @@ export class Router <ARG = undefined, VALUE = any> {
     }
 
     mapByType (
-        mapTypeToFlexRouter: Partial<MapTypeToRouter<VALUE>>
+        mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
     ) {
-        return this.map(typeRouter(mapTypeToFlexRouter));
+        return this.map(typeRouter(mapTypeToRouter));
+    }
+
+    mapTemplate <TEMPLATES> (
+        templates: Templates<TEMPLATES>
+    ) {
+        return this.mapByType({
+            template: route => templates.map(route)
+        });
     }
 
     tap <VALUE> (fn: (route: Route<VALUE>) => Observableable<any>) {
@@ -343,6 +411,7 @@ export interface MapTypeToRouteClass <VALUE> {
     scored: ScoredRoute<VALUE>,
     do: DoRoute,
     match: MatchRoute<VALUE>,
+    template: TemplateRoute<any, any>,
     no: NoRoute<VALUE>,
     default: Route,
 }
@@ -361,6 +430,9 @@ export function* getTypesFromRoute(
     if (MatchRoute.is(route))
         yield 'match';
 
+    if (TemplateRoute.is(route))
+        yield 'template';
+
     if (ScoredRoute.is(route))
         yield 'scored';
     
@@ -373,11 +445,11 @@ export function* getTypesFromRoute(
 export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: AnyRouter<MapTypeToRouteClass<VALUE>[P]> }
 
 function typeRouter <VALUE> (
-    mapTypeToFlexRouter: Partial<MapTypeToRouter<VALUE>>
+    mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
 ) {
     return Router.from((route: Route<VALUE>) => {
         for (let type of getTypesFromRoute(route)) {
-            const router = mapTypeToFlexRouter[type];
+            const router = mapTypeToRouter[type];
             if (router)
                 return Router.from(router).getRoute$(route);
         }
