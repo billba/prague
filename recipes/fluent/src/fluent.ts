@@ -116,7 +116,7 @@ export type Action = () => Observableable<any>;
 
 export class DoRoute extends ScoredRoute<undefined> {
     constructor (
-        public action: Action,
+        private action: Action,
         score?: number
     ) {
         super(score);
@@ -124,6 +124,14 @@ export class DoRoute extends ScoredRoute<undefined> {
 
     static is (route: any): route is DoRoute {
         return route instanceof DoRoute;
+    }
+
+    do$() {
+        return toObservable(this.action());
+    }
+
+    do() {
+        return this.do$().toPromise();
     }
 }
 
@@ -188,7 +196,7 @@ export { _no as no }
 
 export type GetRoute <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 
-const getRouteError = new Error('router must be a function');
+const routerNotFunctionError = new Error('router must be a function');
 const route$Error = new Error('route must be a DoRoute or a NoRoute');
 
 export type AnyRouter <ARG = undefined, VALUE = any> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
@@ -206,7 +214,7 @@ export class Router <ARG = undefined, VALUE = any> {
         else if (Router.is(router))
             this.getRoute$ = router.getRoute$;
         else if (typeof router !== 'function')
-            throw getRouteError;
+            throw routerNotFunctionError;
         else {
             this.getRoute$ = (arg: ARG) => Observable
                 .of(router)
@@ -246,7 +254,7 @@ export class Router <ARG = undefined, VALUE = any> {
             .getRoute$(arg)
             .flatMap(route => {
                 if (DoRoute.is(route))
-                    return toObservable(route.action()).mapTo(true);
+                    return route.do$().mapTo(true);
                 if (NoRoute.is(route))
                     return Observable.of(false);
                 throw route$Error;
@@ -300,7 +308,7 @@ export class Router <ARG = undefined, VALUE = any> {
             .mapByType({
                 do: route => new DoRoute(
                     () => toObservable(action())
-                        .flatMap(_ => toObservable(route.action())),
+                        .flatMap(_ => route.do$()),
                     route.score
                 )
         });
@@ -313,7 +321,8 @@ export class Router <ARG = undefined, VALUE = any> {
             .map(filterForDoRoute)
             .mapByType({
                 do: route => new DoRoute(
-                    () => toObservable(route.action())
+                    () => route
+                        .do$()
                         .flatMap(_ => toObservable(action())),
                     route.score
                 )
