@@ -236,6 +236,84 @@ describe('p.no', () => {
     });
 });
 
+describe('p.match', () => {
+    it('should return a MatchRoute with the supplied value', (done) => {
+        let route = p
+            .match("hello")
+            .getRoute$(foo)
+            .subscribe(route => {
+                expect(route instanceof p.MatchRoute).to.be.true;
+                expect(route.value).to.eql('hello');
+            }, passErr, done);
+    });
+});
+
+describe('p.TemplateRoute', () => {
+    it('should create a TemplateRoute', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"});
+        expect(p.TemplateRoute.is(route)).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+    })
+})
+
+describe('p.Templates', () => {
+    it('should return a TemplateRoute with the supplied value', (done) => {
+        let handled;
+
+        let templates = new p.Templates({
+            foo: p.do(args => { handled = args.value; })
+        });
+
+        let route = templates.route('foo', { value: "hello" });
+
+        expect(route.action).to.eql("foo"); 
+        expect(p.TemplateRoute.is(route)).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        
+        p
+            .Router
+            .from(() => route)
+            .mapTemplate(templates)
+            .route$()
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(handled).to.eql('hello');
+            }, passErr, done);
+    });
+
+    it("should throw when creating a route using a nonexistant action", () => {
+        let handled;
+
+        let templates = new p.Templates({
+            foo: p.do(args => { handled = args.value; })
+        });
+
+        expect(() => {
+            let route = templates.route('bar', { value: "hello" });
+        }).throws;
+
+    });
+
+    it('should throw when running mapTemplate with unknown action', (done) => {
+        let handled;
+
+        let templates = new p.Templates({
+            foo: p.do(args => { handled = args.value; })
+        });
+
+        let route = new p.TemplateRoute('bar', { value: "hello" });
+
+        p
+            .Router
+            .from(() => route)
+            .mapTemplate(templates)
+            .route$()
+            .subscribe(throwErr, passErr => done(), throwErr);
+    });
+});
+
 describe('new Router', () => {
     it('should create a Router returning NoRoute when no router supplied', done => {
         new p.Router()
@@ -388,6 +466,23 @@ describe('router.route$', () => {
                 expect(routed).to.eql(foo);
             }, passErr, done);
     });
+
+    it("should throw on TemplateRoute", (done) => {
+        p
+            .Router
+            .from(() => new p.TemplateRoute('foo', {}))
+            .route$()
+            .subscribe(throwErr, passErr => done(), throwErr);
+    });
+
+    it("should throw on MatchRoute", (done) => {
+        p
+            .Router
+            .from(() => new p.MatchRoute('foo'))
+            .route$()
+            .subscribe(throwErr, passErr => done(), throwErr);
+    });
+
 });
 
 describe('p.first', () => {
@@ -1630,3 +1725,4 @@ describe('p.switch', () => {
             }, passErr, done);
     });
 });
+
