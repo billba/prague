@@ -310,7 +310,7 @@ export class Router <ARG = undefined, VALUE = any> {
         action: Action
     ) {
         return this
-            .map(filterForDoRoute)
+            .tap(doable)
             .mapByType({
                 do: route => new DoRoute(
                     () => toObservable(action())
@@ -324,7 +324,7 @@ export class Router <ARG = undefined, VALUE = any> {
         action: Action
     ) {
         return this
-            .map(filterForDoRoute)
+            .tap(doable)
             .mapByType({
                 do: route => new DoRoute(
                     () => route
@@ -527,11 +527,9 @@ export { _if as if }
 
 const doError = new Error("this router must only return DoRoute or NoRoute");
 
-export const filterForDoRoute = <VALUE> (route: Route<VALUE>) => {
-    if (DoRoute.is(route) || NoRoute.is<VALUE>(route))
-        return route;
-
-    throw doError;
+export const doable = <VALUE> (route: Route<VALUE>) => {
+    if (!DoRoute.is(route) && !NoRoute.is<VALUE>(route))
+        throw doError;
 }
 
 export function _switch (

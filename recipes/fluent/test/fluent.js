@@ -276,7 +276,7 @@ describe('p.Templates', () => {
             .Router
             .from(() => route)
             .mapTemplate(templates)
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.eql('hello');
@@ -309,7 +309,7 @@ describe('p.Templates', () => {
             .Router
             .from(() => route)
             .mapTemplate(templates)
-            .route$()
+            .do$()
             .subscribe(throwErr, passErr => done(), throwErr);
     });
 });
@@ -406,11 +406,11 @@ describe('Router.from', () => {
 
 });
 
-describe('router.route$', () => {
+describe('router.do$', () => {
     it("should return false on NoRoute with no arg", (done) => {
         p
             .no()
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;
             }, passErr, done);
@@ -419,7 +419,7 @@ describe('router.route$', () => {
     it("should return false on NoRoute with arg", (done) => {
         p
             .no()
-            .route$(foo)
+            .do$(foo)
             .subscribe(t => {
                 expect(t).to.be.false;
             }, passErr, done);
@@ -432,7 +432,7 @@ describe('router.route$', () => {
             .do(() => {
                 routed = true;
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -446,7 +446,7 @@ describe('router.route$', () => {
             .do(() => {
                 routed = true;
             })
-            .route$(foo)
+            .do$(foo)
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -460,7 +460,7 @@ describe('router.route$', () => {
             .do(m => {
                 routed = m;
             })
-            .route$(foo)
+            .do$(foo)
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.eql(foo);
@@ -471,7 +471,7 @@ describe('router.route$', () => {
         p
             .Router
             .from(() => new p.TemplateRoute('foo', {}))
-            .route$()
+            .do$()
             .subscribe(throwErr, passErr => done(), throwErr);
     });
 
@@ -479,7 +479,7 @@ describe('router.route$', () => {
         p
             .Router
             .from(() => new p.MatchRoute('foo'))
-            .route$()
+            .do$()
             .subscribe(throwErr, passErr => done(), throwErr);
     });
 
@@ -489,7 +489,7 @@ describe('p.first', () => {
     it('should return false on no routers', (done) =>
         p
             .first()
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -499,7 +499,7 @@ describe('p.first', () => {
                 null,
                 undefined
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -510,7 +510,7 @@ describe('p.first', () => {
                 null,
                 undefined
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -519,7 +519,7 @@ describe('p.first', () => {
             .first(
                 p.no()
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     });
 
@@ -532,7 +532,7 @@ describe('p.first', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -550,7 +550,7 @@ describe('p.first', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -566,7 +566,7 @@ describe('p.first', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -625,7 +625,7 @@ describe('p.best', () => {
     it('should return NoRoute on no routers', (done) => {
         p
             .best()
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;
             }, passErr, done)
@@ -637,7 +637,7 @@ describe('p.best', () => {
                 null,
                 undefined
             )
-            .route$()            
+            .do$()            
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -648,7 +648,7 @@ describe('p.best', () => {
                 null,
                 undefined
             )
-            .route$()            
+            .do$()            
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -657,7 +657,7 @@ describe('p.best', () => {
             .best(
                 p.no()
             )
-            .route$()        
+            .do$()        
             .subscribe(t => expect(t).to.be.false, passErr, done)
     });
 
@@ -670,7 +670,7 @@ describe('p.best', () => {
                     routed = true;
                 })
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -687,7 +687,7 @@ describe('p.best', () => {
                     routed = true;
                 })
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -703,7 +703,7 @@ describe('p.best', () => {
                     routed = true;
                 })
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -719,7 +719,7 @@ describe('p.best', () => {
                 }),
                 throwErr
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -733,7 +733,7 @@ describe('p.best', () => {
                 p.do(_ => { routed = 'first'; }, 0.75),
                 p.do(_ => { routed = 'second'; }, 0.50)
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.eql('first');
             }, passErr, done);
@@ -747,7 +747,7 @@ describe('p.best', () => {
                 p.do(_ => { routed = 'first'; }, .5),
                 p.do(_ => { routed = 'second'; }, .75)
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.eql('second');
             }, passErr, done);
@@ -761,7 +761,7 @@ describe('p.best', () => {
                 p.do(_ => { routed = 'first'; }),
                 p.do(_ => { routed = 'second'; }, .75)
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.eql('first');
             }, passErr, done);
@@ -775,7 +775,7 @@ describe('p.best', () => {
                 p.do(_ => { routed = 'first'; }, 0.75),
                 p.do(_ => { routed = 'second'; }, 0.75)
             )
-            .route$()            
+            .do$()            
             .subscribe(n => {
                 expect(routed).to.eql('first');
             }, passErr, done);
@@ -793,7 +793,7 @@ describe('p.noop', () => {
                     routed = true;
                 }
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(n).to.be.false;
                 expect(routed).to.be.true;
@@ -808,7 +808,7 @@ describe('p.ifGet', () => {
                 () => undefined,
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -818,7 +818,7 @@ describe('p.ifGet', () => {
                 () => undefined,
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -829,7 +829,7 @@ describe('p.ifGet', () => {
                 p.do(throwErr),
                 p.no()
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -840,7 +840,7 @@ describe('p.ifGet', () => {
                 p.no(),
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -854,7 +854,7 @@ describe('p.ifGet', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -871,7 +871,7 @@ describe('p.ifGet', () => {
                 }),
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -888,7 +888,7 @@ describe('p.ifGet', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -905,7 +905,7 @@ describe('p.ifGet', () => {
                     routed = route.reason;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.eql('reason');
             }, passErr, done);
@@ -922,7 +922,7 @@ describe('p.ifGet', () => {
                 }),
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.eql('value');
             }, passErr, done);
@@ -937,7 +937,7 @@ describe('p.ifGet', () => {
                     handled = match.value;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(_ => {
                 expect(handled).to.eql('dog');
             }, passErr, done);
@@ -951,7 +951,7 @@ describe('p.ifGet', () => {
                 p.do(match => { routed = match.value })
             )
         )
-            .route$("hey")
+            .do$("hey")
             .subscribe(_ => {
                 expect(routed).to.eql("hey");
             }, passErr, done);
@@ -965,7 +965,7 @@ describe('p.if', () => {
                 () => false,
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -976,7 +976,7 @@ describe('p.if', () => {
                 p.do(throwErr),
                 p.no()
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -986,7 +986,7 @@ describe('p.if', () => {
                 () => true,
                 p.no()
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -997,7 +997,7 @@ describe('p.if', () => {
                 p.no(),
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done)
     );
 
@@ -1011,7 +1011,7 @@ describe('p.if', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -1028,7 +1028,7 @@ describe('p.if', () => {
                 }),
                 p.do(throwErr)
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -1045,7 +1045,7 @@ describe('p.if', () => {
                     routed = true;
                 })
             )
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -1213,7 +1213,7 @@ describe('router.mapByType', () => {
                 no: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1232,7 +1232,7 @@ describe('router.mapByType', () => {
                 no: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1250,7 +1250,7 @@ describe('router.mapByType', () => {
                 no: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1267,7 +1267,7 @@ describe('router.mapByType', () => {
                 no: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1303,7 +1303,7 @@ describe('router.mapByType', () => {
                 no: p.do(() => { handled = true; }),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1322,7 +1322,7 @@ describe('router.mapByType', () => {
                 default: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1340,7 +1340,7 @@ describe('router.mapByType', () => {
                 default: p.do(() => { handled = true; }),
                 match: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1377,7 +1377,7 @@ describe('router.mapByType', () => {
                 no: p.do(throwErr),
                 match: p.do(() => { handled = true; }),
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1396,7 +1396,7 @@ describe('router.mapByType', () => {
                 default: p.do(throwErr),
                 no: p.do(throwErr),
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1414,7 +1414,7 @@ describe('router.mapByType', () => {
                 default: p.do(throwErr),
                 no: p.do(throwErr),
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1431,7 +1431,7 @@ describe('router.mapByType', () => {
                 default: p.do(() => { handled = true; }),
                 no: p.do(throwErr),
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1455,21 +1455,21 @@ describe('router.mapByType', () => {
     })
 })
 
-describe('p.filterForDoRoute', () => {
-    it('should pass through DoRoute', done => {
+describe('p.doable', () => {
+    it('should allow DoRoute', done => {
         let r = new p.DoRoute(noop)
         p.Router.from(() => r)
-            .map(p.filterForDoRoute)
+            .tap(p.doable)
             .getRoute$()
             .subscribe(route => {
                 expect(route).to.eql(r);
             }, passErr, done)
     })
 
-    it('should pass through NoRoute', done => {
+    it('should allow NoRoute', done => {
         let r = new p.NoRoute()
         p.Router.from(() => r)
-            .map(p.filterForDoRoute)
+            .tap(p.doable)
             .getRoute$()
             .subscribe(route => {
                 expect(route).to.eql(r);
@@ -1479,7 +1479,15 @@ describe('p.filterForDoRoute', () => {
     it('should throw on MatchRoute', done => {
         let r = new p.match("hello")
         p.Router.from(() => r)
-            .map(p.filterForDoRoute)
+            .tap(p.doable)
+            .getRoute$()
+            .subscribe(throwErr, passErr => done(), throwErr)
+    })
+
+    it('should throw on TemplateRoute', done => {
+        let r = new p.TemplateRoute("hello")
+        p.Router.from(() => r)
+            .tap(p.doable)
             .getRoute$()
             .subscribe(throwErr, passErr => done(), throwErr)
     })
@@ -1491,7 +1499,7 @@ describe("router.before", () => {
         p
             .no()
             .beforeDo(throwErr)
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;
             }, passErr, done);
@@ -1510,7 +1518,7 @@ describe("router.before", () => {
                 expect(routed).to.be.false;
                 handled = true;
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;                
@@ -1524,7 +1532,7 @@ describe("p.after", () => {
         p
             .no()
             .afterDo(throwErr)
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.false, passErr, done);
     });
 
@@ -1542,7 +1550,7 @@ describe("p.after", () => {
                 expect(routed).to.be.true;
                 handled = true;
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1559,7 +1567,7 @@ describe("router.default", () => {
                 routed = true;
             })
             .default(no => p.do(throwErr))
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(routed).to.be.true;
             }, passErr, done);
@@ -1573,7 +1581,7 @@ describe("router.default", () => {
             .default(route => {
                 handled = route.reason;
             })
-            .route$()
+            .do$()
             .subscribe(n => {
                 expect(handled).to.eql('reason');
             }, passErr, done);
@@ -1608,9 +1616,9 @@ describe('inline Router', () => {
             .do(() =>
                 p
                     .no()
-                    .route$()
+                    .do$()
             )
-            .route$()
+            .do$()
             .subscribe(t => expect(t).to.be.true, passErr, done)
     );
 
@@ -1622,9 +1630,9 @@ describe('inline Router', () => {
                 .do(() => {
                     handled = true;
                 })
-                .route$()
+                .do$()
             )
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.be.true;
@@ -1638,7 +1646,7 @@ describe('p.switch', () => {
             .switch(() => undefined, {
                 foo: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;                
             }, passErr, done);
@@ -1650,7 +1658,7 @@ describe('p.switch', () => {
             .switch(() => null, {
                 foo: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;                
             }, passErr, done);
@@ -1661,7 +1669,7 @@ describe('p.switch', () => {
             .switch(() => 'bar', {
                 foo: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;                
             }, passErr, done);
@@ -1675,7 +1683,7 @@ describe('p.switch', () => {
                     routed = true;
                 }),
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -1691,7 +1699,7 @@ describe('p.switch', () => {
                 }),
                 bar: p.do(throwErr)
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -1707,7 +1715,7 @@ describe('p.switch', () => {
                     routed = true;
                 })
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(routed).to.be.true;
@@ -1719,7 +1727,7 @@ describe('p.switch', () => {
             .switch(() => 'foo', {
                 foo: p.no()
             })
-            .route$()
+            .do$()
             .subscribe(t => {
                 expect(t).to.be.false;       
             }, passErr, done);
