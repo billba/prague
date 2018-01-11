@@ -10,12 +10,23 @@ export function toObservable <T> (t: Observableable<T>) {
     return Observable.of(t);
 }
 
+const routeDoError = new Error('route is not a doRoute or noRoute, cannot do()');
+
 export abstract class Route <VALUE = any> {
     private _route: undefined; // hack so that TypeScript will do better type checking on Routes
 
     static is <VALUE> (route: any): route is Route<VALUE> {
         return route instanceof Route;
     }
+
+    do$(): Observable<boolean> {
+        throw routeDoError;
+    }
+
+    do() {
+        return this.do$().toPromise();
+    }
+
 }
 
 export class ScoredRoute <VALUE = any> extends Route<VALUE> {
@@ -127,11 +138,7 @@ export class DoRoute extends ScoredRoute<undefined> {
     }
 
     do$() {
-        return toObservable(this.action());
-    }
-
-    do() {
-        return this.do$().toPromise();
+        return toObservable(this.action()).mapTo(true);
     }
 }
 
@@ -183,6 +190,11 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
     static is <VALUE = any> (route: any): route is NoRoute<VALUE> {
         return route instanceof NoRoute;
     }
+
+    do$() {
+        return Observable.of(false);
+    }
+
 }
 
 function _no <VALUE> (
@@ -249,21 +261,15 @@ export class Router <ARG = undefined, VALUE = any> {
         return router instanceof Router;
     }
 
-    route$ (arg?: ARG) {
+    do$ (arg?: ARG) {
         return this
             .getRoute$(arg)
-            .flatMap(route => {
-                if (DoRoute.is(route))
-                    return route.do$().mapTo(true);
-                if (NoRoute.is(route))
-                    return Observable.of(false);
-                throw route$Error;
-            });
+            .flatMap(route => route.do$());
     }
 
-    route (arg?: ARG) {
+    do (arg?: ARG) {
         return this
-            .route$(arg)
+            .do$(arg)
             .toPromise();
     }
 
@@ -453,7 +459,7 @@ export function* getTypesFromRoute(
 
 export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: AnyRouter<MapTypeToRouteClass<VALUE>[P]> }
 
-function typeRouter <VALUE> (
+export function typeRouter <VALUE> (
     mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
 ) {
     return Router.from((route: Route<VALUE>) => {
