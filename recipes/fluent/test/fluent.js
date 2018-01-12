@@ -191,7 +191,7 @@ describe('p.do', () => {
         let handled;
         let route = p
             .do(m => { handled = m; })
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
                 expect(route.score).to.eql(1);
@@ -204,7 +204,7 @@ describe('p.do', () => {
         let handled;
         let route = p
             .do(m => { handled = m; }, .5)
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
                 expect(route.score).to.eql(.5);
@@ -218,7 +218,7 @@ describe('p.no', () => {
     it('should return a NoRoute with the default reason', (done) => {
         let route = p
             .no()
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
                 expect(route.reason).to.eql('none');
@@ -228,7 +228,7 @@ describe('p.no', () => {
     it('should return a NoRoute with the supplied reason', (done) => {
         let route = p
             .no('reason')
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
                 expect(route.reason).to.eql('reason');
@@ -240,7 +240,7 @@ describe('p.match', () => {
     it('should return a MatchRoute with the supplied value', (done) => {
         let route = p
             .match("hello")
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(route instanceof p.MatchRoute).to.be.true;
                 expect(route.value).to.eql('hello');
@@ -317,27 +317,27 @@ describe('p.Templates', () => {
 describe('new Router', () => {
     it('should create a Router returning NoRoute when no router supplied', done => {
         new p.Router()
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(p.NoRoute.is(route)).to.be.true;
             }, passErr, done);
     });
 
-    it('should copy the getRoute$ from a Router', () => {
+    it('should copy the route$ from a Router', () => {
         let handled;
         let router = p.do(() => { handled = true; });
         let r = new p.Router(router);
-        expect(r.getRoute$).to.eql(router.getRoute$);
+        expect(r.route$).to.eql(router.route$);
     });
 
-    it('should create a Router from a GetRoute', (done) => {
+    it('should create a Router from a route', (done) => {
         let handled;
         let router = () => new p.DoRoute(() => { handled = true; });
         let r = new p.Router(router);
         
         expect(r).not.to.eql(router);
         r
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(p.DoRoute.is(route)).to.be.true;
                 route.action();
@@ -353,7 +353,7 @@ describe('new Router', () => {
         let handled;
         let router = (arg) => p.do(() => { handled = arg; });
         new p.Router(router)
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(p.DoRoute.is(route)).to.be.true;
                 route.action();
@@ -365,7 +365,7 @@ describe('new Router', () => {
         let handled;
         let router = (arg) => "hi";
         new p.Router(router)
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(p.MatchRoute.is(route)).to.be.true;
                 expect(route.value).to.eql("hi");
@@ -376,7 +376,7 @@ describe('new Router', () => {
         let handled;
         let router = (arg) => {};
         new p.Router(router)
-            .getRoute$(foo)
+            .route$(foo)
             .subscribe(route => {
                 expect(p.NoRoute.is(route)).to.be.true;
             }, passErr, done)
@@ -396,7 +396,7 @@ describe('Router.from', () => {
         
         expect(r).not.to.eql(router);
         r
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(p.DoRoute.is(route)).to.be.true;
                 route.action();
@@ -1057,7 +1057,7 @@ describe('p.if', () => {
                 () => 'foo',
                 p.do(throwErr)
             )
-            .getRoute$()
+            .route$()
             .subscribe(throwErr, error => done(), throwErr);
     });
 
@@ -1067,7 +1067,7 @@ describe('p.if', () => {
                 () => ({ foo: "foo" }),
                 p.do(throwErr)
             )
-            .getRoute$()
+            .route$()
             .subscribe(throwErr, error => done(), throwErr);
     });
 
@@ -1077,7 +1077,7 @@ describe('p.if', () => {
                 () => false,
                 p.do(throwErr)
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route.reason).to.eql("none");
             }, passErr, done);
@@ -1093,7 +1093,7 @@ describe('p.if', () => {
                     routed = no.reason;
                 })
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
                 route.action();
@@ -1107,7 +1107,7 @@ describe('p.if', () => {
                 p.no('whatevs'),
                 p.do(throwErr)
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
                 expect(route.reason).to.eql("whatevs");
@@ -1122,7 +1122,7 @@ describe('p.if', () => {
                 p.match(true, .5),
                 p.do(m => { handled = true; })
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 route.action();
                 expect(handled).to.be.true;
@@ -1138,7 +1138,7 @@ describe('p.if', () => {
                 p.match(false),
                 p.do(throwErr)
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
             }, passErr, done);
@@ -1150,7 +1150,7 @@ describe('p.if', () => {
                 () => true,
                 () => undefined
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
             }, passErr, done);
@@ -1163,7 +1163,7 @@ describe('p.if', () => {
                 throwErr,
                 () => undefined
             )
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
             }, passErr, done);
@@ -1174,7 +1174,7 @@ describe('router.map', () => {
     it('should pass NoRoute through route => route', done => {
         p.no()
             .map(route => route)
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(p.NoRoute.is(route)).to.be.true;
             }, passErr, done)
@@ -1183,7 +1183,7 @@ describe('router.map', () => {
     it('should pass DoRoute through route => route', done => {
         p.do(noop)
             .map(route => route)
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(p.DoRoute.is(route)).to.be.true;
             }, passErr, done)
@@ -1192,7 +1192,7 @@ describe('router.map', () => {
     it('should translate NoRoute to DoRoute', done => {
         p.no()
             .map(route => new p.DoRoute(noop))
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(p.DoRoute.is(route)).to.be.true;
             }, passErr, done)
@@ -1284,7 +1284,7 @@ describe('router.mapByType', () => {
                 no: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route).to.eql(r);
             }, passErr, done);
@@ -1358,7 +1358,7 @@ describe('router.mapByType', () => {
                 scored: p.do(throwErr),
                 match: p.do(throwErr)
             })
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route).to.eql(r);
             }, passErr, done);
@@ -1448,7 +1448,7 @@ describe('router.mapByType', () => {
                 do: p.do(throwErr),
                 no: p.do(throwErr)
             })
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route).to.eql(r);
             }, passErr, done);
@@ -1460,7 +1460,7 @@ describe('p.doable', () => {
         let r = new p.DoRoute(noop)
         p.Router.from(() => r)
             .tap(p.doable)
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route).to.eql(r);
             }, passErr, done)
@@ -1470,7 +1470,7 @@ describe('p.doable', () => {
         let r = new p.NoRoute()
         p.Router.from(() => r)
             .tap(p.doable)
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route).to.eql(r);
             }, passErr, done)
@@ -1480,7 +1480,7 @@ describe('p.doable', () => {
         let r = new p.match("hello")
         p.Router.from(() => r)
             .tap(p.doable)
-            .getRoute$()
+            .route$()
             .subscribe(throwErr, passErr => done(), throwErr)
     })
 
@@ -1488,7 +1488,7 @@ describe('p.doable', () => {
         let r = new p.TemplateRoute("hello")
         p.Router.from(() => r)
             .tap(p.doable)
-            .getRoute$()
+            .route$()
             .subscribe(throwErr, passErr => done(), throwErr)
     })
 })
@@ -1590,7 +1590,7 @@ describe("router.default", () => {
         p
             .no('reason')
             .default(p.no('another reason'))
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
                 expect(route.reason).to.eql('another reason');
@@ -1601,7 +1601,7 @@ describe("router.default", () => {
         p
             .no('reason')
             .default(route => undefined)
-            .getRoute$()
+            .route$()
             .subscribe(route => {
                 expect(route instanceof p.NoRoute).to.be.true;
                 expect(route.reason).to.eql('none');

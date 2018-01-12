@@ -118,7 +118,7 @@ export class Templates <TEMPLATES> {
         return router
             ? Router
                 .from(router)
-                .getRoute$(route.args)
+                .route$(route.args)
             : route;
     }
 }
@@ -214,26 +214,26 @@ const route$Error = new Error('route must be a DoRoute or a NoRoute');
 export type AnyRouter <ARG = undefined, VALUE = any> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
 
 export class Router <ARG = undefined, VALUE = any> {
-    getRoute$: (arg?: ARG) => Observable<Route<VALUE>>;
+    route$: (arg?: ARG) => Observable<Route<VALUE>>;
 
-    getRoute (arg?: ARG) {
-        return this.getRoute$(arg).toPromise();
+    route (arg?: ARG) {
+        return this.route$(arg).toPromise();
     }
 
     constructor(router?: AnyRouter<ARG, VALUE>) {
         if (router == null)
-            this.getRoute$ = NoRoute.router;
+            this.route$ = NoRoute.router;
         else if (Router.is(router))
-            this.getRoute$ = router.getRoute$;
+            this.route$ = router.route$;
         else if (typeof router !== 'function')
             throw routerNotFunctionError;
         else {
-            this.getRoute$ = (arg: ARG) => Observable
+            this.route$ = arg => Observable
                 .of(router)
                 .map(router => router(arg))
                 .flatMap(toObservable)
                 .flatMap(result => Router.is(result)
-                    ? result.getRoute$()
+                    ? result.route$()
                     : Observable.of(Router.normalizedRoute(result))
                 );
         }
@@ -263,7 +263,7 @@ export class Router <ARG = undefined, VALUE = any> {
 
     do$ (arg?: ARG) {
         return this
-            .getRoute$(arg)
+            .route$(arg)
             .flatMap(route => route.do$());
     }
 
@@ -275,8 +275,8 @@ export class Router <ARG = undefined, VALUE = any> {
 
     map (mapRoute: AnyRouter<Route<VALUE>>) {
         return new Router((arg?: ARG) => this
-            .getRoute$(arg)
-            .flatMap(Router.from(mapRoute).getRoute$)
+            .route$(arg)
+            .flatMap(Router.from(mapRoute).route$)
         );
     }
 
@@ -356,7 +356,7 @@ export function first <VALUE> (
         // we put concatMap here because it forces everything after it to execute serially
         .concatMap(router => Router
             .from(router)
-            .getRoute$()
+            .route$()
         )
         .filter(strictlyFilterScored)
         .take(1) // so that we don't keep going through routers after we find one that matches
@@ -383,7 +383,7 @@ export function best  <VALUE = any> (
             // we put concatMap here because it forces everything after it to execute serially
             .concatMap(router => Router
                 .from(router)
-                .getRoute$()
+                .route$()
             )
             // early exit if we've already found a winner (score === 1)
             .takeWhile(_ => bestRoute.score < 1)
@@ -466,7 +466,7 @@ export function typeRouter <VALUE> (
         for (let type of getTypesFromRoute(route)) {
             const router = mapTypeToRouter[type];
             if (router)
-                return Router.from(router).getRoute$(route);
+                return Router.from(router).route$(route);
         }
 
         return route;
