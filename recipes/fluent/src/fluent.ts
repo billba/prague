@@ -1,4 +1,5 @@
 import { Observable } from 'rxjs';
+import { inspect } from 'util';
 
 export type Observableable <T> = T | Observable<T> | Promise<T>;
 
@@ -15,10 +16,6 @@ const routeDoError = new Error('route is not a doRoute or noRoute, cannot do()')
 export abstract class Route <VALUE = any> {
     private _route: undefined; // hack so that TypeScript will do better type checking on Routes
 
-    static is <VALUE> (route: any): route is Route<VALUE> {
-        return route instanceof Route;
-    }
-
     do$(): Observable<boolean> {
         throw routeDoError;
     }
@@ -26,7 +23,6 @@ export abstract class Route <VALUE = any> {
     do() {
         return this.do$().toPromise();
     }
-
 }
 
 export class ScoredRoute <VALUE = any> extends Route<VALUE> {
@@ -46,15 +42,11 @@ export class ScoredRoute <VALUE = any> extends Route<VALUE> {
             : 1;
     }
 
-    static is (route: any): route is ScoredRoute {
-        return route instanceof ScoredRoute;
-    }
-
     static combinedScore(score, otherScore) {
         return score * otherScore
     }
 
-    clone(score?: number): this {
+    cloneWithScore(score?: number): this {
         score = ScoredRoute.normalizedScore(score);
 
         return score === this.score
@@ -63,7 +55,7 @@ export class ScoredRoute <VALUE = any> extends Route<VALUE> {
     }
 
     cloneWithCombinedScore(score?: number) {
-        return this.clone(ScoredRoute.combinedScore(this.score, ScoredRoute.normalizedScore(score)));
+        return this.cloneWithScore(ScoredRoute.combinedScore(this.score, ScoredRoute.normalizedScore(score)));
     }
 }
 
@@ -74,10 +66,6 @@ export class TemplateRoute <ACTION, ARGS> extends ScoredRoute {
         score?: number
     ) {
         super(score);
-    }
-
-    static is <ACTION, ARGS> (route: any): route is TemplateRoute<ACTION, ARGS> {
-        return route instanceof TemplateRoute;
     }
 }
 
@@ -133,10 +121,6 @@ export class DoRoute extends ScoredRoute<undefined> {
         super(score);
     }
 
-    static is (route: any): route is DoRoute {
-        return route instanceof DoRoute;
-    }
-
     do$() {
         return toObservable(this.action()).mapTo(true);
     }
@@ -157,10 +141,6 @@ export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
         score?: number
     ) {
         super(score);
-    }
-
-    static is <VALUE = any> (route: any): route is MatchRoute<VALUE> {
-        return route instanceof MatchRoute;
     }
 }
 
@@ -186,10 +166,6 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
     static default$ = Observable.of(NoRoute.default);
 
     static router = () => NoRoute.default$;
-
-    static is <VALUE = any> (route: any): route is NoRoute<VALUE> {
-        return route instanceof NoRoute;
-    }
 
     do$() {
         return Observable.of(false);
@@ -223,7 +199,7 @@ export class Router <ARG = undefined, VALUE = any> {
     constructor(router?: AnyRouter<ARG, VALUE>) {
         if (router == null)
             this.route$ = NoRoute.router;
-        else if (Router.is(router))
+        else if (router instanceof Router)
             this.route$ = router.route$;
         else if (typeof router !== 'function')
             throw routerNotFunctionError;
@@ -232,7 +208,7 @@ export class Router <ARG = undefined, VALUE = any> {
                 .of(router)
                 .map(router => router(arg))
                 .flatMap(toObservable)
-                .flatMap(result => Router.is(result)
+                .flatMap(result => result instanceof Router
                     ? result.route$()
                     : Observable.of(Router.normalizedRoute(result))
                 );
@@ -245,20 +221,16 @@ export class Router <ARG = undefined, VALUE = any> {
         if (route == null)
             return NoRoute.default;
 
-        if (Route.is(route))
+        if (route instanceof Route)
             return route;
 
         return new MatchRoute(route);
     };
 
     static from <ARG, VALUE> (router?: AnyRouter<ARG, VALUE>) {
-        return Router.is(router)
+        return router instanceof Router
             ? router
             : new Router(router);
-    }
-
-    static is <ARG, VALUE> (router: any): router is Router<ARG, VALUE> {
-        return router instanceof Router;
     }
 
     do$ (arg?: ARG) {
@@ -339,10 +311,10 @@ export class Router <ARG = undefined, VALUE = any> {
 const strictlyFilterError = new Error("route isn't DoRoute or NoRoute");
 
 function strictlyFilterScored(route: Route): route is ScoredRoute {
-    if (ScoredRoute.is(route))
+    if (route instanceof ScoredRoute)
         return true;
 
-    if (NoRoute.is(route))
+    if (route instanceof NoRoute)
         return false;
 
     throw strictlyFilterError;
@@ -433,26 +405,27 @@ export interface MapTypeToRouteClass <VALUE> {
 
 export type RouteTypes <VALUE> = keyof MapTypeToRouteClass<VALUE>;
 
+const notRouteError = new Error('expecting a route');
+
 export function* getTypesFromRoute(
     route: Route
 ) {
-    if (NoRoute.is(route))
+    if (route instanceof NoRoute)
         yield 'no';
     
-    if (DoRoute.is(route))
+    if (route instanceof DoRoute)
         yield 'do';
     
-    if (MatchRoute.is(route))
+    if (route instanceof MatchRoute)
         yield 'match';
 
-    if (TemplateRoute.is(route))
+    if (route instanceof TemplateRoute)
         yield 'template';
 
-    if (ScoredRoute.is(route))
+    if (route instanceof ScoredRoute)
         yield 'scored';
     
-    if (Route.is(route))
-        yield 'route';
+    yield 'route';
     
     yield 'default';
 }
@@ -528,7 +501,7 @@ export { _if as if }
 const doError = new Error("this router must only return DoRoute or NoRoute");
 
 export const doable = <VALUE> (route: Route<VALUE>) => {
-    if (!DoRoute.is(route) && !NoRoute.is<VALUE>(route))
+    if (!(route instanceof DoRoute) && !(route instanceof NoRoute))
         throw doError;
 }
 
