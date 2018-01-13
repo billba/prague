@@ -62,7 +62,7 @@ export class ScoredRoute <VALUE = any> extends Route<VALUE> {
 export class TemplateRoute <ACTION, ARGS> extends ScoredRoute {
     constructor (
         public action: ACTION,
-        public args: ARGS,
+        public args = {} as ARGS,
         score?: number
     ) {
         super(score);
@@ -108,6 +108,24 @@ export class Templates <TEMPLATES> {
                 .from(router)
                 .route$(route.args)
             : route;
+    }
+}
+
+export class MultipleRoute extends Route {
+    constructor (
+        public routes: TemplateRoute<any, any>[]
+    ) {
+        super();
+    }
+
+    toObject() {
+        return {
+            templates: this.routes.map(route => ({
+                action: route.action,
+                args: route.args,
+                score: route.score
+            }))
+        }
     }
 }
 
@@ -308,17 +326,7 @@ export class Router <ARG = undefined, VALUE = any> {
     }
 }
 
-const strictlyFilterError = new Error("route isn't DoRoute or NoRoute");
-
-function strictlyFilterScored(route: Route): route is ScoredRoute {
-    if (route instanceof ScoredRoute)
-        return true;
-
-    if (route instanceof NoRoute)
-        return false;
-
-    throw strictlyFilterError;
-}
+const firstError = new Error("first routers can only return TemplateRoute and NoRoute");
 
 export function first <VALUE> (
     ... routers: AnyRouter<undefined, VALUE>[]
@@ -330,59 +338,81 @@ export function first <VALUE> (
             .from(router)
             .route$()
         )
-        .filter(strictlyFilterScored)
+        .filter(route => {
+            if (route instanceof ScoredRoute)
+                return true;
+
+            if (route instanceof NoRoute)
+                return false;
+
+            throw firstError;
+        })
         .take(1) // so that we don't keep going through routers after we find one that matches
         .defaultIfEmpty(NoRoute.default)
     );
 }
 
-const minRouteError = new Error("minRoute.action should never be called");
+const bestError = new Error('best routers can only return TemplateRoute and NoRoute');
 
-const minRoute = new DoRoute(
-    () => {
-        throw minRouteError;
-    },
-    0
+const minRoute = new TemplateRoute('never', 0);
+
+export function best (
+    tolerance: number,
+    ... routers: AnyRouter[]
 );
 
-export function best  <VALUE = any> (
-    ... routers: AnyRouter<VALUE> []
+export function best (
+    ... routers: AnyRouter[]
+);
+
+export function best (
+    ... args
 ) {
-    return Router.from(() => new Observable<Route>(observer => {
-        let bestRoute: ScoredRoute = minRoute;
+    let tolerance: number;
+    let routers: AnyRouter[];
 
-        const subscription = Observable.from(routers)
-            // we put concatMap here because it forces everything after it to execute serially
-            .concatMap(router => Router
-                .from(router)
-                .route$()
-            )
-            // early exit if we've already found a winner (score === 1)
-            .takeWhile(_ => bestRoute.score < 1)
-            .filter(strictlyFilterScored)
-            .subscribe(
-                route => {
-                    if (route.score > bestRoute.score) {
-                        bestRoute = route;
-                        if (bestRoute.score === 1) {
-                            observer.next(bestRoute);
-                            observer.complete();
-                        }
-                    }
-                },
-                error =>
-                    observer.error(error),
-                () => {
-                    observer.next(bestRoute.score > 0
-                        ? bestRoute
-                        : NoRoute.default
-                    );
-                    observer.complete();
-                }
-            );
+    if (typeof args[0] === 'number') {
+        [tolerance, ... routers] = args;
+    } else {
+        tolerance = 0;
+        routers = args;
+    }
 
-        return () => subscription.unsubscribe();
-    }));
+    return Router.from(() => Observable
+        .from(routers)
+        .flatMap(router => Router
+            .from(router)
+            .route$()
+        )
+        .flatMap(route => {
+            if (route instanceof NoRoute)
+                return Observable.empty();
+
+            if (route instanceof TemplateRoute)
+                return Observable.of(route);
+            
+            if (route instanceof MultipleRoute)
+                return Observable.from(route.routes);
+
+            throw bestError;
+        })
+        .toArray()     
+        .map((routes: TemplateRoute<any, any>[]) => routes.sort((a, b) => b.score - a.score))   
+        .flatMap(routes => Observable
+            .from(routes)
+            .takeWhile(route => route.score + tolerance >= routes[0].score)
+            .toArray()
+            .map(routes => {
+                if (routes.length === 0)
+                    return NoRoute.default;
+
+                if (routes.length === 1)
+                    return routes[0];
+
+                return new MultipleRoute(routes)
+            })
+        )
+    )
 }
 
 export function noop (
