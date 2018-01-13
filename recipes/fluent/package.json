@@ -1,6 +1,6 @@
 {
   "name": "prague-fluent",
-  "version": "0.17.3",
+  "version": "0.17.4",
   "description": "fluent API for Prague",
   "main": "dist/fluent.js",
   "types": "dist/fluent.d.ts",
