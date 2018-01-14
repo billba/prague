@@ -99,22 +99,9 @@ export type MapTemplateActionToRouter <TEMPLATES> = { [P in TemplateActions<TEMP
 const templateError = new Error('action not present in mapActionToRouter')
 
 export class Templates <TEMPLATES, CONTEXT = any, SOURCE = string> {
-    mapActionToRouter: (context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>;
-
     constructor(
-        mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>>
-    );
-
-    constructor(
-        mapActionToRouter: (context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>
-    );
-
-    constructor(
-        mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>> | ((context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>)
+        public mapActionToRouter: (context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>
     ) {
-        this.mapActionToRouter = typeof mapActionToRouter === 'function'
-            ? mapActionToRouter
-            : () => mapActionToRouter;
     }
 
     route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (

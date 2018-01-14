@@ -404,12 +404,12 @@ describe('p.Templates.router', () => {
 });
 
 describe('router.MapTemplate', () => {
-    it('should map a template', (done) => {
+    it('should map a template with no context', (done) => {
         let handled;
 
-        let templates = new p.Templates({
+        let templates = new p.Templates(() => ({
             foo: p.do(args => { handled = args.value; })
-        });
+        }));
 
         let route = templates.route('foo', { value: "hello" });
 
