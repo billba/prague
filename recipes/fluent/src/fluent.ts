@@ -417,7 +417,7 @@ export function noop (
     action: Action
 ) {
     return Router
-    .from()
+        .from()
         .tap(action)
 }
 
