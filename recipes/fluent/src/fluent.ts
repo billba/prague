@@ -98,7 +98,7 @@ export type MapTemplateActionToRouter <TEMPLATES> = { [P in TemplateActions<TEMP
 
 const templateError = new Error('action not present in mapActionToRouter')
 
-export class Templates <TEMPLATES> {
+export class Templates <TEMPLATES, SOURCE = string> {
     constructor(
         private mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>>
     ) {
@@ -106,19 +106,47 @@ export class Templates <TEMPLATES> {
 
     route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
-        args: ARGS
+        args: ARGS,
+        source?: SOURCE,
+        score?: number
+    );
+
+    route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+        action: ACTION,
+        args: ARGS,
+        score?: number
+    );
+    
+    route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+        action: ACTION,
+        args: ARGS,
+        ... rest
     ) {
         if (!this.mapActionToRouter[action])
             throw templateError;
 
-        return new TemplateRoute(action, args);
+        return new TemplateRoute(action, args, ... rest);
     }
 
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
-        args: ARGS
+        args: ARGS,
+        source?: SOURCE,
+        score?: number
+    );
+
+    router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+        action: ACTION,
+        args: ARGS,
+        score?: number
+    );
+    
+    router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+        action: ACTION,
+        args: ARGS,
+        ... rest
     ) {
-        return () => this.route(action, args);
+        return Router.from(() => this.route(action, args, ... rest));
     }
 
     map (
@@ -211,7 +239,6 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
     do$() {
         return Observable.of(false);
     }
-
 }
 
 function _no <VALUE> (
@@ -304,6 +331,16 @@ export class Router <ARG = undefined, VALUE = any> {
     ) {
         return this.mapByType({
             template: route => templates.map(route)
+        });
+    }
+
+    mapMultiple (
+        router: AnyRouter<Array<TemplateRoute<any, any>>>
+    ) {
+        return this.mapByType({
+            multiple: route => Router
+                .from(router)
+                .route$(route.routes)
         });
     }
 
@@ -450,6 +487,7 @@ export interface MapTypeToRouteClass <VALUE> {
     do: DoRoute,
     match: MatchRoute<VALUE>,
     template: TemplateRoute<any, any>,
+    multiple: MultipleRoute,
     no: NoRoute<VALUE>,
     default: Route,
 }
@@ -472,6 +510,9 @@ export function* getTypesFromRoute(
 
     if (route instanceof TemplateRoute)
         yield 'template';
+
+    if (route instanceof MultipleRoute)
+        yield 'multiple';
 
     if (route instanceof ScoredRoute)
         yield 'scored';
