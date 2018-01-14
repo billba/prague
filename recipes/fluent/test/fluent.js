@@ -663,12 +663,12 @@ describe('router.do$', () => {
 });
 
 describe('router.mapMultiple', () => {
+    let routeA = new p.TemplateRoute('foo', {}, "foo", .5);
+    let routeB = new p.TemplateRoute('bar', {}, "bar", .5);
+
+    let route = new p.MultipleRoute([routeA, routeB]);
+
     it('should return the first of two tied routes', (done) => {
-        let routeA = new p.TemplateRoute('foo', {}, "foo", .5);
-        let routeB = new p.TemplateRoute('bar', {}, "bar", .5);
-
-        let route = new p.MultipleRoute([routeA, routeB]);
-
         p.Router
             .from(() => route)
             .mapMultiple(routes => routes[0])
@@ -679,11 +679,6 @@ describe('router.mapMultiple', () => {
     });
 
     it('should return the second of two tied routes', (done) => {
-        let routeA = new p.TemplateRoute('foo', {}, "foo", .5);
-        let routeB = new p.TemplateRoute('bar', {}, "bar", .5);
-
-        let route = new p.MultipleRoute([routeA, routeB]);
-
         p.Router
             .from(() => route)
             .mapMultiple(routes => routes[1])
