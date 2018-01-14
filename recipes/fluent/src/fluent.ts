@@ -98,10 +98,23 @@ export type MapTemplateActionToRouter <TEMPLATES> = { [P in TemplateActions<TEMP
 
 const templateError = new Error('action not present in mapActionToRouter')
 
-export class Templates <TEMPLATES, SOURCE = string> {
+export class Templates <TEMPLATES, CONTEXT = any, SOURCE = string> {
+    mapActionToRouter: (context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>;
+
     constructor(
-        private mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>>
+        mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>>
+    );
+
+    constructor(
+        mapActionToRouter: (context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>
+    );
+
+    constructor(
+        mapActionToRouter: Partial<MapTemplateActionToRouter<TEMPLATES>> | ((context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>)
     ) {
+        this.mapActionToRouter = typeof mapActionToRouter === 'function'
+            ? mapActionToRouter
+            : () => mapActionToRouter;
     }
 
     route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
@@ -122,9 +135,6 @@ export class Templates <TEMPLATES, SOURCE = string> {
         args: ARGS,
         ... rest
     ) {
-        if (!this.mapActionToRouter[action])
-            throw templateError;
-
         return new TemplateRoute(action, args, ... rest);
     }
 
@@ -150,9 +160,10 @@ export class Templates <TEMPLATES, SOURCE = string> {
     }
 
     map (
-        route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>
+        route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>,
+        context?: CONTEXT
     ) {
-        const router: AnyRouter<TEMPLATES[keyof TEMPLATES], any> = this.mapActionToRouter[route.action];
+        const router: AnyRouter<TEMPLATES[keyof TEMPLATES], any> = this.mapActionToRouter(context)[route.action];
     
         return router
             ? Router
@@ -326,11 +337,12 @@ export class Router <ARG = undefined, VALUE = any> {
         return this.map(typeRouter(mapTypeToRouter));
     }
 
-    mapTemplate <TEMPLATES> (
-        templates: Templates<TEMPLATES>
+    mapTemplate <TEMPLATES, CONTEXT> (
+        templates: Templates<TEMPLATES>,
+        context?: CONTEXT
     ) {
         return this.mapByType({
-            template: route => templates.map(route)
+            template: route => templates.map(route, context)
         });
     }
 

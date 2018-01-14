@@ -339,12 +339,6 @@ describe('p.Templates.route', () => {
         expect(route.score).to.eql(.5);
         expect(route.source).to.eql("hello");
     });
-
-    it("should throw on a nonexistant action", () => {
-        expect(() => {
-            let route = templates.route('bar', { value: "hello" });
-        }).throws;
-    });
 });
 
 describe('p.Templates.router', () => {
@@ -407,13 +401,6 @@ describe('p.Templates.router', () => {
                 expect(route.source).to.eql("hello");
             }, passErr, done);
     });
-            
-    it("should throw on a nonexistant action", (done) => {
-        templates
-            .router('bar', { value: "hello" })
-            .route$()
-            .subscribe(throwErr, passErr => done(), throwErr);
-    });
 });
 
 describe('router.MapTemplate', () => {
@@ -440,6 +427,32 @@ describe('router.MapTemplate', () => {
             .subscribe(t => {
                 expect(t).to.be.true;
                 expect(handled).to.eql('hello');
+            }, passErr, done);
+    });
+
+    it('should map a template with context', (done) => {
+        let handled;
+
+        let templates = new p.Templates(c => ({
+            foo: p.do(args => { handled = args.value + c; })
+        }));
+
+        let route = templates.route('foo', { value: "hello" });
+
+        expect(route.action).to.eql("foo"); 
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(1);
+        expect(route.source).to.be.undefined;
+        
+        p.Router
+            .from(() => route)
+            .mapTemplate(templates, " world")
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(handled).to.eql('hello world');
             }, passErr, done);
     });
 
