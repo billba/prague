@@ -254,7 +254,37 @@ describe('p.TemplateRoute', () => {
         expect(route instanceof p.TemplateRoute).to.be.true;
         expect(route.action).to.eql("foo");
         expect(route.args.value).to.eql("hello");
-    })
+        expect(route.score).to.eql(1);
+        expect(route.source).to.be.undefined;
+    });
+
+    it('should create a TemplateRoute with score', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"}, .5);
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(.5);
+        expect(route.source).to.be.undefined;
+    });
+
+    it('should create a TemplateRoute with source', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"}, "source");
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.source).to.eql("source");
+        expect(route.score).to.eql(1);
+        
+    });
+
+    it('should create a TemplateRoute with source and score', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"}, "source", .5);
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.source).to.eql("source");
+        expect(route.score).to.eql(.5);
+    });
 })
 
 describe('p.Templates', () => {
@@ -768,8 +798,8 @@ describe('p.best', () => {
     });
 
     it('should return two tied scores as a MultipleRoute', (done) => {
-        let routeA = new p.TemplateRoute('foo', {}, .5);
-        let routeB = new p.TemplateRoute('bar', {}, .5);
+        let routeA = new p.TemplateRoute('foo', {}, "foo", .5);
+        let routeB = new p.TemplateRoute('bar', {}, "bar", .5);
 
         p
             .best(
@@ -780,7 +810,9 @@ describe('p.best', () => {
             .subscribe(route => {
                 expect(route instanceof p.MultipleRoute).to.be.true;
                 expect(route.routes[0]).to.eql(routeA);
+                expect(route.routes[0].source).to.eql("foo");
                 expect(route.routes[1]).to.eql(routeB);
+                expect(route.routes[1].source).to.eql("bar");
             }, passErr, done);
     });
 
@@ -841,7 +873,6 @@ describe('p.best', () => {
                 expect(route.routes[1]).to.eql(routeB);
             }, passErr, done);
     });
-
 });
 
 describe('p.noop', () => {

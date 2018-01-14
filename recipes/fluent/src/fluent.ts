@@ -60,12 +60,35 @@ export class ScoredRoute <VALUE = any> extends Route<VALUE> {
 }
 
 export class TemplateRoute <ACTION, ARGS> extends ScoredRoute {
+    source: any;
+
+    constructor (
+        action: ACTION,
+        args: ARGS,
+        source: any,
+        score?: number
+    );
+
+    constructor (
+        action: ACTION,
+        args: ARGS,
+        score?: number
+    );
+    
     constructor (
         public action: ACTION,
         public args = {} as ARGS,
-        score?: number
+        ... rest
     ) {
-        super(score);
+        super(rest.length === 1 && typeof rest[0] === 'number'
+            ? rest[0]
+            : rest.length === 2 && typeof rest[1] === 'number'
+                ? rest[1]
+                : undefined
+        );
+
+        if (rest.length >= 1 && typeof rest[0] !== 'number')
+            this.source = rest[0];
     }
 }
 
