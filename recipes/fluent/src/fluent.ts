@@ -354,8 +354,6 @@ export function first <VALUE> (
 
 const bestError = new Error('best routers can only return TemplateRoute and NoRoute');
 
-const minRoute = new TemplateRoute('never', 0);
-
 export function best (
     tolerance: number,
     ... routers: AnyRouter[]
@@ -386,7 +384,7 @@ export function best (
         )
         .flatMap(route => {
             if (route instanceof NoRoute)
-                return Observable.empty();
+                return Observable.empty<TemplateRoute<any, any>>();
 
             if (route instanceof TemplateRoute)
                 return Observable.of(route);
@@ -397,7 +395,7 @@ export function best (
             throw bestError;
         })
         .toArray()     
-        .map((routes: TemplateRoute<any, any>[]) => routes.sort((a, b) => b.score - a.score))   
+        .map(routes => routes.sort((a, b) => b.score - a.score))   
         .flatMap(routes => Observable
             .from(routes)
             .takeWhile(route => route.score + tolerance >= routes[0].score)
