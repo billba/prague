@@ -1,6 +1,6 @@
 {
   "name": "prague-fluent",
-  "version": "0.17.4",
+  "version": "0.17.5",
   "description": "fluent API for Prague",
   "main": "dist/fluent.js",
   "types": "dist/fluent.d.ts",
@@ -14,10 +14,10 @@
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-subset": "^1.6.0",
-    "mocha": "^4.0.1",
-    "typescript": "2.6.1"
+    "mocha": "^4.1.0",
+    "typescript": "2.6.2"
   },
   "dependencies": {
-    "rxjs": "5.5.2"
+    "rxjs": "5.5.6"
   }
 }
