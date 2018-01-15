@@ -109,14 +109,14 @@ export class Templates <TEMPLATES, CONTEXT = any, SOURCE = string> {
         args: ARGS,
         source?: SOURCE,
         score?: number
-    );
+    ): TemplateRoute<ACTION, ARGS>;
 
     route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
-        args: ARGS,
+        args?: ARGS,
         score?: number
-    );
-    
+    ): TemplateRoute<ACTION, ARGS>;
+
     route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
         args: ARGS,
@@ -127,20 +127,20 @@ export class Templates <TEMPLATES, CONTEXT = any, SOURCE = string> {
 
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
-        args: ARGS,
+        args?: ARGS,
         source?: SOURCE,
         score?: number
-    );
+    ): Router;
 
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
-        args: ARGS,
+        args?: ARGS,
         score?: number
-    );
-    
+    ): Router;
+
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
-        args: ARGS,
+        args?: ARGS,
         ... rest
     ) {
         return Router.from(() => this.route(action, args, ... rest));
