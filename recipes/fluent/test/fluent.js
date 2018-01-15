@@ -293,7 +293,7 @@ describe('p.TemplateRoute', () => {
 
 describe('p.Templates.route', () => {
     let templates = new p.Templates({
-        foo: p.do(() => {})
+        foo: () => {}
     });
 
     it('should return a TemplateRoute with the supplied value', () => {
@@ -343,7 +343,7 @@ describe('p.Templates.route', () => {
 
 describe('p.Templates.router', () => {
     let templates = new p.Templates({
-        foo: p.do(() => {})
+        foo: () => {}
     });
 
     it('should return a TemplateRoute with the supplied value', (done) => {
@@ -408,7 +408,7 @@ describe('router.MapTemplate', () => {
         let handled;
 
         let templates = new p.Templates(() => ({
-            foo: p.do(args => { handled = args.value; })
+            foo: args => { handled = args.value; }
         }));
 
         let route = templates.route('foo', { value: "hello" });
@@ -434,7 +434,7 @@ describe('router.MapTemplate', () => {
         let handled;
 
         let templates = new p.Templates(c => ({
-            foo: p.do(args => { handled = args.value + c; })
+            foo: args => { handled = args.value + c; }
         }));
 
         let route = templates.route('foo', { value: "hello" });
@@ -459,8 +459,8 @@ describe('router.MapTemplate', () => {
     it('should throw on an unknown action', (done) => {
         let handled;
 
-        let templates = new p.Templates({
-            foo: p.do(args => { handled = args.value; })
+        let templates = new p.Templates(() => {
+            foo: args => { handled = args.value; }
         });
 
         let route = new p.TemplateRoute('bar', { value: "hello" });

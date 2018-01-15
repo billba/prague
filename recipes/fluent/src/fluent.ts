@@ -94,13 +94,13 @@ export class TemplateRoute <ACTION, ARGS> extends ScoredRoute {
 
 export type TemplateActions <TEMPLATES> = keyof TEMPLATES;
 
-export type MapTemplateActionToRouter <TEMPLATES> = { [P in TemplateActions<TEMPLATES>]: AnyRouter<TEMPLATES[P]> }
+export type MapTemplateToAction <TEMPLATES> = { [P in TemplateActions<TEMPLATES>]: Action<TEMPLATES[P]> }
 
 const templateError = new Error('action not present in mapActionToRouter')
 
 export class Templates <TEMPLATES, CONTEXT = any, SOURCE = string> {
     constructor(
-        public mapActionToRouter: (context: CONTEXT) => Partial<MapTemplateActionToRouter<TEMPLATES>>
+        public mapTemplateToAction: (context: CONTEXT) => Partial<MapTemplateToAction<TEMPLATES>>
     ) {
     }
 
@@ -146,16 +146,14 @@ export class Templates <TEMPLATES, CONTEXT = any, SOURCE = string> {
         return Router.from(() => this.route(action, args, ... rest));
     }
 
-    map (
+    mapToDo (
         route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>,
         context?: CONTEXT
     ) {
-        const router: AnyRouter<TEMPLATES[keyof TEMPLATES], any> = this.mapActionToRouter(context)[route.action];
+        const action: Action<TEMPLATES[keyof TEMPLATES]> = this.mapTemplateToAction(context)[route.action];
     
-        return router
-            ? Router
-                .from(router)
-                .route$(route.args)
+        return action
+            ? new DoRoute(() => action(route.args))
             : route;
     }
 }
@@ -178,7 +176,7 @@ export class MultipleRoute extends Route {
     }
 }
 
-export type Action = () => Observableable<any>;
+export type Action <ARG = undefined> = (arg?: ARG) => Observableable<any>;
 
 export class DoRoute extends ScoredRoute<undefined> {
     constructor (
@@ -193,8 +191,8 @@ export class DoRoute extends ScoredRoute<undefined> {
     }
 }
 
-export function _do <ARG = any> (
-    action: (arg?: ARG) => Observableable<any>,
+export function _do <ARG = undefined> (
+    action: Action<ARG>,
     score?: number
 ) {
     return Router.from((arg: ARG) => new DoRoute(() => action(arg), score));
@@ -329,7 +327,7 @@ export class Router <ARG = undefined, VALUE = any> {
         context?: CONTEXT
     ) {
         return this.mapByType({
-            template: route => templates.map(route, context)
+            template: route => templates.mapToDo(route, context)
         });
     }
 
