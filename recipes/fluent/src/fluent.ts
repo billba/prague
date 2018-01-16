@@ -373,8 +373,8 @@ export class Router <ARG = undefined, VALUE = any> {
 
 const firstError = new Error("first routers can only return TemplateRoute and NoRoute");
 
-export function first <VALUE> (
-    ... routers: AnyRouter<undefined, VALUE>[]
+export function first (
+    ... routers: AnyRouter[]
 ) {
     return Router.from(() => Observable
         .from(routers)
@@ -402,11 +402,11 @@ const bestError = new Error('best routers can only return TemplateRoute and NoRo
 export function best (
     tolerance: number,
     ... routers: AnyRouter[]
-);
+): Router;
 
 export function best (
     ... routers: AnyRouter[]
-);
+): Router;
 
 export function best (
     ... args
