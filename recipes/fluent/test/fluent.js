@@ -486,21 +486,7 @@ describe('p.MultipleRoute', () => {
         expect(route instanceof p.MultipleRoute).to.be.true;
         expect(route.routes[0]).to.eql(routeA);
         expect(route.routes[1]).to.eql(routeB);
-        expect(route.toObject()).to.eql({
-            templates: [{
-                action: 'foo',
-                args: {
-                    value: "hello"
-                },
-                score: .5
-            }, {
-                action: 'bar',
-                args: {
-                    value: "goodbye"
-                },
-                score: .7
-            }]
-        });
+        expect(JSON.stringify(route)).to.eql(`{"routes":[{"score":0.5,"action":"foo","args":{"value":"hello"}},{"score":0.7,"action":"bar","args":{"value":"goodbye"}}]}`);
     });
 })
 
@@ -684,7 +670,7 @@ describe('router.mapMultiple', () => {
     it('should return the first of two tied routes', (done) => {
         p.Router
             .from(() => route)
-            .mapMultiple(routes => routes[0])
+            .mapMultiple(route => route.routes[0])
             .route$()
             .subscribe(route => {
                 expect(route).to.eql(routeA);
@@ -694,7 +680,7 @@ describe('router.mapMultiple', () => {
     it('should return the second of two tied routes', (done) => {
         p.Router
             .from(() => route)
-            .mapMultiple(routes => routes[1])
+            .mapMultiple(route => route.routes[1])
             .route$()
             .subscribe(route => {
                 expect(route).to.eql(routeB);

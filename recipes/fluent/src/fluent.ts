@@ -164,16 +164,6 @@ export class MultipleRoute extends Route {
     ) {
         super();
     }
-
-    toObject() {
-        return {
-            templates: this.routes.map(route => ({
-                action: route.action,
-                args: route.args,
-                score: route.score
-            }))
-        }
-    }
 }
 
 export type Action <ARG = undefined> = (arg?: ARG) => Observableable<any>;
@@ -332,12 +322,10 @@ export class Router <ARG = undefined, VALUE = any> {
     }
 
     mapMultiple (
-        router: AnyRouter<Array<TemplateRoute<any, any>>>
+        router: AnyRouter<MultipleRoute>
     ) {
         return this.mapByType({
-            multiple: route => Router
-                .from(router)
-                .route$(route.routes)
+            multiple: router
         });
     }
 
