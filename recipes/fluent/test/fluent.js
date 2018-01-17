@@ -251,19 +251,165 @@ describe('p.match', () => {
 describe('p.TemplateRoute', () => {
     it('should create a TemplateRoute', () => {
         let route = new p.TemplateRoute('foo', { value: "hello"});
+
         expect(route instanceof p.TemplateRoute).to.be.true;
         expect(route.action).to.eql("foo");
         expect(route.args.value).to.eql("hello");
-    })
+        expect(route.score).to.eql(1);
+        expect(route.source).to.be.undefined;
+    });
+
+    it('should create a TemplateRoute with score', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"}, .5);
+
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(.5);
+        expect(route.source).to.be.undefined;
+    });
+
+    it('should create a TemplateRoute with source', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"}, "source");
+
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.source).to.eql("source");
+        expect(route.score).to.eql(1);
+        
+    });
+
+    it('should create a TemplateRoute with source and score', () => {
+        let route = new p.TemplateRoute('foo', { value: "hello"}, "source", .5);
+
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.source).to.eql("source");
+        expect(route.score).to.eql(.5);
+    });
 })
 
-describe('p.Templates', () => {
+describe('p.Templates.route', () => {
+    let templates = new p.Templates({
+        foo: () => {}
+    });
+
+    it('should return a TemplateRoute with the supplied value', () => {
+        let route = templates.route('foo', { value: "hello" });
+
+        expect(route.action).to.eql("foo"); 
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(1);
+        expect(route.source).to.be.undefined;
+    });
+
+    it('should return a TemplateRoute with the supplied value and score', () => {
+        let route = templates.route('foo', { value: "hello" }, .5);
+
+        expect(route.action).to.eql("foo"); 
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(.5);
+        expect(route.source).to.be.undefined;
+    });
+
+    it('should return a TemplateRoute with the supplied value and source', () => {
+        let route = templates.route('foo', { value: "hello" }, "hello");
+
+        expect(route.action).to.eql("foo"); 
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(1);
+        expect(route.source).to.eql("hello");
+    });
+
+    it('should return a TemplateRoute with the supplied value, source, and score', () => {
+        let route = templates.route('foo', { value: "hello" }, "hello", .5);
+
+        expect(route.action).to.eql("foo"); 
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(.5);
+        expect(route.source).to.eql("hello");
+    });
+});
+
+describe('p.Templates.router', () => {
+    let templates = new p.Templates({
+        foo: () => {}
+    });
+
     it('should return a TemplateRoute with the supplied value', (done) => {
+        templates
+            .router('foo', { value: "hello" })
+            .route$()
+            .subscribe(route => {
+                expect(route.action).to.eql("foo"); 
+                expect(route instanceof p.TemplateRoute).to.be.true;
+                expect(route.action).to.eql("foo");
+                expect(route.args.value).to.eql("hello");
+                expect(route.score).to.eql(1);
+                expect(route.source).to.be.undefined;
+            }, passErr, done);
+    });
+
+    it('should return a TemplateRoute with the supplied value and score', (done) => {
+        templates
+            .router('foo', { value: "hello" }, .5)
+            .route$()
+            .subscribe(route => {
+                expect(route.action).to.eql("foo"); 
+                expect(route instanceof p.TemplateRoute).to.be.true;
+                expect(route.action).to.eql("foo");
+                expect(route.args.value).to.eql("hello");
+                expect(route.score).to.eql(.5);
+                expect(route.source).to.be.undefined;
+            }, passErr, done);
+    });
+
+    it('should return a TemplateRoute with the supplied value and source', (done) => {
+        templates
+            .router('foo', { value: "hello" }, "hello")
+            .route$()
+            .subscribe(route => {
+                expect(route.action).to.eql("foo"); 
+                expect(route instanceof p.TemplateRoute).to.be.true;
+                expect(route.action).to.eql("foo");
+                expect(route.args.value).to.eql("hello");
+                expect(route.score).to.eql(1);
+                expect(route.source).to.eql("hello");
+            }, passErr, done);
+    });
+    
+    it('should return a TemplateRoute with the supplied value, source, and score', (done) => {
+        templates
+            .router('foo', { value: "hello" }, "hello", .5)
+            .route$()
+            .subscribe(route => {
+                expect(route.action).to.eql("foo"); 
+                expect(route instanceof p.TemplateRoute).to.be.true;
+                expect(route.action).to.eql("foo");
+                expect(route.args.value).to.eql("hello");
+                expect(route.score).to.eql(.5);
+                expect(route.source).to.eql("hello");
+            }, passErr, done);
+    });
+});
+
+describe('router.MapTemplate', () => {
+    it('should map a template with no context', (done) => {
         let handled;
 
-        let templates = new p.Templates({
-            foo: p.do(args => { handled = args.value; })
-        });
+        let templates = new p.Templates(() => ({
+            foo: args => { handled = args.value; }
+        }));
 
         let route = templates.route('foo', { value: "hello" });
 
@@ -271,9 +417,10 @@ describe('p.Templates', () => {
         expect(route instanceof p.TemplateRoute).to.be.true;
         expect(route.action).to.eql("foo");
         expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(1);
+        expect(route.source).to.be.undefined;
         
-        p
-            .Router
+        p.Router
             .from(() => route)
             .mapTemplate(templates)
             .do$()
@@ -283,36 +430,65 @@ describe('p.Templates', () => {
             }, passErr, done);
     });
 
-    it("should throw when creating a route using a nonexistant action", () => {
+    it('should map a template with context', (done) => {
         let handled;
 
-        let templates = new p.Templates({
-            foo: p.do(args => { handled = args.value; })
-        });
+        let templates = new p.Templates(c => ({
+            foo: args => { handled = args.value + c; }
+        }));
 
-        expect(() => {
-            let route = templates.route('bar', { value: "hello" });
-        }).throws;
+        let route = templates.route('foo', { value: "hello" });
 
+        expect(route.action).to.eql("foo"); 
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql("foo");
+        expect(route.args.value).to.eql("hello");
+        expect(route.score).to.eql(1);
+        expect(route.source).to.be.undefined;
+        
+        p.Router
+            .from(() => route)
+            .mapTemplate(templates, " world")
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(handled).to.eql('hello world');
+            }, passErr, done);
     });
 
-    it('should throw when running mapTemplate with unknown action', (done) => {
+    it('should throw on an unknown action', (done) => {
         let handled;
 
-        let templates = new p.Templates({
-            foo: p.do(args => { handled = args.value; })
+        let templates = new p.Templates(() => {
+            foo: args => { handled = args.value; }
         });
 
         let route = new p.TemplateRoute('bar', { value: "hello" });
 
-        p
-            .Router
+        p.Router
             .from(() => route)
             .mapTemplate(templates)
             .do$()
             .subscribe(throwErr, passErr => done(), throwErr);
     });
 });
+
+describe('p.MultipleRoute', () => {
+    it('should create a MultipleRoute', () => {
+        let routeA = new p.TemplateRoute('foo', { value: "hello"}, .5);
+        let routeB = new p.TemplateRoute('bar', { value: "goodbye"}, .7);
+
+        let route = new p.MultipleRoute([
+            routeA,
+            routeB
+        ]);
+
+        expect(route instanceof p.MultipleRoute).to.be.true;
+        expect(route.routes[0]).to.eql(routeA);
+        expect(route.routes[1]).to.eql(routeB);
+        expect(JSON.stringify(route)).to.eql(`{"routes":[{"score":0.5,"action":"foo","args":{"value":"hello"}},{"score":0.7,"action":"bar","args":{"value":"goodbye"}}]}`);
+    });
+})
 
 describe('new Router', () => {
     it('should create a Router returning NoRoute when no router supplied', done => {
@@ -485,6 +661,34 @@ describe('router.do$', () => {
 
 });
 
+describe('router.mapMultiple', () => {
+    let routeA = new p.TemplateRoute('foo', {}, "foo", .5);
+    let routeB = new p.TemplateRoute('bar', {}, "bar", .5);
+
+    let route = new p.MultipleRoute([routeA, routeB]);
+
+    it('should return the first of two tied routes', (done) => {
+        p.Router
+            .from(() => route)
+            .mapMultiple(route => route.routes[0])
+            .route$()
+            .subscribe(route => {
+                expect(route).to.eql(routeA);
+            }, passErr, done)
+    });
+
+    it('should return the second of two tied routes', (done) => {
+        p.Router
+            .from(() => route)
+            .mapMultiple(route => route.routes[1])
+            .route$()
+            .subscribe(route => {
+                expect(route).to.eql(routeB);
+            }, passErr, done)
+    });
+
+})
+
 describe('p.first', () => {
     it('should return false on no routers', (done) =>
         p
@@ -625,9 +829,9 @@ describe('p.best', () => {
     it('should return NoRoute on no routers', (done) => {
         p
             .best()
-            .do$()
-            .subscribe(t => {
-                expect(t).to.be.false;
+            .route$()
+            .subscribe(route => {
+                expect(route instanceof p.NoRoute).to.be.true;
             }, passErr, done)
     });
 
@@ -637,8 +841,10 @@ describe('p.best', () => {
                 null,
                 undefined
             )
-            .do$()            
-            .subscribe(t => expect(t).to.be.false, passErr, done)
+            .route$()            
+            .subscribe(route => {
+                expect(route instanceof p.NoRoute).to.be.true;
+            }, passErr, done)
     );
 
     it('should return NoRoute on only unsuccessful and null/undefined routers', (done) =>
@@ -648,8 +854,10 @@ describe('p.best', () => {
                 null,
                 undefined
             )
-            .do$()            
-            .subscribe(t => expect(t).to.be.false, passErr, done)
+            .route$()            
+            .subscribe(route => {
+                expect(route instanceof p.NoRoute).to.be.true;
+            }, passErr, done)
     );
 
     it('should return NoRoute on no successful routers', (done) => {
@@ -657,130 +865,157 @@ describe('p.best', () => {
             .best(
                 p.no()
             )
-            .do$()        
-            .subscribe(t => expect(t).to.be.false, passErr, done)
+            .route$()        
+            .subscribe(route => {
+                expect(route instanceof p.NoRoute).to.be.true;
+            }, passErr, done)
     });
 
     it('should route to a single successful scoreless router', (done) => {
-        let routed;
+        let r = new p.TemplateRoute('foo');
 
         p
             .best(
-                p.do(m => {
-                    routed = true;
-                })
+                () => r
             )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.be.true;
+            .route$()            
+            .subscribe(route => {
+                expect(route).to.eql(r);
             }, passErr, done);
     });
 
     it('should ignore null/undefined routers and route to a successful scoreless router', (done) => {
-        let routed;
+        let r = new p.TemplateRoute('foo');
 
         p
             .best(
                 null,
                 undefined,
-                p.do(m => {
-                    routed = true;
-                })
+                () => r
             )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.be.true;
+            .route$()            
+            .subscribe(route => {
+                expect(route).to.eql(r);
             }, passErr, done);
     });
 
     it('should skip an unsuccessful router and route to a successful scoreless router', (done) => {
-        let routed;
-
+        let r = new p.TemplateRoute('foo');
+        
         p
             .best(
                 p.no(),
-                p.do(m => {
-                    routed = true;
-                })
+                () => r
             )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.be.true;
+            .route$()            
+            .subscribe(route => {
+                expect(route).to.eql(r);
             }, passErr, done);
     });
 
-    it('should return the first route where score=1, never trying the rest', (done) => {
-        let routed;
-
-        p
-            .best(
-                p.do(m => {
-                    routed = true;
-                }),
-                throwErr
-            )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.be.true;
-            }, passErr, done);
-    });
 
     it('should return the higher scoring route when it is first', (done) => {
-        let routed;
-
         p
             .best(
-                p.do(_ => { routed = 'first'; }, 0.75),
-                p.do(_ => { routed = 'second'; }, 0.50)
+                () => new p.TemplateRoute('foo', {}, .75),
+                () => new p.TemplateRoute('bar', {}, .5)
             )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.eql('first');
+            .route$()            
+            .subscribe(route => {
+                expect(route.action).to.eql('foo');
+                expect(route.score).to.eql(.75);
             }, passErr, done);
     });
 
     it('should return the higher scoring route when it is second', (done) => {
-        let routed;
-
         p
             .best(
-                p.do(_ => { routed = 'first'; }, .5),
-                p.do(_ => { routed = 'second'; }, .75)
+                () => new p.TemplateRoute('bar', {}, .5),
+                () => new p.TemplateRoute('foo', {}, .75)
             )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.eql('second');
+            .route$()            
+            .subscribe(route => {
+                expect(route.action).to.eql('foo');
+                expect(route.score).to.eql(.75);
             }, passErr, done);
     });
 
-    it('should treat missing scores as 1', (done) => {
-        let routed;
+    it('should return two tied scores as a MultipleRoute', (done) => {
+        let routeA = new p.TemplateRoute('foo', {}, "foo", .5);
+        let routeB = new p.TemplateRoute('bar', {}, "bar", .5);
 
         p
             .best(
-                p.do(_ => { routed = 'first'; }),
-                p.do(_ => { routed = 'second'; }, .75)
+                () => routeA,
+                () => routeB
             )
-            .do$()
-            .subscribe(n => {
-                expect(routed).to.eql('first');
+            .route$()            
+            .subscribe(route => {
+                expect(route instanceof p.MultipleRoute).to.be.true;
+                expect(route.routes[0]).to.eql(routeA);
+                expect(route.routes[0].source).to.eql("foo");
+                expect(route.routes[1]).to.eql(routeB);
+                expect(route.routes[1].source).to.eql("bar");
             }, passErr, done);
     });
 
-    it('should return the first of two tied scores', (done) => {
-        let routed;
+    it('should return two tied high scores as a MultipleRoute', (done) => {
+        let routeA = new p.TemplateRoute('foo', {}, .5);
+        let routeB = new p.TemplateRoute('bar', {}, .5);
+        let routeC = new p.TemplateRoute('foobar', {}, .4);
 
         p
             .best(
-                p.do(_ => { routed = 'first'; }, 0.75),
-                p.do(_ => { routed = 'second'; }, 0.75)
+                () => routeA,
+                () => routeB,
+                () => routeC
             )
-            .do$()            
-            .subscribe(n => {
-                expect(routed).to.eql('first');
+            .route$()            
+            .subscribe(route => {
+                expect(route instanceof p.MultipleRoute).to.be.true;
+                expect(route.routes[0]).to.eql(routeA);
+                expect(route.routes[1]).to.eql(routeB);
             }, passErr, done);
     });
 
+    it('should return two tied high scores as a MultipleRoute (different order)', (done) => {
+        let routeA = new p.TemplateRoute('foo', {}, .5);
+        let routeB = new p.TemplateRoute('bar', {}, .5);
+        let routeC = new p.TemplateRoute('foobar', {}, .4);
+
+        p
+            .best(
+                () => routeA,
+                () => routeC,
+                () => routeB
+            )
+            .route$()            
+            .subscribe(route => {
+                expect(route instanceof p.MultipleRoute).to.be.true;
+                expect(route.routes[0]).to.eql(routeA);
+                expect(route.routes[1]).to.eql(routeB);
+            }, passErr, done);
+    });
+
+    it('should return two tolerance-tied high scores as a MultipleRoute', (done) => {
+        let routeA = new p.TemplateRoute('foo', {}, .5);
+        let routeB = new p.TemplateRoute('bar', {}, .4);
+        let routeC = new p.TemplateRoute('foobar', {}, .2);
+
+        p
+            .best(
+                .1,
+                () => routeA,
+                () => routeB,
+                () => routeC
+            )
+            .route$()            
+            .subscribe(route => {
+                expect(route instanceof p.MultipleRoute).to.be.true;
+                expect(route.routes[0]).to.eql(routeA);
+                expect(route.routes[1]).to.eql(routeB);
+            }, passErr, done);
+    });
 });
 
 describe('p.noop', () => {
