@@ -216,15 +216,11 @@ describe('p.no', () => {
     });
 });
 
-describe('p.match', () => {
-    it('should return a MatchRoute with the supplied value', (done) => {
-        let route = p
-            .match("hello")
-            .route$(foo)
-            .subscribe(route => {
-                expect(route instanceof p.MatchRoute).to.be.true;
-                expect(route.value).to.eql('hello');
-            }, passErr, done);
+describe('new p.MatchRoute', () => {
+    it('should return a MatchRoute with the supplied value', () => {
+        let route = new p.MatchRoute("hello");
+        expect(route instanceof p.MatchRoute).to.be.true;
+        expect(route.value).to.eql('hello');
     });
 });
 
@@ -1020,10 +1016,10 @@ describe('p.noop', () => {
     });
 });
 
-describe('p.ifGet', () => {
+describe('match', () => {
     it("should return false on no match when 'else' router doesn't exist", (done) =>
         p
-            .ifGet(
+            .match(
                 () => undefined,
                 p.do(throwErr)
             )
@@ -1033,7 +1029,7 @@ describe('p.ifGet', () => {
 
     it("should return false on no match when 'else' router doesn't exist", (done) =>
         p
-            .ifGet(
+            .match(
                 () => undefined,
                 p.do(throwErr)
             )
@@ -1043,7 +1039,7 @@ describe('p.ifGet', () => {
 
     it("should return false on no match when 'else' router doesn't route", (done) =>
         p
-            .ifGet(
+            .match(
                 () => undefined,
                 p.do(throwErr),
                 p.no()
@@ -1054,7 +1050,7 @@ describe('p.ifGet', () => {
 
     it("should return false on match when 'if' router doesn't route and 'else' router exists", (done) =>
         p
-            .ifGet(
+            .match(
                 () => true,
                 p.no(),
                 p.do(throwErr)
@@ -1067,7 +1063,7 @@ describe('p.ifGet', () => {
         let routed;
 
         p
-            .ifGet(
+            .match(
                 () => true,
                 p.do(m => {
                     routed = true;
@@ -1083,7 +1079,7 @@ describe('p.ifGet', () => {
         let routed;
 
         p
-            .ifGet(
+            .match(
                 () => true,
                 p.do(m => {
                     routed = true;
@@ -1100,7 +1096,7 @@ describe('p.ifGet', () => {
         let routed;
 
         p
-            .ifGet(
+            .match(
                 () => undefined,
                 p.do(throwErr),
                 p.do(m => {
@@ -1117,7 +1113,7 @@ describe('p.ifGet', () => {
         let routed;
 
         p
-            .ifGet(
+            .match(
                 p.no('reason'),
                 p.do(throwErr),
                 p.do(route => {
@@ -1134,7 +1130,7 @@ describe('p.ifGet', () => {
         let routed;
 
         p
-            .ifGet(
+            .match(
                 () => 'value',
                 p.do(match => {
                     routed = match.value;
@@ -1150,7 +1146,7 @@ describe('p.ifGet', () => {
     it("should pass supplied value to handler", (done) => {
         let handled;
         p
-            .ifGet(
+            .match(
                 () => 'dog',
                 p.do(match => {
                     handled = match.value;
@@ -1165,7 +1161,7 @@ describe('p.ifGet', () => {
     it("should pass supplied argument all the way through", (done) => {
         let routed;
         p.Router.from(
-            greeting => p.ifGet(
+            greeting => p.match(
                 () => greeting,
                 p.do(match => { routed = match.value })
             )
@@ -1340,7 +1336,7 @@ describe('p.if', () => {
 
         p
             .if(
-                p.match(true, .5),
+                () => new p.MatchRoute(true, .5),
                 p.do(m => { handled = true; })
             )
             .do$()
@@ -1355,7 +1351,7 @@ describe('p.if', () => {
 
         p
             .if(
-                p.match(false),
+                () => new p.MatchRoute(false),
                 p.do(throwErr)
             )
             .route$()
@@ -1569,7 +1565,7 @@ describe('router.mapByType', () => {
         let handled;
 
         p.Router
-            .from(p.match("hi"))
+            .from(() => "hi")
             .mapByType({
                 do: p.do(throwErr),
                 scored: p.do(throwErr),
@@ -1589,7 +1585,7 @@ describe('router.mapByType', () => {
         let handled;
 
         p.Router
-            .from(p.match("hi"))
+            .from(() => "hi")
             .mapByType({
                 do: p.do(throwErr),
                 scored: p.do(() => { handled = true; }),
@@ -1608,7 +1604,7 @@ describe('router.mapByType', () => {
         let handled;
 
         p.Router
-            .from(p.match("hi"))
+            .from(() => "hi")
             .mapByType({
                 do: p.do(throwErr),
                 route: p.do(() => { handled = true; }),
@@ -1626,7 +1622,7 @@ describe('router.mapByType', () => {
         let handled;
 
         p.Router
-            .from(p.match("hi"))
+            .from(() => "hi")
             .mapByType({
                 do: p.do(throwErr),
                 default: p.do(() => { handled = true; }),
@@ -1678,7 +1674,7 @@ describe('p.doable', () => {
     })
 
     it('should throw on MatchRoute', done => {
-        let r = new p.match("hello")
+        let r = new p.MatchRoute("hello")
         p.Router.from(() => r)
             .tap(p.doable)
             .route$()

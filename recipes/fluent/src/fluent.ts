@@ -226,13 +226,6 @@ export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
     }
 }
 
-export function match <VALUE = any> (
-    value: VALUE,
-    score?: number
-) {
-    return Router.from(() => new MatchRoute(value, score));
-}
-
 export class NoRoute <VALUE = any> extends Route<VALUE> {
     static defaultReason = "none";
     
@@ -519,9 +512,9 @@ export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: AnyRouter<MapT
 
 const mapRouteIdentity = <VALUE> (route: Route<VALUE>) => route;
 
-const getMatchError = new Error("ifGet's matchRouter should only return MatchRoute or NoRoute");
+const getMatchError = new Error("match's matchRouter should only return MatchRoute or NoRoute");
 
-export function ifGet <VALUE> (
+export function match <VALUE> (
     getMatch: AnyRouter<undefined, VALUE>,
     mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
     mapNoRoute?: AnyRouter<NoRoute<VALUE>>
@@ -548,7 +541,7 @@ export function _if (
     mapMatchRoute: AnyRouter<MatchRoute<boolean>>,
     mapNoRoute?: AnyRouter<NoRoute<boolean>>
 ) {
-    return ifGet<boolean>(
+    return match<boolean>(
         Router
             .from(predicate)
             .mapByType({
@@ -580,7 +573,7 @@ export function _switch (
     getKey: GetRoute<undefined, string>,
     mapKeyToRouter: Record<string, GetRoute>
 ) {
-    return ifGet(getKey, match => mapKeyToRouter[match.value]);
+    return match(getKey, match => mapKeyToRouter[match.value]);
 }
 
 export { _switch as switch }
