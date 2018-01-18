@@ -14,8 +14,6 @@ export function toObservable <T> (t: Observableable<T>) {
 const routeDoError = new Error('route is not a doRoute or noRoute, cannot do()');
 
 export abstract class Route <VALUE = any> {
-    private _route: undefined; // hack so that TypeScript will do better type checking on Routes
-
     do$(): Observable<boolean> {
         throw routeDoError;
     }
@@ -23,6 +21,35 @@ export abstract class Route <VALUE = any> {
     do() {
         return this.do$().toPromise();
     }
+
+    type$ () {
+        return new Observable<string>(observer => {
+            if (this instanceof NoRoute)
+                observer.next('no');
+            
+            if (this instanceof DoRoute)
+                observer.next('do');
+            
+            if (this instanceof MatchRoute)
+                observer.next('match');
+
+            if (this instanceof TemplateRoute)
+                observer.next('template');
+
+            if (this instanceof MultipleRoute)
+                observer.next('multiple');
+
+            if (this instanceof ScoredRoute)
+                observer.next('scored');
+            
+            observer.next('route');
+            
+            observer.next('default');
+
+            observer.complete();
+        });
+    }
+
 }
 
 export abstract class ScoredRoute <VALUE = any> extends Route<VALUE> {
@@ -279,9 +306,9 @@ export class Router <ARG = undefined, VALUE = any> {
         return new MatchRoute(route);
     };
 
-    static from <ARG, VALUE> (router?: AnyRouter<ARG, VALUE>) {
+    static from <ARG, VALUE> (router?: AnyRouter<ARG, VALUE>): Router<ARG, VALUE> {
         if (router == null)
-            return noRouter;
+            return noRouter as Router;
 
         if (router instanceof Router)
             return router;
@@ -311,7 +338,14 @@ export class Router <ARG = undefined, VALUE = any> {
     mapByType (
         mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
     ) {
-        return this.map(typeRouter(mapTypeToRouter));
+        return this.map(route => route
+            .type$()
+            .map(type => mapTypeToRouter[type] as AnyRouter<Route<VALUE>>)
+            .filter(router => !!router)
+            .take(1)
+            .flatMap(router => Router.from(router).route$(route))
+            .defaultIfEmpty(route)
+        );
     }
 
     mapTemplate <TEMPLATES, CONTEXT> (
@@ -482,47 +516,7 @@ export interface MapTypeToRouteClass <VALUE> {
 
 export type RouteTypes <VALUE> = keyof MapTypeToRouteClass<VALUE>;
 
-export function* getTypesFromRoute(
-    route: Route
-) {
-    if (route instanceof NoRoute)
-        yield 'no';
-    
-    if (route instanceof DoRoute)
-        yield 'do';
-    
-    if (route instanceof MatchRoute)
-        yield 'match';
-
-    if (route instanceof TemplateRoute)
-        yield 'template';
-
-    if (route instanceof MultipleRoute)
-        yield 'multiple';
-
-    if (route instanceof ScoredRoute)
-        yield 'scored';
-    
-    yield 'route';
-    
-    yield 'default';
-}
-
 export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: AnyRouter<MapTypeToRouteClass<VALUE>[P]> }
-
-export function typeRouter <VALUE> (
-    mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
-) {
-    return Router.from((route: Route<VALUE>) => {
-        for (let type of getTypesFromRoute(route)) {
-            const router = mapTypeToRouter[type];
-            if (router)
-                return Router.from(router).route$(route);
-        }
-
-        return route;
-    })
-}
 
 const mapRouteIdentity = <VALUE> (route: Route<VALUE>) => route;
 
