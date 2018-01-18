@@ -220,9 +220,7 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
 
     static default = new NoRoute();
 
-    static default$ = Observable.of(NoRoute.default);
-
-    static router = () => NoRoute.default$;
+    static defaultGetRoute$ = () => Observable.of(NoRoute.default)
 
     do$() {
         return Observable.of(false);
@@ -253,7 +251,7 @@ export class Router <ARG = undefined, VALUE = any> {
 
     constructor(router?: AnyRouter<ARG, VALUE>) {
         if (router == null)
-            this.route$ = NoRoute.router;
+            this.route$ = NoRoute.defaultGetRoute$;
         else if (router instanceof Router)
             this.route$ = router.route$;
         else if (typeof router === 'function')
@@ -282,9 +280,13 @@ export class Router <ARG = undefined, VALUE = any> {
     };
 
     static from <ARG, VALUE> (router?: AnyRouter<ARG, VALUE>) {
-        return router instanceof Router
-            ? router
-            : new Router(router);
+        if (router == null)
+            return noRouter;
+
+        if (router instanceof Router)
+            return router;
+
+        return new Router(router);
     }
 
     do$ (arg?: ARG) {
@@ -370,6 +372,8 @@ export class Router <ARG = undefined, VALUE = any> {
         });
     }
 }
+
+const noRouter = new Router(NoRoute.defaultGetRoute$);
 
 const firstError = new Error("first routers can only return ScoredRoute and NoRoute");
 
