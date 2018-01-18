@@ -148,21 +148,17 @@ describe('p.toObservable', () => {
 });
 
 describe('new p.DoRoute', () => {
-    it('should create a DoRoute with supplied action and no score', () => {
-        let action = () => {};
+    it('should create a DoRoute with supplied action ', (done) => {
+        let handled;
+        let action = () => { handled = true; };
         let route = new p.DoRoute(action);
         expect(route instanceof p.DoRoute).to.be.true;
-        expect(route.action).to.eql(action);
-        expect(route.score).to.eql(1);
-    });
-
-    it('should create a DoRoute with supplied action and score', () => {
-        let action = () => {};
-        let route = new p.DoRoute(action, 0.5);
-        expect(route instanceof p.DoRoute).to.be.true;
-        expect(route.action).to.eql(action);
-        expect(route.score).to.eql(.5);
-        expect(route.reason).to.be.undefined;
+        route
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
+                expect(handled).to.be.true;
+            }, passErr, done);
     });
 });
 
@@ -172,8 +168,6 @@ describe('p.NoRoute', () => {
 
         expect(route instanceof p.NoRoute).to.be.true;
         expect(route.reason).to.eql('none');
-        expect(route.action).to.be.undefined;
-        expect(route.score).to.be.undefined;
     });
 
     it('should create a NoRoute with supplied reason', () => {
@@ -181,34 +175,20 @@ describe('p.NoRoute', () => {
 
         expect(route instanceof p.NoRoute).to.be.true;
         expect(route.reason).to.eql('reason');
-        expect(route.action).to.be.undefined;
-        expect(route.score).to.be.undefined;
     });
 });
 
 describe('p.do', () => {
-    it('should return a function returning doRoute using supplied action and no score', (done) => {
+    it('should return a function returning doRoute using supplied action', (done) => {
         let handled;
         let route = p
             .do(m => { handled = m; })
-            .route$(foo)
-            .subscribe(route => {
+            .tap(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
-                expect(route.score).to.eql(1);
-                route.action();
-                expect(handled).to.eql(foo);
-            }, passErr, done);
-    });
-
-    it('should return a function returning doRoute using supplied action and score', (done) => {
-        let handled;
-        let route = p
-            .do(m => { handled = m; }, .5)
-            .route$(foo)
-            .subscribe(route => {
-                expect(route instanceof p.DoRoute).to.be.true;
-                expect(route.score).to.eql(.5);
-                route.action();
+            })
+            .do$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(handled).to.eql(foo);
             }, passErr, done);
     });
@@ -506,17 +486,19 @@ describe('new Router', () => {
         expect(r.route$).to.eql(router.route$);
     });
 
-    it('should create a Router from a route', (done) => {
+    it('should create a Router from a DoRoute', (done) => {
         let handled;
         let router = () => new p.DoRoute(() => { handled = true; });
         let r = new p.Router(router);
         
         expect(r).not.to.eql(router);
         r
-            .route$()
-            .subscribe(route => {
+            .tap(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
-                route.action();
+            })
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(handled).to.be.true;
             }, passErr, done)
     });
@@ -528,11 +510,14 @@ describe('new Router', () => {
     it('should create a Router from arg => Router', (done) => {
         let handled;
         let router = (arg) => p.do(() => { handled = arg; });
-        new p.Router(router)
-            .route$(foo)
-            .subscribe(route => {
+        new p
+            .Router(router)
+            .tap(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
-                route.action();
+            })
+            .do$(foo)
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(handled).to.eql(foo);
             }, passErr, done)
     });
@@ -572,10 +557,12 @@ describe('Router.from', () => {
         
         expect(r).not.to.eql(router);
         r
-            .route$()
-            .subscribe(route => {
+            .tap(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
-                route.action();
+            })
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(handled).to.be.true;
             }, passErr, done)
     });
@@ -783,44 +770,41 @@ describe('p.ScoredRoute.combinedScore', () => {
     });
 })
 
-describe('p.doScore.cloneWithScore', () => {
+describe('templateRoute.cloneWithScore', () => {
+    let original = new p.TemplateRoute('foo', undefined, .4);
+
     it("should return original route when supplied score matches route score", () => {
-        let action = () => {}
-        let original = new p.DoRoute(action, .4);
         let route = original.cloneWithScore(.4);
 
-        expect(route instanceof p.DoRoute).to.be.true;
+        expect(route instanceof p.TemplateRoute).to.be.true;
         expect(route).to.eql(original);
     });
 
     it("should return route with supplied score", () => {
-        let action = () => {}
-        let original = new p.DoRoute(action, .4);
         let route = original.cloneWithScore(.25);
 
-        expect(route instanceof p.DoRoute).to.be.true;
-        expect(route.action).to.eql(action);
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route.action).to.eql('foo');
         expect(route.score).to.eql(.25);
     });
 });
 
-describe('p.doScore.cloneWithCombinedScore', () => {
+describe('templateRoute.cloneWithCombinedScore', () => {
+    let original = new p.TemplateRoute('foo', undefined, .4);
+
     it("should return original route when score to be combined is 1", () => {
-        let action = () => {}
-        let original = new p.DoRoute(action, .4);
         let route = original.cloneWithCombinedScore();
 
-        expect(route instanceof p.DoRoute).to.be.true;        
+        expect(route instanceof p.TemplateRoute).to.be.true;        
         expect(route).to.eql(original);
     });
 
     it("should return new route when score to be combined is not 1", () => {
-        let action = () => {}
-        let original = new p.DoRoute(action, .4);
         let route = original.cloneWithCombinedScore(.25);
 
-        expect(route instanceof p.DoRoute).to.be.true;
-        expect(route.action).to.eql(action);
+        expect(route instanceof p.TemplateRoute).to.be.true;
+        expect(route).to.not.eql(original);
+        expect(route.action).to.eql('foo');
         expect(route.score).to.eql(.1);
     });
 })
@@ -1328,10 +1312,12 @@ describe('p.if', () => {
                     routed = no.reason;
                 })
             )
-            .route$()
-            .subscribe(route => {
+            .tap(route => {
                 expect(route instanceof p.DoRoute).to.be.true;
-                route.action();
+            })
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(routed).to.eql("whatevs");
             }, passErr, done);
     });
@@ -1357,11 +1343,10 @@ describe('p.if', () => {
                 p.match(true, .5),
                 p.do(m => { handled = true; })
             )
-            .route$()
-            .subscribe(route => {
-                route.action();
+            .do$()
+            .subscribe(t => {
+                expect(t).to.be.true;
                 expect(handled).to.be.true;
-                expect(route.score).to.eql(1);
             }, passErr, done);
     });
 
@@ -1443,25 +1428,6 @@ describe('router.mapByType', () => {
             .mapByType({
                 do: p.do(() => { handled = true; }),
                 scored: p.do(throwErr),
-                route: p.do(throwErr),
-                default: p.do(throwErr),
-                no: p.do(throwErr),
-                match: p.do(throwErr)
-            })
-            .do$()
-            .subscribe(t => {
-                expect(t).to.be.true;
-                expect(handled).to.be.true;
-            }, passErr, done);
-    })
-
-    it('DoRoute should return scored router when do router missing', done => {
-        let handled;
-
-        p.Router
-            .from(p.do(noop))
-            .mapByType({
-                scored: p.do(() => { handled = true; }),
                 route: p.do(throwErr),
                 default: p.do(throwErr),
                 no: p.do(throwErr),
