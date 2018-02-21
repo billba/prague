@@ -1,4 +1,4 @@
-## More on Routing
+# More on Routing
 
 Let's add a new pattern to respond if the user introduces themselves. We'll use another shortcut function called `matchRE`, for testing regular expressions. 
 
@@ -13,9 +13,9 @@ router = first(
 ```
 
 >
-**Hello**  
-*Hello, World*  
-**I am Bill**  
+**Hello**
+*Hello, World*
+**I am Bill**
 *Nice to meet you*
 
 Again, `first` tries routing each message through each of its routers until one succeeds.
@@ -33,7 +33,7 @@ router = first(
 ```
 
 >
-**I am Bill**  
+**I am Bill**
 *Nice to meet you, Bill.*
 
 Now let's imagine that there is a select group of VIP users who should get a special response. We can do this by defining a special router just for them:
@@ -48,10 +48,10 @@ router = first(
 ```
 
 >
-**I am Bill**  
-*You are very handsome, Bill.*  
-**I am Hannah**  
-*Nice to meet you, Hannah.*  
+**I am Bill**
+*You are very handsome, Bill.*
+**I am Hannah**
+*Nice to meet you, Hannah.*
 
 As you can see, `ifMatch` can take multiple conditions. Each condition much be satisfied for the route to succeed.
 
@@ -72,10 +72,10 @@ router = first(
 ```
 
 >
-**I am Bill**  
-*You are very handsome, Bill.*  
-**I am Hannah**  
-*Nice to meet you, Hannah.*  
+**I am Bill**
+*You are very handsome, Bill.*
+**I am Hannah**
+*Nice to meet you, Hannah.*
 
 Same behavior, but more efficient code. The top-level `first` contains three routers. The first has an initial condition that tests a regular expression. If it succeeds, the message is passed to the second instance of `first`, which tests *its* children. If the user is a VIP, it responds one way. Otherwise it responds another.
 
@@ -96,10 +96,10 @@ router = first(
 ```
 
 >
-**I am Bill**  
-*You are very handsome, Bill.*  
-**I am Hannah**  
-*I didn't catch that.*  
+**I am Bill**
+*You are very handsome, Bill.*
+**I am Hannah**
+*I didn't catch that.*
 
 This demonstrates how small changes in routing logic can result in very different behavior. Prague message routing is powerful, and with great power comes great responsibility.
 
@@ -121,4 +121,3 @@ router = first(
 Less noise, more signal!
 
 In this lesson we added a little more functionality to our bot, learning about a couple of Regular Expression helpers, multiple `ifMatch` conditions, and composability of routers. In our [next lesson](State.md), we'll experiment with state.
-

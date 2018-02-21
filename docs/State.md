@@ -37,7 +37,7 @@ router = first(
                 state.num = undefined;
                 return;
             }
-            
+
             m.reply(`You have ${state.guesses} left.`);
         }),
         m => m.reply("Please guess a number between 1 and 50.")
@@ -47,21 +47,21 @@ router = first(
 ```
 
 >
-**Hi**  
-*Type 'start game' to start the game.*  
-**start game**  
-*Guess a number between 1 and 50. You have 10 guesses.*  
-**10**  
-*That is too low.*  
-*You have 9 guesses left*  
-**Hi**  
-*Please guess a number between 1 and 50.*  
+**Hi**
+*Type 'start game' to start the game.*
+**start game**
+*Guess a number between 1 and 50. You have 10 guesses.*
+**10**
+*That is too low.*
+*You have 9 guesses left*
+**Hi**
+*Please guess a number between 1 and 50.*
 
 There's a lot going on here! Let's take it one step at a time.
 
 As with our previous bot, this router is a `first` of multiple routers. Most Prague apps will take this form.
 
-The first router starts the game by settting `state.num`. This field is subsequently used by the second router's `ifMatch` to test if the game has started. Conditions can reference the message, application state, or anything else. A router might only become active after noon!
+The first router starts the game by setting `state.num`. This field is subsequently used by the second router's `ifMatch` to test if the game has started. Conditions can reference the message, application state, or anything else. A router might only become active after noon!
 
 This app contains several longish functions. Prague functions are frequently short and sweet, but they can be as long as they need to be!
 

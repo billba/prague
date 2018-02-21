@@ -142,7 +142,7 @@ runNodeConsole(nameRule);
 
 That seems like an appropriate amount of code for such a simple conversation.
 
-Using the interface `INodeConsoleMatch` when creating the `RegExpHelpers` object gives us some typing magic - we don't need to explicitly define the type of `match` in the helper we passed to `re`. If you mouse over `match` in the above code in your editor, you would see that the type of `match` is known to be `INodeConsoleMatch & IRegExpArray`, the latter being the return type of calling `RegExp.exec`. Using interfaces like this allow us to write very concise, type-safe code. Plus you get intellisense to tell you what fields are available at a given point.
+Using the interface `INodeConsoleMatch` when creating the `RegExpHelpers` object gives us some typing magic - we don't need to explicitly define the type of `match` in the helper we passed to `re`. If you mouse over `match` in the above code in your editor, you would see that the type of `match` is known to be `INodeConsoleMatch & IRegExpArray`, the latter being the return type of calling `RegExp.exec`. Using interfaces like this allow us to write very concise, type-safe code. Plus you get IntelliSense to tell you what fields are available at a given point.
 
 ## Multiple rules
 
@@ -270,5 +270,5 @@ runNodeConsole(appRule);
 This code is extremely expressive and declarative in nature. It's easy to visualize the data flowing through the system:
 
 1. runNodeConsole receives the user input and adds the `reply` function.
-2. matchCafe adds the `cafe` object
-3. `first` sends the enhanced input to each rule in series, stopping when one matches the input, and calling its handler
+1. matchCafe adds the `cafe` object
+1. `first` sends the enhanced input to each rule in series, stopping when one matches the input, and calling its handler
