@@ -1,9 +1,11 @@
 import { Observable } from 'rxjs';
-import { inspect } from 'util';
 
 export type Observableable <T> = T | Observable<T> | Promise<T>;
 
-export function toObservable <T> (t: Observableable<T>) {
+export function toObservable <T> (
+    t: Observableable<T>,
+) {
+
     if (t instanceof Observable)
         return t.take(1);
     if (t instanceof Promise)
@@ -11,18 +13,29 @@ export function toObservable <T> (t: Observableable<T>) {
     return Observable.of(t);
 }
 
+export interface ValidatorResult <V> {
+    value?: V;
+    reason?: string;
+}
+
 const routeDoError = new Error('route is not a doRoute or noRoute, cannot do()');
 
-export abstract class Route <VALUE = any> {
+export abstract class Route <
+    VALUE = any
+> {
+
     do$ (): Observable<boolean> {
+
         throw routeDoError;
     }
 
     do () {
+
         return this.do$().toPromise();
     }
 
     type$ () {
+
         return new Observable<string>(observer => {
             if (this instanceof NoRoute)
                 observer.next('no');
@@ -52,28 +65,41 @@ export abstract class Route <VALUE = any> {
 
 }
 
-export abstract class ScoredRoute <VALUE = any> extends Route<VALUE> {
+export abstract class ScoredRoute <
+    VALUE = any,
+> extends Route<VALUE> {
+
     score: number;
     
     constructor (
-        score?: number
+        score?: number,
     ) {
         super();
 
         this.score = ScoredRoute.normalizedScore(score);
     }
 
-    static normalizedScore (score?: number) {
+    static normalizedScore (
+        score?: number,
+    ) {
+
         return score != null && score >= 0 && score < 1
             ? score
             : 1;
     }
 
-    static combinedScore (score, otherScore) {
+    static combinedScore (
+        score: number,
+        otherScore: number,
+    ) {
+
         return score * otherScore
     }
 
-    cloneWithScore (score?: number): this {
+    cloneWithScore (
+        score?: number,
+    ): this {
+
         score = ScoredRoute.normalizedScore(score);
 
         return score === this.score
@@ -81,34 +107,42 @@ export abstract class ScoredRoute <VALUE = any> extends Route<VALUE> {
             : Object.assign(Object.create(this.constructor.prototype), this, { score });
     }
 
-    cloneWithCombinedScore (score?: number) {
+    cloneWithCombinedScore (
+        score?: number
+    ) {
+
         return this.cloneWithScore(ScoredRoute.combinedScore(this.score, ScoredRoute.normalizedScore(score)));
     }
 }
 
 export type TemplateSource = string | object;
 
-export class TemplateRoute <ACTION = any, ARGS = any> extends ScoredRoute {
+export class TemplateRoute <
+    ACTION = any,
+    ARGS = any,
+> extends ScoredRoute {
+
     source: TemplateSource;
 
     constructor (
         action: ACTION,
         args?: ARGS,
         source?: TemplateSource,
-        score?: number
+        score?: number,
     );
 
     constructor (
         action: ACTION,
         args?: ARGS,
-        score?: number
+        score?: number,
     );
     
     constructor (
         public action: ACTION,
         public args?: ARGS,
-        ... rest
+        ... rest: any[],
     ) {
+
         super(rest.length === 1 && typeof rest[0] === 'number'
             ? rest[0]
             : rest.length === 2 && typeof rest[1] === 'number'
@@ -127,30 +161,45 @@ export type MapTemplateToAction <TEMPLATES> = { [P in TemplateActions<TEMPLATES>
 
 const templateError = new Error('action not present in mapActionToRouter')
 
-export class Templates <TEMPLATES, CONTEXT = any, SOURCE extends TemplateSource = string> {
+export class Templates <
+    TEMPLATES,
+    CONTEXT = any,
+    SOURCE extends TemplateSource = string,
+> {
+
     constructor (
         public mapTemplateToAction: (context: CONTEXT) => Partial<MapTemplateToAction<TEMPLATES>>
     ) {
     }
 
-    route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+    route <
+        ACTION extends keyof TEMPLATES,
+        ARGS extends TEMPLATES[ACTION],
+    > (
         action: ACTION,
         args?: ARGS,
         source?: SOURCE,
-        score?: number
+        score?: number,
     ): TemplateRoute<ACTION, ARGS>;
 
-    route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+    route <
+        ACTION extends keyof TEMPLATES,
+        ARGS extends TEMPLATES[ACTION],
+    > (
         action: ACTION,
         args?: ARGS,
-        score?: number
+        score?: number,
     ): TemplateRoute<ACTION, ARGS>;
 
-    route <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
+    route <
+        ACTION extends keyof TEMPLATES,
+        ARGS extends TEMPLATES[ACTION],
+    > (
         action: ACTION,
         args?: ARGS,
-        ... rest
+        ... rest: any[],
     ) {
+
         return new TemplateRoute(action, args, ... rest);
     }
 
@@ -158,27 +207,29 @@ export class Templates <TEMPLATES, CONTEXT = any, SOURCE extends TemplateSource 
         action: ACTION,
         args?: ARGS,
         source?: SOURCE,
-        score?: number
+        score?: number,
     ): Router;
 
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
         args?: ARGS,
-        score?: number
+        score?: number,
     ): Router;
 
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
         action: ACTION,
         args?: ARGS,
-        ... rest
+        ... rest: any[],
     ) {
+
         return Router.from(() => this.route(action, args, ... rest));
     }
 
     mapToDo (
         route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>,
-        context?: CONTEXT
+        context?: CONTEXT,
     ) {
+
         const action: Action<TEMPLATES[keyof TEMPLATES]> = this.mapTemplateToAction(context)[route.action];
     
         return action
@@ -189,8 +240,9 @@ export class Templates <TEMPLATES, CONTEXT = any, SOURCE extends TemplateSource 
 
 export class MultipleRoute extends Route {
     constructor (
-        public routes: TemplateRoute[]
+        public routes: TemplateRoute[],
     ) {
+
         super();
     }
 }
@@ -201,7 +253,9 @@ export class DoRoute extends Route<undefined> {
     constructor (
         action: Action
     ) {
+
         super();
+
         this.do$ = () => Observable
             .of(action)
             .flatMap(action => toObservable(action()))
@@ -209,30 +263,41 @@ export class DoRoute extends Route<undefined> {
     }
 }
 
-export function _do <ARG = undefined> (
-    action: Action<ARG>
+export function _do <
+    ARG = undefined
+> (
+    action: Action<ARG>,
 ) { 
+
     return Router.from((arg: ARG) => new DoRoute(() => action(arg)));
 }
 
 export { _do as do }
 
-export class MatchRoute <VALUE = any> extends ScoredRoute<VALUE> {
+export class MatchRoute <
+    VALUE = any,
+> extends ScoredRoute<VALUE> {
+
     constructor(
         public value: VALUE,
-        score?: number
+        score?: number,
     ) {
+
         super(score);
     }
 }
 
-export class NoRoute <VALUE = any> extends Route<VALUE> {
+export class NoRoute <
+    VALUE = any,
+> extends Route<VALUE> {
+
     static defaultReason = "none";
     
     constructor (
         public reason = NoRoute.defaultReason,
-        public value?: VALUE
+        public value?: VALUE,
     ) {
+
         super();
         this.do$ = NoRoute.do$;
     }
@@ -248,27 +313,41 @@ export class NoRoute <VALUE = any> extends Route<VALUE> {
 
 function _no <VALUE> (
     reason?: string,
-    value?: VALUE
+    value?: VALUE,
 ) {
+
     return Router.from(() => new NoRoute(reason, value));
 }
 
 export { _no as no }
 
-export type GetRoute <ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
+export type GetRoute <
+    ARG = undefined,
+    VALUE = any,
+> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 
 const routerNotFunctionError = new Error('router must be a function');
 
-export type AnyRouter <ARG = undefined, VALUE = any> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
+export type AnyRouter <
+    ARG = undefined,
+    VALUE = any,
+> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
 
-export class Router <ARG = undefined, VALUE = any> {
+export class Router <
+    ARG = undefined,
+    VALUE = any,
+> {
+
     route$: (arg?: ARG) => Observable<Route<VALUE>>;
 
     route (arg?: ARG) {
         return this.route$(arg).toPromise();
     }
 
-    constructor (router?: AnyRouter<ARG, VALUE>) {
+    constructor (
+        router?: AnyRouter<ARG, VALUE>
+    ) {
+
         if (router == null)
             this.route$ = NoRoute.defaultGetRoute$;
         else if (router instanceof Router)
@@ -287,18 +366,31 @@ export class Router <ARG = undefined, VALUE = any> {
     }
 
     private static normalizedRoute <VALUE> (
-        route: Route<VALUE> | VALUE,
+        route: Route<VALUE> | ValidatorResult<VALUE> | VALUE,
     ): Route<VALUE> {
+
         if (route == null)
             return NoRoute.default;
 
         if (route instanceof Route)
             return route;
 
-        return new MatchRoute(route);
+        if ((route as any).reason)
+            return new NoRoute((route as any).reason);
+
+        if ((route as any).value)
+            return new MatchRoute((route as any).value);
+
+        return new MatchRoute(route as VALUE);
     };
 
-    static from <ARG, VALUE> (router?: AnyRouter<ARG, VALUE>): Router<ARG, VALUE> {
+    static from <
+        ARG,
+        VALUE
+    > (
+        router?: AnyRouter<ARG, VALUE>,
+    ): Router<ARG, VALUE> {
+
         if (router == null)
             return noRouter as Router;
 
@@ -308,21 +400,28 @@ export class Router <ARG = undefined, VALUE = any> {
         return new Router(router);
     }
 
-    do$ (arg?: ARG) {
+    do$ (
+        arg?: ARG,
+    ) {
+
         return this
             .route$(arg)
             .flatMap(route => route.do$());
     }
 
-    do (arg?: ARG) {
+    do (
+        arg?: ARG,
+    ) {
+
         return this
             .do$(arg)
             .toPromise();
     }
 
     map (
-        mapRoute: AnyRouter<Route<VALUE>>
+        mapRoute: AnyRouter<Route<VALUE>>,
     ) {
+
         return new Router((arg?: ARG) => this
             .route$(arg)
             .flatMap(Router.from(mapRoute).route$)
@@ -330,8 +429,9 @@ export class Router <ARG = undefined, VALUE = any> {
     }
 
     mapByType (
-        mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>
+        mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>,
     ) {
+
         return this.map(route => route
             .type$()
             .map(type => mapTypeToRouter[type] as AnyRouter<Route<VALUE>>)
@@ -342,40 +442,50 @@ export class Router <ARG = undefined, VALUE = any> {
         );
     }
 
-    mapTemplate <TEMPLATES, CONTEXT> (
+    mapTemplate <
+        TEMPLATES,
+        CONTEXT,
+    > (
         templates: Templates<TEMPLATES>,
-        context?: CONTEXT
+        context?: CONTEXT,
     ) {
+
         return this.mapByType({
             template: route => templates.mapToDo(route, context)
         });
     }
 
     mapMultiple (
-        router: AnyRouter<MultipleRoute>
+        router: AnyRouter<MultipleRoute>,
     ) {
+
         return this.mapByType({
             multiple: router
         });
     }
 
-    tap <VALUE> (
-        fn: (route: Route<VALUE>) => Observableable<any>
+    tap <
+        VALUE
+    > (
+        fn: (route: Route<VALUE>) => Observableable<any>,
     ) {
+
         return this.map(route => toObservable(fn(route)).mapTo(route));
     }
 
     default (
-        router: AnyRouter<NoRoute>
+        router: AnyRouter<NoRoute>,
     ) {
+
         return this.mapByType({
             no: router
         });
     }
 
     beforeDo (
-        action: Action
+        action: Action,
     ) {
+
         return this
             .tap(doable)
             .mapByType({
@@ -386,8 +496,9 @@ export class Router <ARG = undefined, VALUE = any> {
     }
 
     afterDo (
-        action: Action
+        action: Action,
     ) {
+
         return this
             .tap(doable)
             .mapByType({
@@ -404,8 +515,9 @@ const noRouter = new Router(NoRoute.defaultGetRoute$);
 const firstError = new Error("first routers can only return TemplateRoute, DoRoute, and NoRoute");
 
 export function first (
-    ... routers: AnyRouter[]
+    ... routers: AnyRouter[],
 ) {
+
     return Router.from(() => Observable
         .from(routers)
         // we put concatMap here because it forces everything after it to execute serially
@@ -431,16 +543,17 @@ const bestError = new Error('best routers can only return TemplateRoute and NoRo
 
 export function best (
     tolerance: number,
-    ... routers: AnyRouter[]
+    ... routers: AnyRouter[],
 ): Router;
 
 export function best (
-    ... routers: AnyRouter[]
+    ... routers: AnyRouter[],
 ): Router;
 
 export function best (
-    ... args
+    ... args: any[],
 ) {
+
     let tolerance: number;
     let routers: AnyRouter[];
 
@@ -488,14 +601,17 @@ export function best (
 }
 
 export function noop (
-    action: Action
+    action: Action,
 ) {
+
     return Router
         .from()
         .tap(action)
 }
 
-export interface MapTypeToRouteClass <VALUE> {
+export interface MapTypeToRouteClass <
+    VALUE,
+> {
     route: Route<VALUE>,
     scored: ScoredRoute<VALUE>,
     do: DoRoute,
@@ -510,15 +626,22 @@ export type RouteTypes <VALUE> = keyof MapTypeToRouteClass<VALUE>;
 
 export type MapTypeToRouter <VALUE> = { [P in RouteTypes<VALUE>]: AnyRouter<MapTypeToRouteClass<VALUE>[P]> }
 
-const mapRouteIdentity = <VALUE> (route: Route<VALUE>) => route;
+const mapRouteIdentity = <
+    VALUE,
+> (
+    route: Route<VALUE>,
+) => route;
 
 const getMatchError = new Error("match's matchRouter should only return MatchRoute or NoRoute");
 
-export function match <VALUE> (
+export function match <
+    VALUE,
+> (
     getMatch: AnyRouter<undefined, VALUE>,
     mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
-    mapNoRoute?: AnyRouter<NoRoute<VALUE>>
+    mapNoRoute?: AnyRouter<NoRoute<VALUE>>,
 ) {
+
     return Router
         .from(getMatch)
         .mapByType({
@@ -530,7 +653,7 @@ export function match <VALUE> (
         });
 }
 
-// _if is a special case of ifGet
+// _if is a special case of match
 // value of MatchRoute must be true or false
 // if value is false, NoRoute is instead returned
 
@@ -539,8 +662,9 @@ const ifPredicateError = new Error("predicate must have value of true or false")
 export function _if (
     predicate: AnyRouter<undefined, boolean>,
     mapMatchRoute: AnyRouter<MatchRoute<boolean>>,
-    mapNoRoute?: AnyRouter<NoRoute<boolean>>
+    mapNoRoute?: AnyRouter<NoRoute<boolean>>,
 ) {
+
     return match<boolean>(
         Router
             .from(predicate)
@@ -564,15 +688,21 @@ export { _if as if }
 
 const doError = new Error("this router must only return DoRoute or NoRoute");
 
-export const doable = <VALUE> (route: Route<VALUE>) => {
+export const doable = <
+    VALUE,
+> (
+    route: Route<VALUE>,
+) => {
+
     if (!(route instanceof DoRoute) && !(route instanceof NoRoute))
         throw doError;
 }
 
 export function _switch (
     getKey: GetRoute<undefined, string>,
-    mapKeyToRouter: Record<string, GetRoute>
+    mapKeyToRouter: Record<string, GetRoute>,
 ) {
+
     return match(getKey, match => mapKeyToRouter[match.value]);
 }
 

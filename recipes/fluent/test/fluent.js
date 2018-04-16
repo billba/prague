@@ -538,6 +538,25 @@ describe('new Router', () => {
                 expect(route instanceof p.NoRoute).to.be.true;
             }, passErr, done)
     });
+
+    it("should create a Router returning NoRoute from { result: reason }", done => {
+        new p.Router(() => ({ reason: 'reason' }))
+            .route$(foo)
+            .subscribe(route => {
+                expect(route instanceof p.NoRoute).to.be.true;
+                expect(route.reason).to.eql('reason');
+            }, passErr, done)
+    });
+
+    it("should create a Router returning MatchRoute from { value: 'value' }", done => {
+        new p.Router(() => ({ value: 'value' }))
+            .route$(foo)
+            .subscribe(route => {
+                expect(route instanceof p.MatchRoute).to.be.true;
+                expect(route.value).to.eql('value');
+                expect(route.score).to.eql(1);
+            }, passErr, done)
+    });
 });
 
 describe('Router.from', () => {
