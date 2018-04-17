@@ -1,13 +1,9 @@
 {
   "name": "prague",
-  "repository": {
-    "type": "git",
-    "url": "git://git@github.com/billba/prague.git"
-  },
-  "version": "0.17.1",
-  "description": "functional rules engine",
-  "main": "dist/prague.js",
-  "types": "dist/prague.d.ts",
+  "version": "0.18.0",
+  "description": "EDSL for rules",
+  "main": "lib/prague.js",
+  "types": "lib/prague.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
@@ -16,13 +12,12 @@
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^7.0.31",
-    "chai": "^4.1.1",
-    "chai-subset": "^1.5.0",
-    "mocha": "^3.5.0",
-    "typescript": "2.6.2"
+    "chai": "^4.1.2",
+    "chai-subset": "^1.6.0",
+    "mocha": "^5.1.0",
+    "typescript": "2.8.1"
   },
   "dependencies": {
-    "rxjs": "5.5.2"
+    "rxjs": "5.5.10"
   }
 }

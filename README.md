@@ -1,36 +1,59 @@
 # Prague
 
-An experimental rule system handy for intepreting user input, great for adding conversational features to apps, using lessons learned from the [message router](http://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageRoutingIntro.html) pattern. I thought of it as I walked around Prague on a sunny Spring day. **This is just an experiment and not an official Microsoft project.**
+An experimental rule system handy for intepreting user input, great for adding conversational features to apps. I thought of it as I walked around Prague on a sunny Spring day. **This is not an official Microsoft project.**
 
 Major features of Prague:
-* strongly-typed rules engine for interpreting ambiguous input of all kinds
-* support for different types of applications through fine-grained interfaces rather than high-level abstraction
+* strongly-typed when using TypeScript
 * deeply asynchronous via RxJS
+* 
 
 Some types of applications you could build with Prague:
 * OS shell
-* Browser app w/chat interface
-* Browser app w/voice interface
-* Slack bot (native interface)
-* Multi-platform Chat bot
-* Server-rendered Website w/pop-up chat
+* Chat bot
+* Games
 
 ## Building Prague
 
 * clone or fork this repo
+* `cd recipes\fluent`
 * `npm install`
 * `npm run build` (or `npm run watch` to build on file changes)
 
-## Prague recipes
+## To add to your app
+`npm install -S prague-fluent`
 
-Prague is a low-level framework. If you want to build an app you will want to use (or create) a `recipe`, which is a set of functionality that allows you to exchange messages with a given channel, using a given state store, etc.
+# A guide to Prague
 
-As recipes emerge they will be posted here.
+## A note about terminology: Routes and Routers
 
-## Prague samples
+Past versions of Prague were based on the [network message router](http://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageRoutingIntro.html) pattern. Messages were *routed* through rules, resulting in a *route*. As Prague has evolved (or *pragueressed*, if you will), the message has disappeared as a first class object, and so Router and Route are legacy terminology. I am *extremely open* to suggestions for replacements.
 
-TBD
+## Overview
 
-# Tutorial
+A *Router* is a rule in the form of a function that produces an output called a *Route*.
 
-TBD
+## Routes
+
+There are several types of Routes:
+
+### No
+
+A *NoRoute* is the failure output of a rule.
+
+### Do
+
+A *DoRoute* contains asynchronous code to run (**do$** or **do**, depending if you prefer Observables or Promises).
+
+The ultimate goal of a Prague rule system is either a *DoRoute* (run some code) or a *NoRoute* (don't do anything).
+
+### Match
+
+A *MatchRoute* contains information extracted out of the system, such as an intent and/or entities. It contains a typed **value** such as a string or an array of entities, and a **score**, which is a floating-point number between 0 and 1 representing confidence in this information.
+
+A MatchRoute is not an end into itself. 
+
+### Template
+
+A *TemplateRoute* contains a schemetized *description* of code to run, in the form **action** (name of action) and **args** (arguments to that function). The **Templates** class allows you to define a dictionary of such actions.
+
+

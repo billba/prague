@@ -1,18 +1,17 @@
 {
     "compilerOptions": {
         "declaration": true,
-        "downlevelIteration": true,
         "lib": [
             "dom",
             "es2017"
         ],
         "module": "commonjs",
         "noImplicitAny": false,
-        "outDir": "./dist/",
+        "outDir": "./lib/",
         "target": "es5",
         "sourceMap": true
     },
     "files": [
-        "./prague.ts"
+        "src/prague.ts"
     ]
 }

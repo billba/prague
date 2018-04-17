@@ -122,7 +122,7 @@ export class TemplateRoute <
     ARGS = any,
 > extends ScoredRoute {
 
-    source: TemplateSource;
+    source?: TemplateSource;
 
     constructor (
         action: ACTION,

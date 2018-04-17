@@ -1,9 +1,0 @@
-/node_modules
-/tsconfig.json
-/*.config.js
-/.gitattributes
-/.gitignore
-/.npmignore
-/.vscode
-/test
-debug.log
