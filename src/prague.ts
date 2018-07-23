@@ -31,22 +31,22 @@ export abstract class Route <
 
     type$ () {
         return new Observable<string>(observer => {
-            if (this instanceof NoRoute)
+            if (this instanceof No)
                 observer.next('no');
             
-            if (this instanceof DoRoute)
+            if (this instanceof Do)
                 observer.next('do');
             
-            if (this instanceof MatchRoute)
+            if (this instanceof Match)
                 observer.next('match');
 
-            if (this instanceof TemplateRoute)
+            if (this instanceof Template)
                 observer.next('template');
 
-            if (this instanceof MultipleRoute)
+            if (this instanceof Multiple)
                 observer.next('multiple');
 
-            if (this instanceof ScoredRoute)
+            if (this instanceof Scored)
                 observer.next('scored');
             
             observer.next('route');
@@ -59,7 +59,7 @@ export abstract class Route <
 
 }
 
-export abstract class ScoredRoute <
+export abstract class Scored <
     VALUE = any,
 > extends Route<VALUE> {
 
@@ -70,7 +70,7 @@ export abstract class ScoredRoute <
     ) {
         super();
 
-        this.score = ScoredRoute.normalizedScore(score);
+        this.score = Scored.normalizedScore(score);
     }
 
     static normalizedScore (
@@ -92,7 +92,7 @@ export abstract class ScoredRoute <
         score?: number,
     ): this {
 
-        score = ScoredRoute.normalizedScore(score);
+        score = Scored.normalizedScore(score);
 
         return score === this.score
             ? this
@@ -103,16 +103,16 @@ export abstract class ScoredRoute <
         score?: number
     ) {
 
-        return this.cloneWithScore(ScoredRoute.combinedScore(this.score, ScoredRoute.normalizedScore(score)));
+        return this.cloneWithScore(Scored.combinedScore(this.score, Scored.normalizedScore(score)));
     }
 }
 
 export type TemplateSource = string | object;
 
-export class TemplateRoute <
+export class Template <
     ACTION = any,
     ARGS = any,
-> extends ScoredRoute {
+> extends Scored {
 
     source?: TemplateSource;
 
@@ -172,7 +172,7 @@ export class Templates <
         args?: ARGS,
         source?: SOURCE,
         score?: number,
-    ): TemplateRoute<ACTION, ARGS>;
+    ): Template<ACTION, ARGS>;
 
     route <
         ACTION extends keyof TEMPLATES,
@@ -181,7 +181,7 @@ export class Templates <
         action: ACTION,
         args?: ARGS,
         score?: number,
-    ): TemplateRoute<ACTION, ARGS>;
+    ): Template<ACTION, ARGS>;
 
     route <
         ACTION extends keyof TEMPLATES,
@@ -191,7 +191,7 @@ export class Templates <
         args?: ARGS,
         ... rest: any[],
     ) {
-        return new TemplateRoute(action, args, ... rest);
+        return new Template(action, args, ... rest);
     }
 
     router <ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]> (
@@ -216,20 +216,20 @@ export class Templates <
     }
 
     mapToDo (
-        route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>,
+        route: Template<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>,
         context?: CONTEXT,
     ) {
         const action: Action<TEMPLATES[keyof TEMPLATES]> = this.mapTemplateToAction(context)[route.action];
     
         return action
-            ? new DoRoute(() => action(route.args))
+            ? new Do(() => action(route.args))
             : route;
     }
 }
 
-export class MultipleRoute extends Route {
+export class Multiple extends Route {
     constructor (
-        public routes: TemplateRoute[],
+        public routes: Template[],
     ) {
         super();
     }
@@ -237,7 +237,7 @@ export class MultipleRoute extends Route {
 
 export type Action <ARG = undefined> = (arg?: ARG) => Observableable<any>;
 
-export class DoRoute extends Route<undefined> {
+export class Do extends Route<undefined> {
     constructor (
         private action: Action
     ) {
@@ -257,14 +257,14 @@ export function _do <
 > (
     action: Action<ARG>,
 ) { 
-    return Router.from((arg: ARG) => new DoRoute(() => action(arg)));
+    return Router.from((arg: ARG) => new Do(() => action(arg)));
 }
 
 export { _do as do }
 
-export class MatchRoute <
+export class Match <
     VALUE = any,
-> extends ScoredRoute<VALUE> {
+> extends Scored<VALUE> {
 
     constructor(
         public value: VALUE,
@@ -274,29 +274,31 @@ export class MatchRoute <
     }
 }
 
-export class NoRoute <
+const false$ = Observable.of(false);
+
+export class No <
     VALUE = any,
 > extends Route<VALUE> {
 
     static defaultReason = "none";
     
     constructor (
-        public reason = NoRoute.defaultReason,
+        public reason = No.defaultReason,
         public value?: VALUE,
     ) {
         super();
     }
 
     do$ () {
-        return Observable.of(false);
+        return false$;
     }
 
-    static do$ = () => Observable.of(false);
+    static do$ = () => false$;
 
-    static default = new NoRoute();
+    static default = new No();
 
     static defaultGetRoute$ () {
-        return Observable.of(NoRoute.default);
+        return Observable.of(No.default);
     }
 }
 
@@ -304,7 +306,7 @@ function _no <VALUE> (
     reason?: string,
     value?: VALUE,
 ) {
-    return Router.from(() => new NoRoute(reason, value));
+    return Router.from(() => new No(reason, value));
 }
 
 export { _no as no }
@@ -336,7 +338,7 @@ export class Router <
     ) {
 
         if (router == null)
-            this.route$ = NoRoute.defaultGetRoute$;
+            this.route$ = No.defaultGetRoute$;
         else if (router instanceof Router)
             this.route$ = router.route$;
         else if (typeof router === 'function')
@@ -357,18 +359,18 @@ export class Router <
     ): Route<VALUE> {
 
         if (route == null)
-            return NoRoute.default;
+            return No.default;
 
         if (route instanceof Route)
             return route;
 
         if ((route as any).reason)
-            return new NoRoute((route as any).reason);
+            return new No((route as any).reason);
 
         if ((route as any).value)
-            return new MatchRoute((route as any).value);
+            return new Match((route as any).value);
 
-        return new MatchRoute(route as VALUE);
+        return new Match(route as VALUE);
     };
 
     static from <
@@ -438,7 +440,7 @@ export class Router <
     }
 
     mapMultiple (
-        router: AnyRouter<MultipleRoute>,
+        router: AnyRouter<Multiple>,
     ) {
         return this.mapByType({
             multiple: router
@@ -454,7 +456,7 @@ export class Router <
     }
 
     default (
-        router: AnyRouter<NoRoute>,
+        router: AnyRouter<No>,
     ) {
         return this.mapByType({
             no: router
@@ -487,7 +489,7 @@ export class Router <
     }
 }
 
-const noRouter = new Router(NoRoute.defaultGetRoute$);
+const noRouter = new Router(No.defaultGetRoute$);
 
 const firstError = new Error("first routers can only return TemplateRoute, DoRoute, and NoRoute");
 
@@ -502,16 +504,16 @@ export function first (
             .route$()
         )
         .filter(route => {
-            if (route instanceof TemplateRoute || route instanceof DoRoute)
+            if (route instanceof Template || route instanceof Do)
                 return true;
 
-            if (route instanceof NoRoute)
+            if (route instanceof No)
                 return false;
 
             throw firstError;
         })
         .take(1) // so that we don't keep going through routers after we find one that matches
-        .defaultIfEmpty(NoRoute.default)
+        .defaultIfEmpty(No.default)
     );
 }
 
@@ -546,13 +548,13 @@ export function best (
             .route$()
         )
         .flatMap(route => {
-            if (route instanceof NoRoute)
-                return Observable.empty<TemplateRoute>();
+            if (route instanceof No)
+                return Observable.empty<Template>();
 
-            if (route instanceof TemplateRoute)
+            if (route instanceof Template)
                 return Observable.of(route);
             
-            if (route instanceof MultipleRoute)
+            if (route instanceof Multiple)
                 return Observable.from(route.routes);
 
             throw bestError;
@@ -564,12 +566,12 @@ export function best (
             .toArray()
             .map(routes => {
                 if (routes.length === 0)
-                    return NoRoute.default;
+                    return No.default;
 
                 if (routes.length === 1)
                     return routes[0];
 
-                return new MultipleRoute(routes)
+                return new Multiple(routes)
             })
         )
     )
@@ -587,12 +589,12 @@ export interface MapTypeToRouteClass <
     VALUE,
 > {
     route: Route<VALUE>,
-    scored: ScoredRoute<VALUE>,
-    do: DoRoute,
-    match: MatchRoute<VALUE>,
-    template: TemplateRoute,
-    multiple: MultipleRoute,
-    no: NoRoute<VALUE>,
+    scored: Scored<VALUE>,
+    do: Do,
+    match: Match<VALUE>,
+    template: Template,
+    multiple: Multiple,
+    no: No<VALUE>,
     default: Route,
 }
 
@@ -608,21 +610,23 @@ const mapRouteIdentity = <
 
 const getMatchError = new Error("match's matchRouter should only return MatchRoute or NoRoute");
 
+const defaultGetMatchError = () => {
+    throw getMatchError;
+}
+
 export function match <
     VALUE,
 > (
     getMatch: AnyRouter<undefined, VALUE>,
-    mapMatchRoute: AnyRouter<MatchRoute<VALUE>>,
-    mapNoRoute?: AnyRouter<NoRoute<VALUE>>,
+    mapMatchRoute: AnyRouter<Match<VALUE>>,
+    mapNoRoute?: AnyRouter<No<VALUE>>,
 ) {
     return Router
         .from(getMatch)
         .mapByType({
             match: mapMatchRoute,
             no: mapNoRoute || mapRouteIdentity,
-            default: () => {
-                throw getMatchError;
-            }
+            default: defaultGetMatchError,
         });
 }
 
@@ -634,8 +638,8 @@ const ifPredicateError = new Error("predicate must have value of true or false")
 
 export function _if (
     predicate: AnyRouter<undefined, boolean>,
-    mapMatchRoute: AnyRouter<MatchRoute<boolean>>,
-    mapNoRoute?: AnyRouter<NoRoute<boolean>>,
+    mapMatchRoute: AnyRouter<Match<boolean>>,
+    mapNoRoute?: AnyRouter<No<boolean>>,
 ) {
     return match<boolean>(
         Router
@@ -646,7 +650,7 @@ export function _if (
                         return route;
 
                     if (route.value === false)
-                        return NoRoute.default;
+                        return No.default;
 
                     throw ifPredicateError;
                 }
@@ -665,7 +669,7 @@ export const doable = <
 > (
     route: Route<VALUE>,
 ) => {
-    if (!(route instanceof DoRoute) && !(route instanceof NoRoute))
+    if (!(route instanceof Do) && !(route instanceof No))
         throw doError;
 }
 

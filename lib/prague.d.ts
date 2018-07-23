@@ -10,7 +10,7 @@ export declare abstract class Route<VALUE = any> {
     do(): Promise<boolean>;
     type$(): Observable<string>;
 }
-export declare abstract class ScoredRoute<VALUE = any> extends Route<VALUE> {
+export declare abstract class Scored<VALUE = any> extends Route<VALUE> {
     score: number;
     constructor(score?: number);
     static normalizedScore(score?: number): number;
@@ -19,7 +19,7 @@ export declare abstract class ScoredRoute<VALUE = any> extends Route<VALUE> {
     cloneWithCombinedScore(score?: number): this;
 }
 export declare type TemplateSource = string | object;
-export declare class TemplateRoute<ACTION = any, ARGS = any> extends ScoredRoute {
+export declare class Template<ACTION = any, ARGS = any> extends Scored {
     action: ACTION;
     args: ARGS;
     source?: TemplateSource;
@@ -33,39 +33,39 @@ export declare type MapTemplateToAction<TEMPLATES> = {
 export declare class Templates<TEMPLATES, CONTEXT = any, SOURCE extends TemplateSource = string> {
     mapTemplateToAction: (context: CONTEXT) => Partial<MapTemplateToAction<TEMPLATES>>;
     constructor(mapTemplateToAction: (context: CONTEXT) => Partial<MapTemplateToAction<TEMPLATES>>);
-    route<ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]>(action: ACTION, args?: ARGS, source?: SOURCE, score?: number): TemplateRoute<ACTION, ARGS>;
-    route<ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]>(action: ACTION, args?: ARGS, score?: number): TemplateRoute<ACTION, ARGS>;
+    route<ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]>(action: ACTION, args?: ARGS, source?: SOURCE, score?: number): Template<ACTION, ARGS>;
+    route<ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]>(action: ACTION, args?: ARGS, score?: number): Template<ACTION, ARGS>;
     router<ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]>(action: ACTION, args?: ARGS, source?: SOURCE, score?: number): Router;
     router<ACTION extends keyof TEMPLATES, ARGS extends TEMPLATES[ACTION]>(action: ACTION, args?: ARGS, score?: number): Router;
-    mapToDo(route: TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>, context?: CONTEXT): TemplateRoute<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]> | DoRoute;
+    mapToDo(route: Template<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]>, context?: CONTEXT): Template<keyof TEMPLATES, TEMPLATES[keyof TEMPLATES]> | Do;
 }
-export declare class MultipleRoute extends Route {
-    routes: TemplateRoute[];
-    constructor(routes: TemplateRoute[]);
+export declare class Multiple extends Route {
+    routes: Template[];
+    constructor(routes: Template[]);
 }
 export declare type Action<ARG = undefined> = (arg?: ARG) => Observableable<any>;
-export declare class DoRoute extends Route<undefined> {
+export declare class Do extends Route<undefined> {
     private action;
     constructor(action: Action);
     do$(): Observable<boolean>;
 }
-export declare function _do<ARG = undefined>(action: Action<ARG>): Router<ARG, DoRoute>;
+export declare function _do<ARG = undefined>(action: Action<ARG>): Router<ARG, Do>;
 export { _do as do };
-export declare class MatchRoute<VALUE = any> extends ScoredRoute<VALUE> {
+export declare class Match<VALUE = any> extends Scored<VALUE> {
     value: VALUE;
     constructor(value: VALUE, score?: number);
 }
-export declare class NoRoute<VALUE = any> extends Route<VALUE> {
+export declare class No<VALUE = any> extends Route<VALUE> {
     reason: string;
     value: VALUE;
     static defaultReason: string;
     constructor(reason?: string, value?: VALUE);
     do$(): Observable<boolean>;
     static do$: () => Observable<boolean>;
-    static default: NoRoute<any>;
-    static defaultGetRoute$(): Observable<NoRoute<any>>;
+    static default: No<any>;
+    static defaultGetRoute$(): Observable<No<any>>;
 }
-declare function _no<VALUE>(reason?: string, value?: VALUE): Router<{}, NoRoute<VALUE>>;
+declare function _no<VALUE>(reason?: string, value?: VALUE): Router<{}, No<VALUE>>;
 export { _no as no };
 export declare type GetRoute<ARG = undefined, VALUE = any> = (arg?: ARG) => Observableable<Route<VALUE> | VALUE>;
 export declare type AnyRouter<ARG = undefined, VALUE = any> = GetRoute<ARG, VALUE> | Router<ARG, VALUE> | ((arg?: ARG) => Observableable<Router<undefined, VALUE>>);
@@ -80,9 +80,9 @@ export declare class Router<ARG = undefined, VALUE = any> {
     map(mapRoute: AnyRouter<Route<VALUE>>): Router<ARG, any>;
     mapByType(mapTypeToRouter: Partial<MapTypeToRouter<VALUE>>): Router<ARG, any>;
     mapTemplate<TEMPLATES, CONTEXT>(templates: Templates<TEMPLATES>, context?: CONTEXT): Router<ARG, any>;
-    mapMultiple(router: AnyRouter<MultipleRoute>): Router<ARG, any>;
+    mapMultiple(router: AnyRouter<Multiple>): Router<ARG, any>;
     tap<VALUE>(fn: (route: Route<VALUE>) => Observableable<any>): Router<ARG, any>;
-    default(router: AnyRouter<NoRoute>): Router<ARG, any>;
+    default(router: AnyRouter<No>): Router<ARG, any>;
     beforeDo(action: Action): Router<ARG, any>;
     afterDo(action: Action): Router<ARG, any>;
 }
@@ -92,20 +92,20 @@ export declare function best(...routers: AnyRouter[]): Router;
 export declare function noop(action: Action): Router<{}, any>;
 export interface MapTypeToRouteClass<VALUE> {
     route: Route<VALUE>;
-    scored: ScoredRoute<VALUE>;
-    do: DoRoute;
-    match: MatchRoute<VALUE>;
-    template: TemplateRoute;
-    multiple: MultipleRoute;
-    no: NoRoute<VALUE>;
+    scored: Scored<VALUE>;
+    do: Do;
+    match: Match<VALUE>;
+    template: Template;
+    multiple: Multiple;
+    no: No<VALUE>;
     default: Route;
 }
 export declare type RouteTypes<VALUE> = keyof MapTypeToRouteClass<VALUE>;
 export declare type MapTypeToRouter<VALUE> = {
     [P in RouteTypes<VALUE>]: AnyRouter<MapTypeToRouteClass<VALUE>[P]>;
 };
-export declare function match<VALUE>(getMatch: AnyRouter<undefined, VALUE>, mapMatchRoute: AnyRouter<MatchRoute<VALUE>>, mapNoRoute?: AnyRouter<NoRoute<VALUE>>): Router<undefined, any>;
-export declare function _if(predicate: AnyRouter<undefined, boolean>, mapMatchRoute: AnyRouter<MatchRoute<boolean>>, mapNoRoute?: AnyRouter<NoRoute<boolean>>): Router<undefined, any>;
+export declare function match<VALUE>(getMatch: AnyRouter<undefined, VALUE>, mapMatchRoute: AnyRouter<Match<VALUE>>, mapNoRoute?: AnyRouter<No<VALUE>>): Router<undefined, any>;
+export declare function _if(predicate: AnyRouter<undefined, boolean>, mapMatchRoute: AnyRouter<Match<boolean>>, mapNoRoute?: AnyRouter<No<boolean>>): Router<undefined, any>;
 export { _if as if };
 export declare const doable: <VALUE>(route: Route<VALUE>) => void;
 export declare function _switch(getKey: GetRoute<undefined, string>, mapKeyToRouter: Record<string, GetRoute>): Router<undefined, any>;
