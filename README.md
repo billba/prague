@@ -5,7 +5,6 @@ An experimental rule system handy for intepreting user input, great for adding c
 Major features of Prague:
 * strongly-typed when using TypeScript
 * deeply asynchronous via RxJS
-* 
 
 Some types of applications you could build with Prague:
 * OS shell
@@ -20,7 +19,7 @@ Some types of applications you could build with Prague:
 * `npm run build` (or `npm run watch` to build on file changes)
 
 ## To add to your app
-`npm install -S prague-fluent`
+`npm install prague`
 
 # A guide to Prague
 
