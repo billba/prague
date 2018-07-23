@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 export declare type Observableable<T> = T | Observable<T> | Promise<T>;
-export declare function toObservable<T>(t: Observableable<T>): Observable<T>;
+export declare const toObservable: <T>(t: Observableable<T>) => Observable<T>;
 export interface ValidatorResult<V> {
     value?: V;
     reason?: string;
@@ -45,7 +45,9 @@ export declare class MultipleRoute extends Route {
 }
 export declare type Action<ARG = undefined> = (arg?: ARG) => Observableable<any>;
 export declare class DoRoute extends Route<undefined> {
+    private action;
     constructor(action: Action);
+    do$(): Observable<boolean>;
 }
 export declare function _do<ARG = undefined>(action: Action<ARG>): Router<ARG, DoRoute>;
 export { _do as do };
@@ -58,6 +60,7 @@ export declare class NoRoute<VALUE = any> extends Route<VALUE> {
     value: VALUE;
     static defaultReason: string;
     constructor(reason?: string, value?: VALUE);
+    do$(): Observable<boolean>;
     static do$: () => Observable<boolean>;
     static default: NoRoute<any>;
     static defaultGetRoute$(): Observable<NoRoute<any>>;
