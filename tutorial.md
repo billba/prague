@@ -450,7 +450,9 @@ const botLogic = (c: TurnContext) => {
 }
 ```
 
-Now we're going to templatize the actions:
+Now we're going to:
+* use a helper for `regExp`
+* templatize the actions
 
 ```ts 
 const botLogic = (c: TurnContext) => {
