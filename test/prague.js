@@ -4,7 +4,7 @@ const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
 const p = require('../lib/prague.js');
-const { Observable } = require('rxjs');
+const { of, empty } = require('rxjs');
 
 const foo = {
     foo: "foo"
@@ -79,21 +79,21 @@ describe('p.toObservable', () => {
     });
 
     it("should convert an Observable<number> to an observable", (done) => {
-        p.toObservable(Observable.of(5))
+        p.toObservable(of(5))
             .subscribe(n => {
                 expect(n).to.eql(5);
             }, passErr, done);       
     });
 
     it("should convert an Observable<string> to an observable", (done) => {
-        p.toObservable(Observable.of("Prague"))
+        p.toObservable(of("Prague"))
             .subscribe(n => {
                 expect(n).to.eql("Prague");
             }, passErr, done);       
     });
 
     it("should convert an Observable<array> to an observable", (done) => {
-        p.toObservable(Observable.of([1, 2, 3]))
+        p.toObservable(of([1, 2, 3]))
             .subscribe(n => {
                 expect(n).to.eql([1, 2, 3]);
             }, passErr, done);       
@@ -128,21 +128,21 @@ describe('p.toObservable', () => {
     });
 
     it("should convert Observable<null> to an observable", (done) => {
-        p.toObservable(Observable.of(null))
+        p.toObservable(of(null))
             .subscribe(n => {
                 expect(n).to.eql(null);
             }, passErr, done);       
     });
 
     it("should convert Observable<undefined> to an observable", (done) => {
-        p.toObservable(Observable.of(undefined))
+        p.toObservable(of(undefined))
             .subscribe(n => {
                 expect(n).to.eql(undefined);
             }, passErr, done);       
     });
 
     it("should complete and never emit on Observable.empty()", (done) => {
-        p.toObservable(Observable.empty())
+        p.toObservable(empty())
             .subscribe(throwErr, passErr, done);       
     });
 });

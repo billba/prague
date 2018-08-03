@@ -91,7 +91,7 @@ export declare class Router<ARGS extends any[], VALUE = any> {
     beforeDo(action: Action<[]>): Router<ARGS, any>;
     afterDo(action: Action<[]>): Router<ARGS, any>;
 }
-export declare function first<ARGS extends any[]>(...routers: (AnyRouter<ARGS> | AnyRouter<[]>)[]): Router<ARGS, any>;
+export declare function first<ARGS extends any[]>(...routers: (AnyRouter<ARGS> | AnyRouter<[]>)[]): Router<ARGS, {}>;
 export declare function best<ARGS extends any[]>(tolerance: number, ...routers: (AnyRouter<ARGS> | AnyRouter<[]>)[]): Router<ARGS>;
 export declare function best<ARGS extends any[]>(...routers: (AnyRouter<ARGS> | AnyRouter<[]>)[]): Router<ARGS>;
 export declare function noop(action: Action<[]>): Router<[], any>;

@@ -1,4 +1,5 @@
-import { Observable } from 'rxjs';
+import { Observable, of, from, empty } from 'rxjs';
+import { take, map, flatMap, concatMap, mapTo, filter, defaultIfEmpty, toArray, takeWhile } from 'rxjs/operators';
 
 export type Observableable <T> = T | Observable<T> | Promise<T>;
 
@@ -6,10 +7,10 @@ export const toObservable = <T> (
     t: Observableable<T>,
 ) =>
     t instanceof Observable
-        ? t.take(1)
+        ? t.pipe(take(1))
         : t instanceof Promise
-            ? Observable.fromPromise<T>(t)
-            : Observable.of(t);
+            ? from(t)
+            : of(t);
 
 export interface ValidatorResult <V> {
     value?: V;
@@ -247,11 +248,11 @@ export class Do extends Route<any> {
     }
 
     do$ () {
-        return Observable
-            .of(this.action)
-            .map(action => action())
-            .flatMap(toObservable)
-            .mapTo(true);
+        return of(this.action).pipe(
+            map(action => action()),
+            flatMap(toObservable),
+            mapTo(true)
+        );  
     }
 }
 
@@ -280,7 +281,7 @@ export class Match <
     }
 }
 
-const false$ = Observable.of(false);
+const false$ = of(false);
 
 export class No <
     VALUE = any,
@@ -302,7 +303,7 @@ export class No <
     static default = new No();
 
     static defaultGetRoute$ () {
-        return Observable.of(No.default);
+        return of(No.default);
     }
 }
 
@@ -340,11 +341,11 @@ export class Router <
         else if (router instanceof Router)
             this.route$ = router.route$;
         else if (typeof router === 'function')
-            this.route$ = (...args: ARGS) => Observable
-                .of(router)
-                .map(router => router(...args))
-                .flatMap(toObservable)
-                .flatMap(result => Observable.of(Router.normalizedRoute(result)));
+            this.route$ = (...args: ARGS) => of(router).pipe(
+                map(router => router(...args)),
+                flatMap(toObservable),
+                flatMap(result => of(Router.normalizedRoute(result)))
+            );
         else
             throw routerNotFunctionError;
     }
@@ -399,7 +400,9 @@ export class Router <
     ) {
         return this
             .route$(...args)
-            .flatMap(route => route.do$());
+            .pipe(
+                flatMap(route => route.do$())
+            );
     }
 
     do (
@@ -415,7 +418,9 @@ export class Router <
     ) {
         return new Router((...args: ARGS) => this
             .route$(...args)
-            .flatMap(route => Router.from(mapRoute).route$(route))
+            .pipe(
+                flatMap(route => Router.from(mapRoute).route$(route))
+            )
         );
     }
 
@@ -424,11 +429,13 @@ export class Router <
     ) {
         return this.map(route => route
             .type$()
-            .map(type => (mapTypeToRouter as Record<string, Router<any>>)[type]) // workaround for TypeScript bug
-            .filter(router => !!router)
-            .take(1)
-            .flatMap(router => Router.from(router).route$(route))
-            .defaultIfEmpty(route)
+            .pipe(
+                map(type => (mapTypeToRouter as Record<string, Router<any>>)[type]), // workaround for TypeScript bug
+                filter(router => !!router),
+                take(1),
+                flatMap(router => Router.from(router).route$(route)),
+                defaultIfEmpty(route),
+            )
         );
     }
 
@@ -465,7 +472,9 @@ export class Router <
     tap (
         fn: Function,
     ) {
-        return this.map(route => toObservable(fn(route)).mapTo(route));
+        return this.map(route => toObservable(fn(route)).pipe(
+            mapTo(route)
+        ));
     }
 
     default (
@@ -482,8 +491,9 @@ export class Router <
         return this
             .tap(doable)
             .mapByType({
-                do: _do(route => toObservable(action())
-                    .flatMap(_ => route.do$())
+                do: _do(route => toObservable(action()).pipe(
+                        flatMap(_ => route.do$())
+                    )
                 )
             });
     }
@@ -496,7 +506,9 @@ export class Router <
             .mapByType({
                 do: _do(route => route
                     .do$()
-                    .flatMap(_ => toObservable(action()))
+                    .pipe(
+                        flatMap(_ => toObservable(action()))
+                    )
                 )
             });
     }
@@ -511,14 +523,13 @@ export function first <
 > (
     ...routers: (AnyRouter<ARGS> | AnyRouter<[]>)[]
 ) {
-    return Router.from((...args: ARGS) => Observable
-        .from(routers)
+    return Router.from((...args: ARGS) => from(routers).pipe(
         // we put concatMap here because it forces everything after it to execute serially
-        .concatMap(router => Router
+        concatMap(router => Router
             .from(router as AnyRouter<any>)
             .route$(...args)
-        )
-        .filter(route => {
+        ),
+        filter(route => {
             if (route instanceof NamedAction || route instanceof Do)
                 return true;
 
@@ -526,10 +537,10 @@ export function first <
                 return false;
             
             throw firstError;
-        })
-        .take(1) // so that we don't keep going through routers after we find one that matches
-        .defaultIfEmpty(No.default)
-    );
+        }),
+        take(1), // so that we don't keep going through routers after we find one that matches
+        defaultIfEmpty(No.default)
+    ));
 }
 
 const bestError = new Error('best routers can only return TemplateRoute and NoRoute');
@@ -560,30 +571,28 @@ export function best (
         routers = args;
     }
 
-    return Router.from((... args: any[]) => Observable
-        .from(routers)
-        .flatMap(router => Router
+    return Router.from((... args: any[]) => from(routers).pipe(
+        flatMap(router => Router
             .from(router)
             .route$(... args)
-        )
-        .flatMap(route => {
+        ),
+        flatMap(route => {
             if (route instanceof No)
-                return Observable.empty<NamedAction>();
+                return empty();
 
             if (route instanceof NamedAction)
-                return Observable.of(route);
+                return of(route);
             
             if (route instanceof Multiple)
-                return Observable.from(route.routes);
+                return from(route.routes);
 
             throw bestError;
-        })
-        .toArray()
-        .flatMap(routes => Observable
-            .from(routes.sort((a, b) => b.score - a.score))
-            .takeWhile(route => route.score + tolerance >= routes[0].score)
-            .toArray()
-            .map(routes => {
+        }),
+        toArray(),
+        flatMap(routes => from(routes.sort((a, b) => b.score - a.score)).pipe(
+            takeWhile(route => route.score + tolerance >= routes[0].score),
+            toArray(),
+            map(routes => {
                 if (routes.length === 0)
                     return No.default;
 
@@ -592,8 +601,8 @@ export function best (
 
                 return new Multiple(routes);
             })
-        )
-    )
+        ))
+    ))
 }
 
 export function noop (

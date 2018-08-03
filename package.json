@@ -18,6 +18,6 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
-    "rxjs": "5.5.11"
+    "rxjs": "6.2.2"
   }
 }
