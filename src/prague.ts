@@ -415,7 +415,7 @@ export class Router <
     ) {
         return new Router((...args: ARGS) => this
             .route$(...args)
-            .flatMap(route => Router.from(mapRoute).route$(route)) // RxJS weirdness - should allow me to pass just "Router.from(mapRoute).route$""
+            .flatMap(route => Router.from(mapRoute).route$(route))
         );
     }
 
