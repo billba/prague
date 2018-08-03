@@ -71,8 +71,7 @@ export declare class No<VALUE = any> extends Route<VALUE> {
 }
 declare function _no<VALUE>(reason?: string, value?: VALUE): Router<[], No<VALUE>>;
 export { _no as no };
-export declare type GetRoute<ARGS extends any[], VALUE = any> = Action<ARGS, Route<VALUE> | VALUE>;
-export declare type AnyRouter<ARGS extends any[], VALUE = any> = Router<ARGS, VALUE> | GetRoute<ARGS, VALUE> | Action<ARGS, Router<[], VALUE>>;
+export declare type AnyRouter<ARGS extends any[], VALUE = any> = Router<ARGS, VALUE> | Action<ARGS, Route<VALUE> | VALUE>;
 export declare class Router<ARGS extends any[], VALUE = any> {
     route$: (...args: ARGS) => Observable<Route<VALUE>>;
     route(...args: ARGS): Promise<Route<VALUE>>;

@@ -315,17 +315,12 @@ function _no <VALUE> (
 
 export { _no as no }
 
-export type GetRoute <
-    ARGS extends any[],
-    VALUE = any,
-> = Action<ARGS, Route<VALUE> | VALUE>;
-
 const routerNotFunctionError = new Error('router must be a function');
 
 export type AnyRouter <
     ARGS extends any[],
     VALUE = any,
-> = Router<ARGS, VALUE> | GetRoute<ARGS, VALUE> | Action<ARGS, Router<[], VALUE>>;
+> = Router<ARGS, VALUE> | Action<ARGS, Route<VALUE> | VALUE>;
 
 export class Router <
     ARGS extends any[],
@@ -340,7 +335,6 @@ export class Router <
     constructor (
         router?: AnyRouter<ARGS, VALUE>
     ) {
-
         if (router == null)
             this.route$ = No.defaultGetRoute$;
         else if (router instanceof Router)
@@ -350,10 +344,7 @@ export class Router <
                 .of(router)
                 .map(router => router(...args))
                 .flatMap(toObservable)
-                .flatMap(result => result instanceof Router
-                    ? result.route$()
-                    : Observable.of(Router.normalizedRoute(result))
-                );
+                .flatMap(result => Observable.of(Router.normalizedRoute(result)));
         else
             throw routerNotFunctionError;
     }

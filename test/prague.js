@@ -597,21 +597,6 @@ describe('new Router', () => {
         expect(() => new p.Router("hello")).throws;
     });
 
-    it('should create a Router from arg => Router', (done) => {
-        let handled;
-        let router = (arg) => p.do(() => { handled = arg; });
-        new p
-            .Router(router)
-            .tap(route => {
-                expect(route instanceof p.Do).to.be.true;
-            })
-            .do$(foo)
-            .subscribe(t => {
-                expect(t).to.be.true;
-                expect(handled).to.eql(foo);
-            }, passErr, done)
-    });
-
     it('should create a Router returning Match from arg => value', (done) => {
         let handled;
         let router = (arg) => "hi";
