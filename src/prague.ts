@@ -516,28 +516,19 @@ export class Router <
 
 const noRouter = new Router(No.defaultGetRoute$);
 
-const firstError = new Error("first routers can only return TemplateRoute, DoRoute, and NoRoute");
-
 export function first <
     ARGS extends any[],
+    VALUE
 > (
-    ...routers: (AnyRouter<ARGS> | AnyRouter<[]>)[]
-) {
+    ...routers: (AnyRouter<ARGS, VALUE> | AnyRouter<[], VALUE>)[]
+): Router<ARGS, VALUE> {
     return Router.from((...args: ARGS) => from(routers).pipe(
         // we put concatMap here because it forces everything after it to execute serially
         concatMap(router => Router
             .from(router as AnyRouter<any>)
             .route$(...args)
         ),
-        filter(route => {
-            if (route instanceof NamedAction || route instanceof Do)
-                return true;
-
-            if (route instanceof No)
-                return false;
-            
-            throw firstError;
-        }),
+        filter(route => !(route instanceof No)),
         take(1), // so that we don't keep going through routers after we find one that matches
         defaultIfEmpty(No.default)
     ));
@@ -703,3 +694,5 @@ export const doable = <
     if (!(route instanceof Do) && !(route instanceof No))
         throw doError;
 }
+
+export * from './util';

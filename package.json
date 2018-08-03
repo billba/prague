@@ -1,9 +1,9 @@
 {
   "name": "prague",
-  "version": "0.19.0",
+  "version": "0.19.1",
   "description": "EDSL for rules",
-  "main": "lib/prague.js",
-  "types": "lib/prague.d.ts",
+  "main": "lib/src/prague.js",
+  "types": "lib/src/prague.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
