@@ -17,7 +17,7 @@ export interface ValidatorResult <V> {
     reason?: string;
 }
 
-const routeDoError = new Error('route is not a doRoute or noRoute, cannot do()');
+const routeDoError = new Error('route is not a Do or No, cannot do()');
 
 export abstract class Route <
     VALUE = any
@@ -261,9 +261,6 @@ function _do <
 > (
     action: Action<ARGS>,
 ) { 
-    if (action.length > 1)
-        throw "Actions may only have zero or one argument";
-
     return Router.from((...args: ARGS) => new Do(() => action(...args)));
 }
 
@@ -520,7 +517,7 @@ export function first <
     ARGS extends any[],
     VALUE
 > (
-    ...routers: (AnyRouter<ARGS, VALUE> | AnyRouter<[], VALUE>)[]
+    ...routers: AnyRouter<ARGS, VALUE>[]
 ): Router<ARGS, VALUE> {
     return Router.from((...args: ARGS) => from(routers).pipe(
         // we put concatMap here because it forces everything after it to execute serially
