@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "description": "EDSL for rules",
   "main": "lib/prague.js",
   "types": "lib/prague.d.ts",
@@ -14,10 +14,10 @@
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-subset": "^1.6.0",
-    "mocha": "^5.1.0",
-    "typescript": "2.8.1"
+    "mocha": "^5.2.0",
+    "typescript": "^3.0.1"
   },
   "dependencies": {
-    "rxjs": "5.5.10"
+    "rxjs": "6.2.2"
   }
 }

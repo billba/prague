@@ -97,6 +97,8 @@ const botLogic = (text: string) => [
     });
 ```
 
+introducing `first`
+
 ```ts
 const botLogic = (text: string) => p
     .first(
@@ -118,6 +120,8 @@ const botLogic = (text: string) => p
     .then(route => route.do());
 ```
 
+last bit can be replaced with `do`
+
 ```ts
 const botLogic = (text: string) => p
     .first(
@@ -137,6 +141,8 @@ const botLogic = (text: string) => p
     )
     .do();
 ```
+
+create router for each match
 
 ```ts
 const botLogic = (text: string) => p
@@ -160,14 +166,16 @@ const botLogic = (text: string) => p
     .do();
 ```
 
+custom Router.from(match function) function becomes `match`
+
 ```ts
 const botLogic = (text: string) => p
     .first(
-        p.ifGet(/I am (.*)/i.exec(text),
+        p.match(/I am (.*)/i.exec(text),
             matches => new p.DoRoute(() => bot.send(`Nice to meet you, ${matches[1]}`));
         ),
 
-        p.ifGet(/What's the weather like today?/i.exec(text),
+        p.match(/What's the weather like today?/i.exec(text),
             () => new p.DoRoute(() => bot.send(`It's Seattle, so let's say "rainy"`));
         ),
 
@@ -176,14 +184,16 @@ const botLogic = (text: string) => p
     .do();
 ```
 
+use factory method `p.do` instead of `new p.Do`
+
 ```ts
 const botLogic = (text: string) => p
     .first(
-        p.ifGet(/I am (.*)/i.exec(text),
+        p.match(/I am (.*)/i.exec(text),
             matches => p.do(() => bot.send(`Nice to meet you, ${matches[1]}`));
         ),
 
-        p.ifGet(/What's the weather like today?/i.exec(text),
+        p.match(/What's the weather like today?/i.exec(text),
             p.do(() => bot.send(`It's Seattle, so let's say "rainy"`));
         ),
 
@@ -192,14 +202,16 @@ const botLogic = (text: string) => p
     .do();
 ```
 
+simplified usage of `p.do` with param
+
 ```ts
 const botLogic = (text: string) => p
     .first(
-        p.ifGet(/I am (.*)/i.exec(text),
+        p.match(/I am (.*)/i.exec(text),
             p.do(matches => bot.send(`Nice to meet you, ${matches[1]}`));
         ),
 
-        p.ifGet(/What's the weather like today\?/i.exec(text),
+        p.match(/What's the weather like today\?/i.exec(text),
             p.do(() => bot.send(`It's Seattle, so let's say "rainy"`));
         ),
 
@@ -215,16 +227,17 @@ const botLogic = (text: string) => p
 Start with:
 
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     const matches = /I am (.*)/i.exec(c.request.text);
     if (matches)
         c.reply(`Nice to meet you, ${matches[1]}`);
 }
 ```
 
+Defer execution of action and rules:
 
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     const router = () => {
         const matches = /I am (.*)/i.exec(c.request.text);
         if (matches)
@@ -241,8 +254,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Simplify end logic by returning `NoRoute` instead of `undefined`.
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     const router = () => {
         const matches = /I am (.*)/i.exec(c.request.text);
         if (matches)
@@ -257,8 +272,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Introducing Prague via `p.Router.from()` and `.route()`
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.Router
         .from(() => {
             const matches = /I am (.*)/i.exec(c.request.text);
@@ -272,8 +289,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Simplifies down to `.do`
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.Router
         .from(() => {
             const matches = /I am (.*)/i.exec(c.request.text);
@@ -286,13 +305,15 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Separate out matching from action
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.Router
         .from(() => {
             const matches = /I am (.*)/i.exec(c.request.text));
             if (matches)
-                return MatchRoute(matches);
+                return new MatchRoute(matches);
             else
                 return new NoRoute();
 
@@ -307,8 +328,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Don't need `NoRoute` (`Router.from` does this for us)
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.Router
         .from(() => {
             const matches = /I am (.*)/i.exec(c.request.text));
@@ -325,8 +348,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+In fact, `Route.from` does matching for us too:
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.Router
         .from(() => /I am (.*)/i.exec(c.request.text))
         .map(route => {
@@ -339,8 +364,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+`mapByType` is a simpler way of dealing with different route types: 
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.Router
         .from(() => /I am (.*)/i.exec(c.request.text))
         .mapByType({
@@ -350,8 +377,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+`match` looks out just for `Match` routes. 
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.match(() => /I am (.*)/i.exec(c.request.text),
         matchRoute => new DoRoute(() => c.reply(`Nice to meet you, ${matchRoute.value[1]}`));
     })
@@ -359,8 +388,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+use `p.do` constructor instead of `new DoRoute`
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.match(() => /I am (.*)/i.exec(c.request.text),
         matchRoute => p.do(() => c.reply(`Nice to meet you, ${matchRoute.value[1]}`));
     })
@@ -368,8 +399,10 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Now we can bring the parameter inside:
+
 ```tsx
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p.match(() => /I am (.*)/i.exec(c.request.text),
         p.do(matchRoute => c.reply(`Nice to meet you, ${matchRoute.value[1]}`));
     })
@@ -377,16 +410,16 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
-Now add stuff
+Now add more conditions:
 
 ```tsx
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p
         .first(
-            p.ifGet(() => /I am (.*)/i.exec(c.request.text),
+            p.match(() => /I am (.*)/i.exec(c.request.text),
                 p.do(matchRoute => c.reply(`Nice to meet you, ${matchRoute.value[1]}`));
             }),
-            p.ifGet(() => /time/.exec(c.request.text),
+            p.match(() => /time/.exec(c.request.text),
                 p.do(() => c.reply(`It is ${new Date().toString()}`))
             )
         )
@@ -397,14 +430,16 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+`default` looks out just for `No` routes. 
+
 ```ts
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p
         .first(
-            p.ifGet(() => /I am (.*)/i.exec(c.request.text),
+            p.match(() => /I am (.*)/i.exec(c.request.text),
                 p.do(matchRoute => c.reply(`Nice to meet you, ${matchRoute.value[1]}`));
             }),
-            p.ifGet(() => /time/.exec(c.request.text),
+            p.match(() => /time/.exec(c.request.text),
                 p.do(() => c.reply(`It is ${new Date().toString()}`))
             )
         )
@@ -415,8 +450,12 @@ const botLogic = (c: BotContext) => {
 }
 ```
 
+Now we're going to:
+* use a helper for `regExp`
+* templatize the actions
+
 ```ts 
-const botLogic = (c: BotContext) => {
+const botLogic = (c: TurnContext) => {
     p
         .first(
             p.match(regExp(/I am (.*)/i, c),
