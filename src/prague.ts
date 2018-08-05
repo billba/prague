@@ -330,7 +330,7 @@ export class Router <
         return this.route$(...args).toPromise();
     }
 
-    constructor (
+    private constructor (
         router?: AnyRouter<ARGS, VALUE>
     ) {
         if (router == null)
@@ -511,7 +511,7 @@ export class Router <
     }
 }
 
-const noRouter = new Router(No.defaultGetRoute$);
+const noRouter = Router.from(No.defaultGetRoute$);
 
 export function first <
     ARGS extends any[],
