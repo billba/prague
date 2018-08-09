@@ -1,5 +1,5 @@
-import { Observable, from, of } from 'rxjs';
-import { take, map, flatMap, concatMap, filter, reduce, tap, mergeAll, mapTo, refCount } from 'rxjs/operators';
+import { Observable, from, of, empty } from 'rxjs';
+import { take, map, flatMap, concatMap, filter, reduce, tap, mergeAll, mapTo, refCount, toArray, takeWhile } from 'rxjs/operators';
 
 export type BaseType <T> =
     T extends Observable<infer BASETYPE> ? BASETYPE :
@@ -156,8 +156,10 @@ export function first <
     (...args: ARGS) => R0,
     (...args: ARGS) => R1,
     (...args: ARGS) => R2,
-    (...args: ARGS) => R3
+    (...args: ARGS) => R3,
+    (...args: ARGS) => R4
 ]): Xform<ARGS, Norm<R0 | R1 | R2 | R3 | R4>>;
+
 
 export function first <
     ARGS extends any[],
@@ -261,6 +263,118 @@ export function pipe (
     );
 }
 
+export class Multiple extends Result {
+    constructor (
+        public results: Result[],
+    ) {
+        super();
+    }
+}
+
+export function best <
+    ARGS extends any[],
+    R0,
+> (...args: [
+    (...args: ARGS) => R0
+]): Xform<ARGS, Norm<R0>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+> (...args: [
+    (...args: ARGS) => R0,
+    (...args: ARGS) => R1
+]): Xform<ARGS, Norm<R0 | R1>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+> (...args: [
+    (...args: ARGS) => R0,
+    (...args: ARGS) => R1,
+    (...args: ARGS) => R2
+]): Xform<ARGS, Norm<R0 | R1 | R2>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+> (...args: [
+    (...args: ARGS) => R0,
+    (...args: ARGS) => R1,
+    (...args: ARGS) => R2,
+    (...args: ARGS) => R3
+]): Xform<ARGS, Norm<R0 | R1 | R2 | R3>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+> (...args: [
+    (...args: ARGS) => R0,
+    (...args: ARGS) => R1,
+    (...args: ARGS) => R2,
+    (...args: ARGS) => R3,
+    (...args: ARGS) => R4
+]): Xform<ARGS, Norm<R0 | R1 | R2 | R3 | R4>>;
+
+export function best <
+    ARGS extends any[],
+> (...args:
+    ((...args: ARGS) => any)[]
+): Xform<ARGS, Result | undefined>;
+
+
+export function best (
+    ...args: any[]
+) {
+    // let tolerance: number;
+    // let transforms: ((...args: any[]) => any)[];
+
+    // if (typeof args[0] === 'function') {
+    //     tolerance = 0;
+    //     transforms = args;
+    // } else {
+    //     [tolerance, transforms] = args;
+    // }
+
+    let tolerance = 0;
+    let transforms: ((...args: any[]) => any)[] = args;
+
+    const _transforms = from(transforms.map(transform => _from(transform)));
+
+    return (...args: any[]) => _transforms.pipe(
+        flatMap(transform => transform(... args)),
+        flatMap(result => 
+            result === undefined ? empty() :
+            result instanceof Multiple ? from(result.results) :
+            of(result)
+        ),
+        toArray(),
+        flatMap(results => from(results.sort((a, b) => b.score - a.score)).pipe(
+            takeWhile(result => result.score + tolerance >= results[0].score),
+            toArray(),
+            map(results =>
+                results.length === 0 ? undefined :
+                results.length === 1 ? results[0] :
+                new Multiple(results)
+            ),
+        ))
+    );
+}
+
+export const defaultDisambiguator = _from(result =>
+    result instanceof Multiple ? result.results[0]
+    : result
+);
 
 export const _tap = <
     RESULT extends Result | undefined,

@@ -1,4 +1,4 @@
-import { Match, first, pipe, run, match, if as _if } from '../src/xform';
+import { Match, first, pipe, run, match, if as _if, best, defaultDisambiguator } from '../src/xform';
 import { re } from '../src/util';
 
 // const actions = new p.NamedActions(() => ({
@@ -16,6 +16,11 @@ const askTime = _if(
     () => () => console.log(`The time is ${new Date().toLocaleDateString()}`),
 );
 
+// const askTime = (t: string) => {
+//     if (t === "time")
+//       return () => console.log(`The time is ${new Date().toLocaleDateString()}`);
+//   }
+  
 const introduction = match(
     pipe(
         first(
@@ -31,9 +36,27 @@ const app = pipe(
     first(
         askTime,
         introduction,
+        t => () => console.log(`I don't understand "${t}"`),
     ),
-    run,
 );
 
-app("My name is Bill")
-    .subscribe(r => console.log("result", r));
+[
+    "My name is Bill",
+    "Je m'appelle Bill",
+    "time",
+    "I'm Bill",
+].map(t => pipe(
+        app,
+        run,
+    )(t)
+    .subscribe()
+)
+
+const options = pipe(
+        best(
+        () => new Match("bill", .85),
+        () => new Match("joe", .85),
+    ),
+    defaultDisambiguator,
+)()
+.subscribe(console.log)
