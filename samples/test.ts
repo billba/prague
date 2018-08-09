@@ -1,18 +1,39 @@
-import * as p from '../src/prague';
+import { Match, first, pipe, run, match, if as _if } from '../src/xform';
+import { re } from '../src/util';
 
-const greeter = p.first(
-    p.match(
-        p.first(
-            p.re(/my name is (.*)/i),
-            p.re(/je m'appelle (.*)/i)
-        ),
-        p.do(matches => {
-            console.log(`Nice to meet you, ${matches.value![1]}`);
-        })
-    ),
-    p.do(() => { console.log("I didn't catch that.") }),
+// const actions = new p.NamedActions(() => ({
+//     greeting(name: string) {
+//         console.log(`Nice to meet you, ${name}`);
+//     },
+//     farewell() {
+//         console.log(`Goodbye`);
+//     },
+// }));
+
+// _if looks for a truthy result and doesn't capture any matches
+const askTime = _if(
+    (t: string) => t === "time", 
+    () => () => console.log(`The time is ${new Date().toLocaleDateString()}`),
 );
 
-greeter.do("Aloha");
-greeter.do("My name is Bill");
-greeter.do("Je m'appelle Guillaume");
+const introduction = match(
+    pipe(
+        first(
+            re(/My name is (.*)/),
+            re(/Je m'appelle (.*)/),
+        ),
+        r => r instanceof Match ? r.value[1] : r,
+    ),
+    r => () => console.log(`Nice to meet you, ${r.value}`),
+);
+
+const app = pipe(
+    first(
+        askTime,
+        introduction,
+    ),
+    run,
+);
+
+app("My name is Bill")
+    .subscribe(r => console.log("result", r));

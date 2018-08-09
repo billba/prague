@@ -1,10 +1,12 @@
 import { Observable, from, of } from 'rxjs';
-import { take, map, flatMap, concatMap, filter, reduce } from 'rxjs/operators';
+import { take, map, flatMap, concatMap, filter, reduce, tap, mergeAll, mapTo, refCount } from 'rxjs/operators';
 
 export type BaseType <T> =
     T extends Observable<infer BASETYPE> ? BASETYPE :
     T extends Promise<infer BASETYPE> ? BASETYPE :
     T;
+
+export type Observableable<T> = Observable<T> | Promise<T> | T;
 
 export const toObservable = <T> (
     t: Observable<T> | Promise<T> | T,
@@ -13,25 +15,16 @@ export const toObservable = <T> (
     t instanceof Promise ? from(t) :
     of(t);
 
-abstract class Result {
+export abstract class Result {
 
-    private result = "result";
-}
-            
-class None extends Result {
+    score: number;
 
-    private none = "none";
-
-    private constructor() {
-        super();
+    constructor(score?: number) {
+        this.score = score === undefined || score > 1 ? 1 : score;
     }
-
-    static singleton = new None();
 }
 
-const none = None.singleton;
-
-class Action extends Result {
+export class Action extends Result {
      
     action: () => Observable<any>;
 
@@ -50,19 +43,18 @@ class Action extends Result {
     }
 }
 
-class Match <
-    VALUE
-> extends Result {
+export class Match <VALUE> extends Result {
 
     constructor (
         public value: VALUE,
+        score?: number,
     ) {
-        super();
+        super(score);
     }
 }
 
 type NormalizedResult<R> =
-    R extends undefined ? None :
+    R extends undefined | null ? undefined :
     R extends Result ? R :
     R extends () => any ? Action :
     Match<R>;
@@ -76,7 +68,7 @@ const normalizedResult = (
         return result;
 
     if (result == null)
-        return none;
+        return undefined;
 
     if (typeof result === 'function')
         return new Action(result);
@@ -84,39 +76,43 @@ const normalizedResult = (
     return new Match(result);
 };
 
-type Xform <
+export type Xform <
     ARGS extends any[],
-    RESULT extends Result = Result
+    RESULT extends Result | undefined,
 > = (...args: ARGS) => Observable<RESULT>;
+
+const none = () => of(undefined);
 
 function _from <
     ARGS extends any[],
     R,
 > (
     transform?: (...args: ARGS) => R,
-): Xform<ARGS, Norm<R>>;
+): Xform<ARGS, Norm<R>> {
 
-function _from (
-    transform: any,
-) {
+    if (!transform)
+        return none as any;
+
     if (typeof transform !== 'function')
         throw new Error("I can't transform that.");
 
-    return (...args: any[]) => of(transform).pipe(
+    return (...args: ARGS) => of(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        map(result => normalizedResult(result)),
+        map(result => normalizedResult(result) as Norm<R>),
     );
 }
 
-function first <
+export { _from as from }
+
+export function first <
     ARGS extends any[],
     R0,
 > (...args: [
     (...args: ARGS) => R0
 ]): Xform<ARGS, Norm<R0>>;
 
-function first <
+export function first <
     ARGS extends any[],
     R0,
     R1,
@@ -125,7 +121,7 @@ function first <
     (...args: ARGS) => R1
 ]): Xform<ARGS, Norm<R0 | R1>>;
 
-function first <
+export function first <
     ARGS extends any[],
     R0,
     R1,
@@ -136,7 +132,7 @@ function first <
     (...args: ARGS) => R2
 ]): Xform<ARGS, Norm<R0 | R1 | R2>>;
 
-function first <
+export function first <
     ARGS extends any[],
     R0,
     R1,
@@ -149,7 +145,7 @@ function first <
     (...args: ARGS) => R3
 ]): Xform<ARGS, Norm<R0 | R1 | R2 | R3>>;
 
-function first <
+export function first <
     ARGS extends any[],
     R0,
     R1,
@@ -163,13 +159,13 @@ function first <
     (...args: ARGS) => R3
 ]): Xform<ARGS, Norm<R0 | R1 | R2 | R3 | R4>>;
 
-function first <
+export function first <
     ARGS extends any[],
 > (...args:
     ((...args: ARGS) => any)[]
-): Xform<ARGS, Result>;
+): Xform<ARGS, Result | undefined>;
 
-function first (
+export function first (
     ...transforms: ((...args: any[]) => any)[]
 ) {
     const _transforms = from(transforms.map(transform => _from(transform)));
@@ -177,22 +173,22 @@ function first (
     return (...args: any[]) => _transforms.pipe(
         // we put concatMap here because it forces everything to after it to execute serially
         concatMap((transform, i) => transform(...args).pipe(
-            // ignore every No but the last one
-            filter(result => i === transforms.length - 1 || !(result instanceof None)),
+            // ignore every undefined but the last one
+            filter(result => i === transforms.length - 1 || result !== undefined),
         )),
         // Stop when we find one that matches
         take(1), 
     );
 }
 
-function pipe <
+export function pipe <
     ARGS extends any[],
     R0,
 > (...args: [
     (...args: ARGS) => R0
 ]): Xform<ARGS, Norm<R0>>;
 
-function pipe <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -201,7 +197,7 @@ function pipe <
     (arg: Norm<R0>) => R1
 ]): Xform<ARGS, Norm<R1>>;
 
-function pipe <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -212,7 +208,7 @@ function pipe <
     (arg: Norm<R1>) => R2
 ]): Xform<ARGS, Norm<R2>>;
 
-function pipe <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -225,7 +221,7 @@ function pipe <
     (arg: Norm<R2>) => R3
 ]): Xform<ARGS, Norm<R3>>;
 
-function pipe <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -240,38 +236,113 @@ function pipe <
     (arg: Norm<R2>) => R4
 ]): Xform<ARGS, Norm<R4>>;
 
-function pipe <
+export function pipe <
     ARGS extends any[],
 > (
-    transform: (...args: ARGS) => Result,
+    transform: (...args: ARGS) => Result | undefined,
     ...functions: ((... args: any[]) => Result)[]
-): Xform<ARGS, Result>;
+): Xform<ARGS, Result | undefined>;
 
-function pipe (
-    ...transforms: any[]
+export function pipe (
+    ...transforms: ((...args: any[]) => any)[]
 ) {
     const _transforms = from(transforms.map(transform => _from(transform)));
 
     return (...args: any[]) => _transforms.pipe(
-        reduce(
-            (args: any[], transform: Xform<any[], any>) => [transform(...args)],
-            args,
+        reduce<Xform<any[], Result | undefined>, Observable<any[]>>(
+            (args$, transform) => args$.pipe(
+                flatMap(args => transform(...args)),
+                map(result => [result])
+            ),
+            of(args)
         ),
-        map(x => x[0]),
-    )
+        mergeAll(),
+        map(results => results[0]),
+    );
 }
 
-const f = first(
-    (a: string) => a,
-    a => Promise.resolve("hi"),
-    a => "13",
-    a => of(new Match("hi")),
-)
 
-const p = pipe(
-    f,
-    // a => a,
-    x => () => console.log(x.value),
-    y => "Hi",
-    y => y
-)
+export const _tap = <
+    RESULT extends Result | undefined,
+> (
+    fn: (route: RESULT) => any,
+): Xform<[RESULT], RESULT> =>
+    (route: RESULT) => of(route).pipe(
+        map(route => fn(route)),
+        flatMap(toObservable),
+        mapTo(route)
+    );
+
+export { _tap as tap }
+
+export const run = _tap(result => {
+    if (result instanceof Action)
+        return result.action();
+});
+
+const getMatchError = new Error("matching function should only return MatchRoute or NoRoute");
+
+export function match <
+    ARGS extends any[],
+    VALUE,
+    ONMATCH,
+    ONNOMATCH,
+> (
+    getMatch: (... args: ARGS) => Observableable<null | undefined | VALUE | Match<VALUE>>,
+    onMatch: (match: Match<VALUE>) => ONMATCH,
+    onNoMatch?: () => ONNOMATCH,
+) {
+    const _getMatch  = _from(getMatch);
+    const _onMatch   = _from(onMatch);
+    const _onNoMatch = _from(onNoMatch);
+
+    return pipe(
+        _getMatch,
+        route => {
+            if (!route)
+                return _onNoMatch();
+
+            if (route instanceof Match)
+                return _onMatch(route);
+
+            throw getMatchError;
+        }
+    );
+}
+
+const ifPredicateError = new Error("predicate must return true or false");
+
+function _if <
+    ARGS extends any[],
+    ONMATCH,
+    ONNOMATCH,
+> (
+    predicate: (... args: ARGS) => any,
+    onMatch: () => ONMATCH,
+    onNoMatch?: () => ONNOMATCH,
+) {
+    return match(
+        pipe(
+            (... args: ARGS) => of(args).pipe(
+                map(args => predicate(...args)),
+                flatMap(toObservable),
+                map(result => result instanceof Match ? !!result.value : !!result),
+            ),
+            route => {
+                if (route instanceof Match) {
+                    if (route.value === true)
+                        return true;
+                    
+                    if (route.value === false)
+                        return undefined;
+                }
+
+                throw ifPredicateError;
+            },
+        ),
+        onMatch,
+        onNoMatch,
+    );
+}
+
+export { _if as if }
