@@ -1,5 +1,4 @@
-import { Match, first, pipe, run, match, if as _if, best, defaultDisambiguator } from '../src/xform';
-import { re } from '../src/util';
+import { Match, first, pipe, from, run, match, if as _if, best, defaultDisambiguator, re } from '../src/prague';
 
 // const actions = new p.NamedActions(() => ({
 //     greeting(name: string) {
@@ -55,6 +54,7 @@ const app = pipe(
 const options = pipe(
         best(
         () => new Match("bill", .85),
+        () => new Match("fred", .50),
         () => new Match("joe", .85),
     ),
     defaultDisambiguator,
