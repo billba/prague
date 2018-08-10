@@ -71,7 +71,6 @@ export function best <
     ((...args: ARGS) => any)[]
 ): Transform<ARGS, Result | undefined>;
 
-
 export function best (
     ...args: any[]
 ) {
