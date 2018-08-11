@@ -1,7 +1,7 @@
 import { describe, expect, passErr, throwErr, nullablevalues, values, } from './common';
 import { of, empty, from as observableFrom } from 'rxjs';
 import { toObservable, Action, Match, from} from '../src/prague';
-import { toArray, subscribeOn } from 'rxjs/operators';
+import { toArray } from 'rxjs/operators';
 
 describe("toObservable", () => {
     nullablevalues.map(value => {
