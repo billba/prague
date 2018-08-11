@@ -109,7 +109,7 @@ export function best (
     );
 }
 
-export const defaultDisambiguator = from(result =>
+export const defaultDisambiguator = from((result: Result) =>
     result instanceof Multiple ? result.results[0]
     : result
 );
