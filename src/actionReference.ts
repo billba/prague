@@ -1,6 +1,6 @@
 import { Result, from } from './prague';
 
-interface NamedActionOptions <
+interface ActionReferenceOptions <
     NAME = string,
 > {
     name: NAME,
@@ -8,7 +8,7 @@ interface NamedActionOptions <
     score?: number, 
 }
 
-export class NamedAction extends Result {
+export class ActionReference extends Result {
 
     name: string;
     source?: any;
@@ -20,12 +20,12 @@ export class NamedAction extends Result {
     );
 
     constructor (
-        options: NamedActionOptions,
+        options: ActionReferenceOptions,
         ...args: any[]
     );
     
     constructor (
-        nameOrOptions: string | NamedActionOptions,
+        nameOrOptions: string | ActionReferenceOptions,
         ... args: any[]
     ) {
         super(typeof nameOrOptions === 'string' ? undefined : nameOrOptions.score);
@@ -43,15 +43,15 @@ export class NamedAction extends Result {
 
 export type Actions = Record<string, (...args: any[]) => any>;
 
-export type Args <F extends Actions> = {
+type Args <F extends Actions> = {
     [P in keyof F]: F[P] extends (...args: infer ARGS) => any ? ARGS : never;
 }
 
 type Stubs<ACTIONS extends Actions> = {
-    [P in keyof Args<ACTIONS>]: (...args: Args<ACTIONS>[P]) => NamedAction
+    [P in keyof Args<ACTIONS>]: (...args: Args<ACTIONS>[P]) => ActionReference
 }
 
-export class NamedActions <
+export class ActionReferences <
     ACTIONS extends Actions,
     CONTEXTARGS extends any[],
 > {
@@ -64,7 +64,7 @@ export class NamedActions <
             .keys(actions(...new Array<any>(actions.length) as CONTEXTARGS))
             .reduce(
                 (stubbedActions, name) => {
-                    stubbedActions[name] = (...args: any[]) => new NamedAction(name, ...args);
+                    stubbedActions[name] = (...args: any[]) => new ActionReference(name, ...args);
                     return stubbedActions;
                 },
                 {} as Stubs<ACTIONS>
@@ -77,7 +77,7 @@ export class NamedActions <
         ...contextargs: CONTEXTARGS
     ) {
         return from((result: RESULT) => {
-            if (result instanceof NamedAction) {
+            if (result instanceof ActionReference) {
                 const action = this.actions(...contextargs)[result.name];
 
                 if (action)

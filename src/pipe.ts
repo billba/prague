@@ -1,6 +1,6 @@
-import { Result, Transform, Norm, from } from "./prague";
+import { Result, Transform, Norm, from, Observableable, toObservable, Action } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
-import { reduce, flatMap, map, mergeAll } from "rxjs/operators";
+import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
 
 export function pipe <
     ARGS extends any[],
@@ -60,8 +60,8 @@ export function pipe <
 export function pipe <
     ARGS extends any[],
 > (
-    transform: (...args: ARGS) => Result | undefined,
-    ...functions: ((... args: any[]) => Result)[]
+    transform: (...args: ARGS) => any,
+    ...functions: ((... args: any[]) => any)[]
 ): Transform<ARGS, Result | undefined>;
 
 export function pipe (
@@ -81,3 +81,23 @@ export function pipe (
         map(results => results[0]),
     );
 }
+
+export const _tap = <
+    RESULT extends Result | undefined,
+> (
+    fn: (route: RESULT) => any,
+): Transform<[RESULT], RESULT> =>
+    (route: RESULT) => observableOf(route).pipe(
+        map(route => fn(route)),
+        flatMap(toObservable),
+        mapTo(route)
+    );
+
+export { _tap as tap }
+
+export const run = _tap(result => {
+    if (result instanceof Action)
+        return result.action();
+});
+
+

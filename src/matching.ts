@@ -29,6 +29,8 @@ export function match<
     });
 }
 
+const a = match((a: string) => a, a => a);
+
 const ifPredicateError = new Error("predicate must return true or false");
 
 function _if<

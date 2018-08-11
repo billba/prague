@@ -1,4 +1,4 @@
-import { Match, first, pipe, from, run, match, if as _if, best, defaultDisambiguator, re, NamedActions, tap } from '../src/prague';
+import { Match, first, pipe, from, run, match, if as _if, best, defaultDisambiguator, re, ActionReferences, tap } from '../src/prague';
 
 // _if looks for a truthy result and doesn't capture any matches
 const askTime = _if(
@@ -67,7 +67,7 @@ pipe(
 
 console.log("*** Named Actions ***");
 
-const actions = new NamedActions((send: (...args: any[]) => void) => ({
+const actions = new ActionReferences((send: (...args: any[]) => void) => ({
     greeting(name: string) {
         send(`Nice to meet you, ${name}`);
         return Promise.resolve();
@@ -96,6 +96,6 @@ const namedActionApp = pipe(
     run,
 );
 
-["bye bye"].map(t => app2(t)
+["bye bye"].map(t => namedActionApp(t)
     .subscribe()
 );

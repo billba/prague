@@ -20,7 +20,26 @@ export abstract class Result {
     score: number;
 
     constructor(score?: number) {
-        this.score = score === undefined || score > 1 ? 1 : score;
+        this.score = Result.normalizedScore(score);
+    }
+
+    static normalizedScore (
+        score?: number,
+    ) {
+        return score != null && score >= 0 && score < 1
+            ? score
+            : 1;
+    }
+
+    cloneWithScore (
+        score?: number,
+    ): this {
+
+        score = Result.normalizedScore(score);
+
+        return score === this.score
+            ? this
+            : Object.assign(Object.create(this.constructor.prototype), this, { score });
     }
 }
 
@@ -30,8 +49,9 @@ export class Action extends Result {
 
     constructor (
         action: () => any,
+        score?: number,
     ) {
-        super();
+        super(score);
         
         if (action.length > 0)
             throw new Error("Actions must have zero arguments.");
@@ -61,21 +81,6 @@ type NormalizedResult<R> =
 
 export type Norm<R> = NormalizedResult<BaseType<R>>;
 
-const normalizedResult = (
-    result: any,
-) => {
-    if (result instanceof Result)
-        return result;
-
-    if (result == null)
-        return undefined;
-
-    if (typeof result === 'function')
-        return new Action(result);
-
-    return new Match(result);
-};
-
 export type Transform <
     ARGS extends any[],
     RESULT extends Result | undefined,
@@ -84,41 +89,35 @@ export type Transform <
 const none = () => observableOf(undefined);
 
 export function from <
-    ARGS extends any[],
-    R,
+    ARGS extends any[] = [],
+    R = undefined,
 > (
-    transform?: (...args: ARGS) => R,
-): Transform<ARGS, Norm<R>> {
+    transform?: null | ((...args: ARGS) => R),
+): Transform<ARGS, Norm<R>>
 
+export function from (
+    transform?: any,
+) {
     if (!transform)
-        return none as any;
+        return none;
 
     if (typeof transform !== 'function')
         throw new Error("I can't transform that.");
 
-    return (...args: ARGS) => observableOf(transform).pipe(
+    return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        map(result => normalizedResult(result) as Norm<R>),
+        map(result => {
+            if (result instanceof Result)
+                return result;
+        
+            if (result == null)
+                return undefined;
+        
+            if (typeof result === 'function')
+                return new Action(result);
+        
+            return new Match(result);
+        }),
     );
 }
-
-export const _tap = <
-    RESULT extends Result | undefined,
-> (
-    fn: (route: RESULT) => any,
-): Transform<[RESULT], RESULT> =>
-    (route: RESULT) => observableOf(route).pipe(
-        map(route => fn(route)),
-        flatMap(toObservable),
-        mapTo(route)
-    );
-
-export { _tap as tap }
-
-export const run = _tap(result => {
-    if (result instanceof Action)
-        return result.action();
-});
-
-

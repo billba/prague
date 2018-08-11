@@ -7,11 +7,14 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "mocha test"
+    "test": "mocha lib/test"
   },
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
+    "@types/chai": "^4.1.4",
+    "@types/chai-subset": "^1.3.1",
+    "@types/mocha": "^5.2.5",
     "chai": "^4.1.2",
     "chai-subset": "^1.6.0",
     "mocha": "^5.2.0",
