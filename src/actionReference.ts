@@ -55,12 +55,12 @@ export class ActionReferences <
     ACTIONS extends Actions,
     CONTEXTARGS extends any[],
 > {
-    for: Stubs<ACTIONS>;
+    referenceFor: Stubs<ACTIONS>;
 
     constructor (
         private actions: (...contextargs: CONTEXTARGS) => ACTIONS,
     ) {
-        this.for = Object
+        this.referenceFor = Object
             .keys(actions(...new Array<any>(actions.length) as CONTEXTARGS))
             .reduce(
                 (stubbedActions, name) => {

@@ -79,12 +79,12 @@ const actions = new ActionReferences((send: (...args: any[]) => void) => ({
 
 const intro = match(
     giveName,
-    r => actions.for.greeting(r.value),
+    r => actions.referenceFor.greeting(r.value),
 );
 
 const outro = match(
     sayGoodbye,
-    () => actions.for.farewell(),
+    () => actions.referenceFor.farewell(),
 )
 
 const namedActionApp = pipe(
