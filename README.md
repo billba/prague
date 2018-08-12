@@ -52,7 +52,7 @@ const repeat = from((a: string) => a.repeat(5))
 const confirm = from((a: number) => () => 
 console.log(`You picked ${a.toString()}`));
 
-const getName = from((a: string) => fetch(`url/${a}`).then(r => r.json()).then(r => r.someString));
+const getName = from((a: string) => fetch(`url/${a}`).then(r => r.json()).then(r => r.name));
 ```
 are equivalent to:
 ```ts
@@ -197,17 +197,6 @@ greet("Bill")
 .subscribe(console.log); // Match{ value: "I greet you, my creator!" }
 ```
 
-This is equivalent to:
-
-```ts
-const greet = (t: string => t === "Bill"
-    ? () => `I greet you, my creator!`,
-    : () => `Meh.`,
-)
-```
-
-You may find that using `if` results in more expressive code.
-
 #### `tap`
 
 `tap` creates a transform that executes a function but ignores its output, returning its original input. This is a great way to debug:
@@ -296,10 +285,9 @@ In this example we'll first score two different potential responses to a request
 const bot = best
     match(
         best(
-            (t: string) => {
-                const matches = /My name is (.*)/i.exec(t);
-                if (matches)
-                    return matches[1]; // gets converted to a Match of score 1
+            pipe(
+                (t: string) => /My name is (.*)/i.exec(t),
+                matches => matches.value[1]; // gets converted to a Match of score 1
             },
             t => new Match(t, .5),
         ),
