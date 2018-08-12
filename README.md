@@ -30,21 +30,21 @@ The fundamental unit of Prague is a *Transform*:
 type Transform<ARGS extends any[], RESULT | undefined> = (...args: ARGS) => Observable<RESULT | undefined>;
 ```
 
-A Transform returns an Observable of either: 
-* `undefined`, meaning no transformation occurred (i.e. the rule did not fire)
+A Transform returns an `Observable` of either: 
+* `undefined`, meaning no transformation occurred (i.e. the rule was not satisfied), or
 * a subclass of the abstract base class `Result`
 
 ### `Result`
 
-The following Result subclasses are built in, but you can provide your own:
-    * `Action` - a function to execute at a future time
-    * `Match<VALUE>` - a value
-    * `ActionReference` - a serializable reference to a function to execute at a future time
-    * `Multiple` - an array of Results (typically the result of a tie) to be disambiguated
+The following `Result` subclasses are built in, but you can provide your own:
+* `Match<VALUE>` - a value
+* `Action` - a function to execute at a future time
+* `ActionReference` - a serializable reference to a function to execute at a future time
+* `Multiple` - an array of `Result`s (typically the result of a tie) to be disambiguated
 
 ### `from`
 
-The `from` function allows you to write Tranforms more simply, by returning a value instead a `Match`, a function instead of an `Action`, or a Promise or a synchronous result instead of an Observable:
+The `from` function allows you to write Tranforms more simply, by returning a value instead a `Match`, a function instead of an `Action`, or a `Promise` or a synchronous result instead of an Observable:
 
 ```ts
 const repeat = from((a: string) => a.repeat(5))
@@ -100,7 +100,7 @@ repeat("Bill", 2)
     )
 ```
 
-If you think this looks a like like writing resolve/reject handlers in `Promise`s, you're right. In fact, you can easily convert an `Observable` to a `Promise`:
+If you think this looks a like like writing resolve/reject handlers for a `Promise`s, you're right. In fact, you can easily convert an `Observable` to a `Promise`:
 
 ```ts
 import { toPromise } from 'rxjs/operators';
@@ -133,8 +133,8 @@ const fullName = first(
     t => t === "Kevin" && "Kevin Leung",
 );
 
-fullName("Bill").subscribe(console.log);    // Match{value: "Bill Barnes"}
-fullName("Hao").subscribe(console.log);     // Match{value: "Hao Luo"}
+fullName("Bill").subscribe(console.log);    // Match{ value: "Bill Barnes" }
+fullName("Hao").subscribe(console.log);     // Match{ value: "Hao Luo" }
 fullName("Yomi").subscribe(console.log);    // undefined
 ```
 
@@ -158,8 +158,8 @@ const greet = pipe(
     },
 );
 
-greet("Kev", "in").subscribe(console.log);      // Match{value: "Nice to meet you, Kevin Leung."}
-greet("Yo", "mi").subscribe(console.log);       // Match(value: "I don't know you.")
+greet("Kev", "in").subscribe(console.log);      // Match{ value: "Nice to meet you, Kevin Leung." }
+greet("Yo", "mi").subscribe(console.log);       // Match( value: "I don't know you." }
 ```
 
 Note that you only need to declare the argument types for the first transform. TypeScript will infer the argument types for the rest (and for the new Transform) automatically.
@@ -188,13 +188,25 @@ const greet = match(
 ```ts
 import { if as _if } from 'prague';
 
-_if(
-    (t: string) => t === "Bill",
-    m => `I greet you, my creator!`,
+const greet = _if((t: string) => t === "Bill",
+    () => `I greet you, my creator!`,
     () => `Meh.`,
-)("Bill")
-.subscribe(console.log); // Match{value: "I greet you, my creator!"}
+);
+
+greet("Bill")
+.subscribe(console.log); // Match{ value: "I greet you, my creator!" }
 ```
+
+This is equivalent to:
+
+```ts
+const greet = (t: string => t === "Bill"
+    ? () => `I greet you, my creator!`,
+    : () => `Meh.`,
+)
+```
+
+You may find that using `if` results in more expressive code.
 
 #### `tap`
 
@@ -207,7 +219,7 @@ pipe(
     t => t.repeat(2),
 ).("Bill")
 .subscribe();
-// Match{value: "Bill Barnes"}
+// Match{ value: "Bill Barnes" }
 ```
 
 #### `Action` and `run`
@@ -232,17 +244,14 @@ This works, but it isn't the Prague way. Rather than executing code immediately,
 
 ```ts
 const bot = first(
-    _if(
-        (t: string) => t === "current time",
-        m => () => console.log(`The time is ${new Date().toLocaleTimeString()}`),
+    _if((t: string) => t === "current time",
+        () => () => console.log(`The time is ${new Date().toLocaleTimeString()}`),
     ),
-    _if(
-        t => t === "I'm hungry",
-        m => () => console.log(`You shoud eat some protein.`),
+    _if(t => t === "I'm hungry",
+        () => () => console.log(`You shoud eat some protein.`),
     ),
-    _if(
-        t => t === "Wassup",
-        m => () => console.log(`WAAAASSSUUUUUUP!`),
+    _if(t => t === "Wassup",
+        () => () => console.log(`WAAAASSSUUUUUUP!`),
     ),
 )
 ```
@@ -273,10 +282,10 @@ Obviously actions can do much more than `console.log`. This approach of waiting 
 
 #### `best` and scoring
 
-Something we have not touched on yet is that every `Result` has a `score`, a floating point numeric value between 0 and 1, inclusive. By default this score is 1, but you can specify a different score when creating any `Result`:
+Something we have not touched on is that every `Result` has a `score`, a floating point numeric value between 0 and 1, inclusive. By default this score is 1, but you can specify a different score when creating any `Result`:
 
 ```ts
-const name = new Match("Bill", .5);
+new Match("Bill", .5); // Match{ value: "Bill", score: .5 }
 ```
 
 Scores are useful when the situation is ambiguous. Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others. One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where `best` comes in.
@@ -316,14 +325,19 @@ test("My name is current time") // // Nice to meet you, Current Time
 If `best` results in a tie, it returns a `Multiple`, which is a `Result` containing an array of all the tied `Result`s. You will typically wish to disambiguate this. Prague provides `defaultDisambiguator` which simply picks the first one:
 
 ```ts
+const matches = best(
+    () = new Match("hi", .75),
+    () = new Match("hello", .75),
+);
+
+matches()
+.subscribe(console.log) // Multiple{ results: [ Match{ value:"hi", score: .75}, Match{value:"hello", score: .75 } ] }
+
 pipe(
-    best(
-        () = new Match("hi", .75),
-        () = new Match("hello", .75),
-    ),
+    matches,
     defaultDisambiguator,
 )()
-.subscribe(console.log); // Match{value: "hi"}
+.subscribe(console.log); // Match{ value: "hi", score: .75 }
 ```
 
 #### `ActionReference`
