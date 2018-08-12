@@ -1,17 +1,20 @@
 {
   "name": "prague",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "EDSL for rules",
-  "main": "lib/prague.js",
-  "types": "lib/prague.d.ts",
+  "main": "lib/src/prague.js",
+  "types": "lib/src/prague.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "mocha test"
+    "test": "mocha lib/test"
   },
   "author": "Bill Barnes",
   "license": "MIT",
   "devDependencies": {
+    "@types/chai": "^4.1.4",
+    "@types/chai-subset": "^1.3.1",
+    "@types/mocha": "^5.2.5",
     "chai": "^4.1.2",
     "chai-subset": "^1.6.0",
     "mocha": "^5.2.0",

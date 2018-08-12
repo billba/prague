@@ -3,7 +3,7 @@
 const chai = require('chai');
 chai.use(require('chai-subset'));
 const expect = chai.expect;
-const p = require('../lib/prague.js');
+const p = require('../lib/src/prague.js');
 const { of, empty } = require('rxjs');
 
 const foo = {
