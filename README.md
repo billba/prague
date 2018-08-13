@@ -68,7 +68,7 @@ For your convenience, `from` is automatically called every place you supply a Tr
 ```ts
 first(
     (t: text) => t === "Bill" && "Bill Barnes",
-    t => t === "Hao" && "Hao Lui",
+    t => t === "Hao" && "Hao Luo",
     t => t === "Kevin" && "Kevin Leung",
 )
 ```
@@ -76,7 +76,7 @@ is equivalent to:
 ```ts
 first(
     from((t: text) => t === "Bill" && "Bill Barnes"),
-    from(t => t === "Hao" && "Hao Lui"),
+    from(t => t === "Hao" && "Hao Luo"),
     from(t => t === "Kevin" && "Kevin Leung"),
 )
 ```
@@ -129,7 +129,7 @@ import { first } from 'prague';
 
 const fullName = first(
     (t: string) => t === "Bill" && "Bill Barnes",
-    t => t === "Hao" && "Hao Lui",
+    t => t === "Hao" && "Hao Luo",
     t => t === "Kevin" && "Kevin Leung",
 );
 
