@@ -8,21 +8,21 @@ describe("toObservable", () => {
         it(`should convert ${value} to an observable`, (done) => {
             toObservable(value)
                 .subscribe(n => {
-                    expect(n).to.eql(value);
+                    expect(n).equals(value);
                 }, passErr, done);       
         });
 
         it(`should convert Promise<${value}> to an observable`, (done) => {
             toObservable(Promise.resolve(value))
                 .subscribe(n => {
-                    expect(n).to.eql(value);
+                    expect(n).equals(value);
                 }, passErr, done);       
         });
 
         it(`should convert Observable<${value}> to an observable`, (done) => {
             toObservable(of(value))
                 .subscribe(n => {
-                    expect(n).to.eql(value);
+                    expect(n).equals(value);
                 }, passErr, done);       
         });
 
@@ -39,7 +39,7 @@ describe("toObservable", () => {
         )
             .subscribe(n => {
                 expect(n.length === 1)
-                expect(n[0]).to.eql(1);
+                expect(n[0]).equals(1);
             }, passErr, done);       
     });
 });
@@ -49,7 +49,7 @@ describe('Action', () => {
         let handled = false;
         let action = () => { handled = true; };
         let r = new Action(action);
-        expect(r instanceof Action).to.be.true;
+        expect(r).instanceof(Action);
         r
             .action()
             .subscribe(() => {
@@ -64,7 +64,7 @@ describe('Action', () => {
             return Promise.resolve();
         };
         let r = new Action(action);
-        expect(r instanceof Action).to.be.true;
+        expect(r).instanceof(Action);
         r
             .action()
             .subscribe(() => {
@@ -79,7 +79,7 @@ describe('Action', () => {
             return of();
         };
         let r = new Action(action);
-        expect(r instanceof Action).to.be.true;
+        expect(r).instanceof(Action);
         r
             .action()
             .subscribe(() => {
@@ -91,8 +91,8 @@ describe('Action', () => {
         let handled = false;
         let action = () => { handled = true; };
         let r = new Action(action, .5);
-        expect(r instanceof Action).to.be.true;
-        expect(r.score).to.eql(.5);
+        expect(r).instanceof(Action);
+        expect(r.score).equals(.5);
     });
     
     it('should throw on an action with more than zero arguments', (done) => {
@@ -113,14 +113,14 @@ describe('Action', () => {
 describe('Match', () => {
     it('should return a Match with the supplied value', () => {
         let result = new Match("hello");
-        expect(result instanceof Match).to.be.true;
-        expect(result.value).to.eql('hello');
+        expect(result).instanceof(Match);
+        expect(result.value).equals('hello');
     });
 
     it('should return a Match with the supplied value and score', () => {
         let result = new Match("hello", .5);
-        expect(result instanceof Match).to.be.true;
-        expect(result.value).to.eql('hello');
+        expect(result).instanceof(Match);
+        expect(result.value).equals('hello');
         expect(result.score).equals(.5);
     });
 });
@@ -129,16 +129,16 @@ describe("Result.cloneWithScore", () => {
     it("should return itself with the same score", () => {
         let match = new Match("hello", .5);
         let m = match.cloneWithScore(.5);
-        expect(m).to.eql(match);
-        expect(m.score).to.eql(.5);
+        expect(m).equals(match);
+        expect(m.score).equals(.5);
     });
 
     it("should return a new result with the supplied score", () => {
         let match = new Match("hello", .5);
         let m = match.cloneWithScore(.75);
-        expect(m instanceof Match).to.be.true;
-        expect(m.score).to.eql(.75);
-        expect(m.value).to.eql("hello");
+        expect(m).instanceof(Match);
+        expect(m.score).equals(.75);
+        expect(m.value).equals("hello");
     });
 });
 
@@ -176,8 +176,8 @@ describe("from", () => {
         it(`should return () => Observable.of(Match) for () => ${typeof value}`, (done) => {
             from(() => value)()
                 .subscribe(r => {
-                    expect(r instanceof Match).to.be.true;
-                    expect(r.value).to.eql(value);
+                    expect(r).instanceof(Match);
+                    expect(r.value).equals(value);
                 }, passErr, done)
         });
 
@@ -185,8 +185,8 @@ describe("from", () => {
             const m = new Match(value);
             from(() => m)()
                 .subscribe(r => {
-                    expect(r instanceof Match).to.be.true;
-                    expect(r).to.eql(m);
+                    expect(r).instanceof(Match);
+                    expect(r).equals(m);
                 }, passErr, done)
         });
 
@@ -198,7 +198,7 @@ describe("from", () => {
             handled = true;
         })()
             .subscribe(r => {
-                expect(r instanceof Action).to.be.true;
+                expect(r).instanceof(Action);
                 r
                     .action()
                     .subscribe(() => {
@@ -214,7 +214,7 @@ describe("from", () => {
         });
         from(() => action)()
             .subscribe(r => {
-                expect(r instanceof Action).to.be.true;
+                expect(r).instanceof(Action);
                 expect(r).to.equal(action);
                 r
                     .action()
@@ -230,7 +230,7 @@ describe("from", () => {
             handled = a;
         })(true)
             .subscribe(r => {
-                expect(r instanceof Action).to.be.true;
+                expect(r).instanceof(Action);
                 r
                     .action()
                     .subscribe(() => {

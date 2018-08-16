@@ -24,7 +24,7 @@ describe("sorted", () => {
         sorted(
             () => m,
         )().subscribe(_m => {
-            expect(_m).to.eql(m);
+            expect(_m).equals(m);
         }, passErr, done);
     });
 
@@ -40,7 +40,7 @@ describe("sorted", () => {
         sorted(
             ...matches.map(m => () => m)
         )().subscribe(_m => {
-            expect(_m instanceof Multiple).to.be.true;
+            expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals(matches)
         }, passErr, done);
     });
@@ -49,7 +49,7 @@ describe("sorted", () => {
         sorted(
             ...matches.map(m => () => m)
         )().subscribe(_m => {
-            expect(_m instanceof Multiple).to.be.true;
+            expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals(matches)
         }, passErr, done);
     });
@@ -58,7 +58,7 @@ describe("sorted", () => {
         sorted(
             ...matches.reverse().map(m => () => m)
         )().subscribe(_m => {
-            expect(_m instanceof Multiple).to.be.true;
+            expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals(matches.reverse())
         }, passErr, done);
     });
@@ -69,7 +69,7 @@ describe("sorted", () => {
             () => new Multiple(spreadme),
             () => matches[1],
         )().subscribe(_m => {
-            expect(_m instanceof Multiple).to.be.true;
+            expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals([
                 matches[0],
                 spreadme[0],
@@ -86,7 +86,7 @@ describe("top", () => {
             () => new Multiple(spreaded),
             top(),
         )().subscribe(m => {
-            expect(m instanceof Multiple).is.false;
+            expect(m).not.instanceof(Multiple);
             expect(m).equals(spreaded[0]);
         }, passErr, done);
     });
@@ -98,7 +98,7 @@ describe("top", () => {
                 maxResults: 2,
             })
         )().subscribe(m => {
-            expect(m instanceof Multiple).to.be.false;
+            expect(m).not.instanceof(Multiple);
             expect(m).equals(matches[0]);
         }, passErr, done);
     });
@@ -111,8 +111,8 @@ describe("top", () => {
                 tolerance: .1,
             })
         )().subscribe(m => {
-            expect(m instanceof Multiple).to.be.true;
-            expect((m as Multiple).results.length).to.eql(2);
+            expect(m).instanceof(Multiple);
+            expect((m as Multiple).results.length).equals(2);
             expect((m as Multiple).results[0]).equals(spreaded[0]);
             expect((m as Multiple).results[1]).equals(spreaded[1]);
         }, passErr, done);
@@ -125,8 +125,8 @@ describe("top", () => {
                 tolerance: 1,
             })
         )().subscribe(m => {
-            expect(m instanceof Multiple).to.be.true;
-            expect((m as Multiple).results.length).to.eql(4);
+            expect(m).instanceof(Multiple);
+            expect((m as Multiple).results.length).equals(4);
             expect((m as Multiple).results).deep.equals(spreaded);
         }, passErr, done);
     });
@@ -140,7 +140,7 @@ describe("best", () => {
             () => matches[1],
         )()
         .subscribe(m => {
-            expect(m instanceof Multiple).to.be.false;
+            expect(m).not.instanceof(Multiple);
             expect(m).equals(matches[0]);
         }, passErr, done);
     })
