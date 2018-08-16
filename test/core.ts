@@ -116,6 +116,13 @@ describe('Match', () => {
         expect(result instanceof Match).to.be.true;
         expect(result.value).to.eql('hello');
     });
+
+    it('should return a Match with the supplied value and score', () => {
+        let result = new Match("hello", .5);
+        expect(result instanceof Match).to.be.true;
+        expect(result.value).to.eql('hello');
+        expect(result.score).equals(.5);
+    });
 });
 
 describe("Result.cloneWithScore", () => {
