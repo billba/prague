@@ -18,18 +18,16 @@ export function match<
     const _onMatch = from(onMatch);
     const _onNoMatch = from(onNoMatch);
 
-    return pipe(_getMatch, route => {
-        if (!route)
+    return pipe(_getMatch, result => {
+        if (!result)
             return _onNoMatch();
 
-        if (route instanceof Match)
-            return _onMatch(route);
+        if (result instanceof Match)
+            return _onMatch(result);
 
         throw getMatchError;
     });
 }
-
-const a = match((a: string) => a, a => a);
 
 const ifPredicateError = new Error("predicate must return true or false");
 
