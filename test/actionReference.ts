@@ -1,7 +1,5 @@
-import { describe, expect, passErr, throwErr, nullablevalues, values, } from './common';
-import { of, empty, from as observableFrom } from 'rxjs';
-import { toObservable, Action, Match, from, ActionReference, ActionReferences, pipe, tap, run } from '../src/prague';
-import { toArray } from 'rxjs/operators';
+import { describe, expect, passErr } from './common';
+import { ActionReference, ActionReferences, pipe, run } from '../src/prague';
 
 describe("ActionReference", () => {
     it("should create an ActionReference with no args and default options", () => {

@@ -105,6 +105,7 @@ export function top <
 > (
     options?: TopOptions,
 ): Transform<[RESULT], Result> {
+
     let maxResults = Number.POSITIVE_INFINITY;
     let tolerance  = 0;
 
