@@ -365,7 +365,7 @@ pipe(
 .subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, Match{ value: "aloha", score: .70 }, ] }
 ```
 
-We can set a tolerance of 1 (include all the results) but set a maximum length of 3. This will return the same result:
+We can set a tolerance of 1 (include all the results) but set the maximum results to 3. This will have the same effect as the above:
 
 ```ts
 pipe(
@@ -378,7 +378,7 @@ pipe(
 .subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, Match{ value: "aloha", score: .70 }, ] }
 ```
 
-Increasing `tolerance` includes more items as the "high score". It defaults to `0`.
+Increasing `tolerance` includes more items in the "high score". It defaults to `0`.
 
 Decreasing `maxResults` limits of the number of "high score" results retrieved. it defaults to `Number.POSITIVE_INFINITY`.
 
