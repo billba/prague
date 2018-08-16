@@ -67,17 +67,17 @@ const getName = (a: string) => Rx.from(fetch(`url/${a}`).then(r => r.json()).the
 For your convenience, `from` is automatically called every place you supply a Transform:
 ```ts
 first(
-    (t: text) => t === "Bill" && "Bill Barnes",
-    t => t === "Hao" && "Hao Lui",
-    t => t === "Kevin" && "Kevin Leung",
+    (t: string) => t === "Bill" ? "Bill Barnes" : undefined,
+    t => t === "Hao" ? "Hao Luo" : undefined,
+    t => t === "Kevin" ? "Kevin Leung" : undefined,
 )
 ```
 is equivalent to:
 ```ts
 first(
-    from((t: text) => t === "Bill" && "Bill Barnes"),
-    from(t => t === "Hao" && "Hao Lui"),
-    from(t => t === "Kevin" && "Kevin Leung"),
+    from((t: string) => t === "Bill" ? "Bill Barnes" : undefined),
+    from(t => t === "Hao" ? "Hao Luo" : undefined),
+    from(t => t === "Kevin" ? "Kevin Leung" : undefined),
 )
 ```
 As a result you never need to explicitly call `from` unless you are writing your own helper function.
@@ -128,7 +128,7 @@ You can compose Transforms together into a new transform using one of the follow
 import { first } from 'prague';
 
 const fullName = first(
-    (t: string) => t === "Bill" ? "Bill Barnes" : undefined, // line 2
+    (t: string) => t === "Bill" ? "Bill Barnes" : undefined,
     t => t === "Hao" ? "Hao Luo" : undefined,
     t => t === "Kevin" ? "Kevin Leung" : undefined,
 );

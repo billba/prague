@@ -1,11 +1,14 @@
 import { Result, from } from './prague';
 
-interface ActionReferenceOptions <
-    NAME = string,
-> {
-    name: NAME,
+interface ActionReferenceOptions {
     source?: any, 
     score?: number, 
+}
+
+interface ActionReferenceOptionsWithName <
+    NAME = string,
+> extends ActionReferenceOptions {
+    name: NAME,
 }
 
 export class ActionReference extends Result {
@@ -20,12 +23,12 @@ export class ActionReference extends Result {
     );
 
     constructor (
-        options: ActionReferenceOptions,
+        options: ActionReferenceOptionsWithName,
         ...args: any[]
     );
     
     constructor (
-        nameOrOptions: string | ActionReferenceOptions,
+        nameOrOptions: string | ActionReferenceOptionsWithName,
         ... args: any[]
     ) {
         super(typeof nameOrOptions === 'string' ? undefined : nameOrOptions.score);
@@ -48,27 +51,38 @@ type Args <F extends Actions> = {
 }
 
 type Stubs<ACTIONS extends Actions> = {
-    [P in keyof Args<ACTIONS>]: (...args: Args<ACTIONS>[P]) => ActionReference
+    [P in keyof Args<ACTIONS>]: (
+        ...args: Args<ACTIONS>[P]
+    ) => ActionReference
+}
+
+type StubsWithOptions<ACTIONS extends Actions> = {
+    [P in keyof Args<ACTIONS>]: (
+        options: ActionReferenceOptions,
+        ...args: Args<ACTIONS>[P]
+    ) => ActionReference
 }
 
 export class ActionReferences <
     ACTIONS extends Actions,
     CONTEXTARGS extends any[],
 > {
-    referenceFor: Stubs<ACTIONS>;
+    reference = {} as Stubs<ACTIONS>;
+    referenceWithOptions = {} as StubsWithOptions<ACTIONS>;
 
     constructor (
         private actions: (...contextargs: CONTEXTARGS) => ACTIONS,
     ) {
-        this.referenceFor = Object
+        Object
             .keys(actions(...new Array<any>(actions.length) as CONTEXTARGS))
-            .reduce(
-                (stubbedActions, name) => {
-                    stubbedActions[name] = (...args: any[]) => new ActionReference(name, ...args);
-                    return stubbedActions;
-                },
-                {} as Stubs<ACTIONS>
-            )
+            .forEach(name => {
+                this.reference[name] = (...args) => new ActionReference(name, ...args);
+                this.referenceWithOptions[name] = (options, ...args) => new ActionReference({
+                    name,
+                    source: options.source,
+                    score: options.score,
+                 }, ...args);
+            });
     }
 
     toAction <

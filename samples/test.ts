@@ -1,4 +1,4 @@
-import { Match, first, pipe, from, run, match, if as _if, best, defaultDisambiguator, re, ActionReferences, tap } from '../src/prague';
+import { Match, first, pipe, run, match, if as _if, best, re, ActionReferences, tap, sorted } from '../src/prague';
 
 // _if looks for a truthy result and doesn't capture any matches
 const askTime = _if(
@@ -55,13 +55,10 @@ greetings.map(t => pipe(
 
 console.log("*** Scoring ***");
 
-pipe(
-    best(
-        () => new Match("bill", .85),
-        () => new Match("fred", .50),
-        () => new Match("joe", .85),
-    ),
-    defaultDisambiguator,
+best(
+    () => new Match("bill", .85),
+    () => new Match("fred", .50),
+    () => new Match("joe", .85),
 )()
 .subscribe(console.log)
 
@@ -79,12 +76,12 @@ const actions = new ActionReferences((send: (...args: any[]) => void) => ({
 
 const intro = match(
     giveName,
-    r => actions.referenceFor.greeting(r.value),
+    r => actions.reference.greeting(r.value),
 );
 
 const outro = match(
     sayGoodbye,
-    () => actions.referenceFor.farewell(),
+    () => actions.reference.farewell(),
 )
 
 const namedActionApp = pipe(
