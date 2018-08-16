@@ -269,7 +269,7 @@ pipe(
 
 Obviously actions can do much more than `console.log`. This approach of waiting to executing side effects until you're done is a classic functional programming pattern, and makes for much more declarative code.
 
-#### `best` and scoring
+#### Scoring: `best`, `sorted`, and `top`
 
 Something we have not touched on is that every `Result` has a `score`, a floating point numeric value between 0 and 1, inclusive. By default this score is 1, but you can specify a different score when creating any `Result`:
 
@@ -277,11 +277,13 @@ Something we have not touched on is that every `Result` has a `score`, a floatin
 new Match("Bill", .5); // Match{ value: "Bill", score: .5 }
 ```
 
-Scores are useful when the situation is ambiguous. Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others. One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where `best` comes in.
+Scores are useful when the situation is ambiguous. Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others to mean "I am telling you my name". One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where scoring comes in.
 
 In this example we'll first score two different potential responses to a request for a name, then we'll choose the highest scoring one. If there is one, we'll create an action with that score. Finally we'll put that against a differently scored action.
 
 ```ts
+import { best } from 'prague';
+
 const bot = best
     match(
         best(
@@ -310,23 +312,88 @@ test("current time"); // The time is 6:50:15 AM
 test("My name is current time") // // Nice to meet you, Current Time
 ```
 
-If `best` results in a tie, it returns a `Multiple`, which is a `Result` containing an array of all the tied `Result`s. You will typically wish to disambiguate this. Prague provides `defaultDisambiguator` which simply picks the first one:
+So far, so good. But consider this case:
 
 ```ts
-const matches = best(
-    () = new Match("hi", .75),
-    () = new Match("hello", .75),
-);
+const transforms = [
+    () => new Match("hi", .75),
+    () => new Match("hello", .75),
+    () => new Match("aloha", .70),
+    () => new Match("wassup", .65),
+];
 
-matches()
-.subscribe(console.log) // Multiple{ results: [ Match{ value:"hi", score: .75}, Match{value:"hello", score: .75 } ] }
-
-pipe(
-    matches,
-    defaultDisambiguator,
+best(
+    ...transforms
 )()
-.subscribe(console.log); // Match{ value: "hi", score: .75 }
+.subscribe(console.log) // Match{ value: "hi", score: .75 }
 ```
+
+Calling `best` can be unsatisfactory when there is a tie at the top. Things get even more challenging if you want to program in some wiggle room, say 5%, so that "aloha" becomes a third valid result.
+
+It turns out that `best` is a special case of a helper called `sorted`, which returns a Transform which calls each supplied Transform with the supplied arguments. If all return `undefined`, it returns `undefined`. If one returns a `Result`, it returns that. If two or more return a `Result`, it returns a `Multiple`, which is a `Result` containing an array of all the `Result`s.
+
+```ts
+const sortme = sorted(
+    ...transforms
+)();
+
+sortme()
+.subscribe(console.log); // Multiple{ results:[ /* all the results */ ] }
+```
+
+We can narrow down this result using a helper called `top`.
+
+To retrieve just the high scoring result(s):
+
+```ts
+pipe(
+    sortme,
+    top(),
+)()
+.subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, ] }
+```
+
+To include "aloha" we can add a tolerance of 5%:
+
+```ts
+pipe(
+    sortme,
+    top({
+        tolerance: .05,
+    }),
+)()
+.subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, Match{ value: "aloha", score: .70 }, ] }
+```
+
+We can set a tolerance of 1 (include all the results) but set a maximum length of 3. This will return the same result:
+
+```ts
+pipe(
+    sortme,
+    top({
+        maxResults: 3,
+        tolerance: 1,
+    }),
+)()
+.subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, Match{ value: "aloha", score: .70 }, ] }
+```
+
+Increasing `tolerance` includes more items as the "high score". It defaults to `0`.
+
+Decreasing `maxResults` limits of the number of "high score" results retrieved. it defaults to `Number.POSITIVE_INFINITY`.
+
+In fact, `best` is just a special case of piping the results of `sorted` into `top`:
+
+```ts
+const best = (...transforms) => pipe(
+    sorted(...transforms),
+    top({
+        maxResults: 1,
+    }),
+);
+```
+
+`top` is just one way to narrow down multiple results. There are others. You may apply multiple heuristics. You may even ask for human intervention. For instance, in a chatbot you may wish to ask the user to do the disambiguation ("Are you asking the time, or telling me your name?"). Of course their reply to that may also be ambiguous...
 
 #### `ActionReference`
 
