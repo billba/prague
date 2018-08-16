@@ -128,9 +128,9 @@ You can compose Transforms together into a new transform using one of the follow
 import { first } from 'prague';
 
 const fullName = first(
-    (t: string) => t === "Bill" && "Bill Barnes",
-    t => t === "Hao" && "Hao Lui",
-    t => t === "Kevin" && "Kevin Leung",
+    (t: string) => t === "Bill" ? "Bill Barnes" : undefined, // line 2
+    t => t === "Hao" ? "Hao Luo" : undefined,
+    t => t === "Kevin" ? "Kevin Leung" : undefined,
 );
 
 fullName("Bill").subscribe(console.log);    // Match{ value: "Bill Barnes" }
@@ -203,7 +203,7 @@ greet("Bill")
 
 ```ts
 pipe(
-    (t: string) => t === "Bill" && "Bill Barnes",
+    (t: string) => t === "Bill" ? "Bill Barnes" : undefined,
     tap(console.log),
     t => t.repeat(2),
 ).("Bill")
