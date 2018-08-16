@@ -395,7 +395,7 @@ const best = (...transforms) => pipe(
 
 `top` is just one way to narrow down multiple results. There are others. You may apply multiple heuristics. You may even ask for human intervention. For instance, in a chatbot you may wish to ask the user to do the disambiguation ("Are you asking the time, or telling me your name?"). Of course their reply to that may also be ambiguous...
 
-#### `ActionReference`
+#### `ActionReference` and `ActionReferences`
 
 tk
 
