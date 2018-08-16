@@ -95,7 +95,7 @@ export function sorted (
     );
 }
 
-export interface TakeOptions {
+export interface TopOptions {
     maxResults?: number;
     tolerance?: number;
 }
@@ -103,7 +103,7 @@ export interface TakeOptions {
 export function top <
     RESULT extends Result,
 > (
-    options?: TakeOptions,
+    options?: TopOptions,
 ): Transform<[RESULT], Result> {
     let maxResults = Number.POSITIVE_INFINITY;
     let tolerance  = 0;
