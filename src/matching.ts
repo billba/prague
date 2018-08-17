@@ -1,6 +1,6 @@
 import { of } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
-import { Observableable, Match, from, pipe, toObservable } from './prague';
+import { Observableable, Match, from, pipe, toObservable, first, tap } from './prague';
 
 const getMatchError = new Error("matching function should only return MatchRoute or NoRoute");
 
@@ -18,15 +18,17 @@ export function match<
     const _onMatch = from(onMatch);
     const _onNoMatch = from(onNoMatch);
 
-    return pipe(_getMatch, result => {
-        if (!result)
-            return _onNoMatch();
-
-        if (result instanceof Match)
-            return _onMatch(result);
-
-        throw getMatchError;
-    });
+    return first(
+        pipe(
+            _getMatch,
+            tap(result => {
+                if (!(result instanceof Match))
+                    throw getMatchError;
+            }),
+            _onMatch,
+        ),
+        _onNoMatch,
+    )
 }
 
 const ifPredicateError = new Error("predicate must return true or false");
@@ -40,20 +42,24 @@ function _if<
     onTrue: () => ONTRUE,
     onFalse?: () => ONFALSE,
 ) {
-    return match(pipe((...args: ARGS) => of(args).pipe(
-        map(args => predicate(...args)),
-        flatMap(toObservable),
-        map(result => result instanceof Match ? !!result.value : !!result)),
-        route => {
-            if (route instanceof Match) {
-                if (route.value === true)
-                    return true;
+    return match(
+        pipe(
+            (...args: ARGS) => of(args).pipe(
+                map(args => predicate(...args)),
+                flatMap(toObservable),
+                map(result => result instanceof Match ? !!result.value : !!result)
+            ),
+            route => {
+                if (route instanceof Match) {
+                    if (route.value === true)
+                        return true;
 
-                if (route.value === false)
-                    return undefined;
+                    if (route.value === false)
+                        return undefined;
+                }
+                throw ifPredicateError;
             }
-            throw ifPredicateError;
-        }),
+        ),
         onTrue,
         onFalse
     );

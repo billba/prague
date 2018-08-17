@@ -1,4 +1,4 @@
-import { describe, expect, passErr } from './common';
+import { describe, expect, passErr, throwErr } from './common';
 import { pipe, run, Match, tap, Action } from '../src/prague';
 
 describe("pipe", () => {
@@ -6,6 +6,15 @@ describe("pipe", () => {
     it('should return undefined when first transform returns undefined', done => {
         pipe(
             () => undefined,
+        )().subscribe(m => {
+            expect(m).is.undefined;
+        }, passErr, done)
+    });
+
+    it('should return undefined and not call second transform when first transform returns undefined', done => {
+        pipe(
+            () => undefined,
+            throwErr,
         )().subscribe(m => {
             expect(m).is.undefined;
         }, passErr, done)

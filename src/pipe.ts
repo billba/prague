@@ -70,15 +70,15 @@ export function pipe (
     const _transforms = observableFrom(transforms.map(transform => from(transform)));
 
     return (...args: any[]) => _transforms.pipe(
-        reduce<Transform<any[], Result | undefined>, Observable<any[]>>(
+        reduce<Transform<any[], Result | undefined>, Observable<any[] | undefined>>(
             (args$, transform) => args$.pipe(
-                flatMap(args => transform(...args)),
-                map(result => [result])
+                flatMap(args => args ? transform(...args) : observableOf(args)),
+                map(result => result && [result]),
             ),
             observableOf(args)
         ),
         mergeAll(),
-        map(results => results[0]),
+        map(results => results && results[0]),
     );
 }
 
