@@ -64,8 +64,8 @@ type StubsWithOptions<ACTIONS extends Actions> = {
 }
 
 export class ActionReferences <
-    ACTIONS extends Actions,
     CONTEXTARGS extends any[],
+    ACTIONS extends Actions,
 > {
     reference = {} as Stubs<ACTIONS>;
     referenceWithOptions = {} as StubsWithOptions<ACTIONS>;

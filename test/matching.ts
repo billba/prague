@@ -18,7 +18,7 @@ describe("match", () => {
             () => "hi"
         )().subscribe(m => {
             expect(m).instanceof(Match);
-            expect(m.value).equals("hi");
+            expect((m as Match<string>).value).equals("hi");
         }, passErr, done);
     });
 
@@ -29,7 +29,7 @@ describe("match", () => {
             throwErr,
         )().subscribe(m => {
             expect(m).instanceof(Match);
-            expect(m.value).equals("hi");
+            expect((m as Match<string>).value).equals("hi");
         }, passErr, done);
     });
 
@@ -40,7 +40,7 @@ describe("match", () => {
             throwErr,
         )("hi", 2).subscribe(m => {
             expect(m).instanceof(Match);
-            expect(m.value).equals("hihi");
+            expect((m as Match<string>).value).equals("hihi");
         }, passErr, done);
     });
 
@@ -74,7 +74,7 @@ describe("_if", () => {
                 () => "hi",
             )().subscribe(m => {
                 expect(m).instanceof(Match);
-                expect(m.value).equals("hi");
+                expect((m as Match<string>).value).equals("hi");
             }, passErr, done);
         });
     });
@@ -86,7 +86,7 @@ describe("_if", () => {
             throwErr,
         )(5, 2).subscribe(m => {
             expect(m).instanceof(Match);
-            expect(m.value).equals("hi");
+            expect((m as Match<string>).value).equals("hi");
         }, passErr, done);
     });
 
@@ -97,7 +97,7 @@ describe("_if", () => {
                 () => "hi",
             )().subscribe(m => {
                 expect(m).instanceof(Match);
-                expect(m.value).equals("hi");
+                expect((m as Match<string>).value).equals("hi");
             }, passErr, done);
         });
     });

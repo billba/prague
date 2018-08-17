@@ -14,20 +14,16 @@ export function match<
     onMatch: (match: Match<VALUE>) => ONMATCH,
     onNoMatch?: () => ONNOMATCH
 ) {
-    const _getMatch = from(getMatch);
-    const _onMatch = from(onMatch);
-    const _onNoMatch = from(onNoMatch);
-
     return first(
         pipe(
-            _getMatch,
+            getMatch,
             tap(result => {
                 if (!(result instanceof Match))
                     throw getMatchError;
             }),
-            _onMatch,
+            onMatch,
         ),
-        _onNoMatch,
+        from(onNoMatch),
     )
 }
 
