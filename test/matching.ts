@@ -2,13 +2,11 @@ import { describe, expect, passErr, throwErr } from './common';
 import { match, Match, if as _if } from '../src/prague';
 
 describe("match", () => {
-    it("should return undefined when no match and no onNoMatch handler", done => {
+    it("should not emit when no match and no onNoMatch handler", done => {
         match(
             () => undefined,
             throwErr,
-        )().subscribe(m => {
-            expect(m).is.undefined;
-        }, passErr, done);
+        )().subscribe(throwErr, passErr, done);
     });
 
     it("should call onNoMatch handler when no match", done => {
@@ -58,13 +56,11 @@ describe("_if", () => {
     const truthyValues = [true, 13, "hi", () => "hi", { dog: "dog" }];
 
     falseyValues.map(value => {
-        it("should return undefined on ${value} and no onFalse handler", done => {
+        it("should not emit on ${value} and no onFalse handler", done => {
             _if(
                 () => value,
                 throwErr,
-            )().subscribe(m => {
-                expect(m).is.undefined;
-            }, passErr, done);
+            )().subscribe(throwErr, passErr, done);
         });
 
         it("should call onFalse on ${value}", done => {

@@ -1,4 +1,4 @@
-import { Match, first, pipe, run, match, if as _if, best, re, ActionReferences, tap, sorted } from '../src/prague';
+import { Match, first, pipe, run, match, if as _if, best, re, ActionReferences, tap, sorted, Action } from '../src/prague';
 
 // _if looks for a truthy result and doesn't capture any matches
 const askTime = _if(

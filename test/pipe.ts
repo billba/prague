@@ -3,30 +3,24 @@ import { pipe, run, Match, tap, Action } from '../src/prague';
 
 describe("pipe", () => {
 
-    it('should return undefined when first transform returns undefined', done => {
+    it('should not emit first transform returns undefined', done => {
         pipe(
             () => undefined,
-        )().subscribe(m => {
-            expect(m).is.undefined;
-        }, passErr, done)
+        )().subscribe(throwErr, passErr, done)
     });
 
-    it('should return undefined and not call second transform when first transform returns undefined', done => {
+    it('should not emit and not call second transform when first transform returns undefined', done => {
         pipe(
             () => undefined,
             throwErr,
-        )().subscribe(m => {
-            expect(m).is.undefined;
-        }, passErr, done)
+        )().subscribe(throwErr, passErr, done)
     });
 
-    it('should return undefined when second transform returns undefined', done => {
+    it('should not emit when second transform returns undefined', done => {
         pipe(
             () => "hi",
             () => undefined,
-        )().subscribe(m => {
-            expect(m).is.undefined;
-        }, passErr, done)
+        )().subscribe(throwErr, passErr, done)
     });
 
     it('should pass through argument to first transform', done => {

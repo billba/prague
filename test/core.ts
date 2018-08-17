@@ -151,25 +151,19 @@ describe("from", () => {
         }
     });
 
-    it("should return () => Observable.of(undefined) for undefined", (done) => {
+    it("should not emit on undefined", (done) => {
         from(undefined)()
-            .subscribe(r => {
-                expect(r).to.be.undefined;
-            }, passErr, done)
+            .subscribe(throwErr, passErr, done)
     });
 
-    it("should return () => Observable.of(undefined) for null", (done) => {
+    it("should not emit for null", (done) => {
         from(null)()
-            .subscribe(r => {
-                expect(r).to.be.undefined;
-            }, passErr, done)
+            .subscribe(throwErr, passErr, done)
     });
 
-    it("should return () => Observable.of(undefined) for no args", (done) => {
+    it("should not emit for no args", (done) => {
         from()()
-            .subscribe(r => {
-                expect(r).to.be.undefined;
-            }, passErr, done)
+            .subscribe(throwErr, passErr, done)
     });
 
     values.map(value => {

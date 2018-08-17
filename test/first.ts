@@ -2,19 +2,15 @@ import { describe, expect, passErr, throwErr } from './common';
 import { first, Match } from '../src/prague';
 
 describe("first", () => {
-    it("returns undefined on no transforms", done => {
+    it("should not emit on no transforms", done => {
         first(
-        )().subscribe(m => {
-            expect(m).is.undefined;
-        }, passErr, done)
+        )().subscribe(throwErr, passErr, done)
     });
 
-    it("returns result of first transform when undefined", done => {
+    it("should not emit on undefined", done => {
         first(
             () => undefined
-        )().subscribe(m => {
-            expect(m).is.undefined;
-        }, passErr, done)
+        )().subscribe(throwErr, passErr, done)
     });
 
     it("returns result of first transform when Match", done => {
@@ -36,7 +32,7 @@ describe("first", () => {
         }, passErr, done)
     });
 
-    it("ignores of second transform when first is Match", done => {
+    it("ignores second transform when first is Match", done => {
         first(
             () => "hi",
             throwErr,
