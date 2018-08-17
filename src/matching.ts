@@ -33,12 +33,12 @@ const ifPredicateError = new Error("predicate must return true or false");
 
 function _if<
     ARGS extends any[],
-    ONMATCH,
-    ONNOMATCH
+    ONTRUE,
+    ONFALSE
 > (
     predicate: (...args: ARGS) => any,
-    onMatch: () => ONMATCH,
-    onNoMatch?: () => ONNOMATCH
+    onTrue: () => ONTRUE,
+    onFalse?: () => ONFALSE,
 ) {
     return match(pipe((...args: ARGS) => of(args).pipe(
         map(args => predicate(...args)),
@@ -54,8 +54,8 @@ function _if<
             }
             throw ifPredicateError;
         }),
-        onMatch,
-        onNoMatch
+        onTrue,
+        onFalse
     );
 }
 export { _if as if };
