@@ -121,7 +121,7 @@ export function top <
         ? observableFrom(result.results).pipe(
             takeWhile((m, i) => i < maxResults && m.score + tolerance >= result.results[0].score),
             toArray(),
-            map(results => results.length === 1 ? results[0] : new Multiple(results))
+            map(results => results.length === 1 ? results[0] : new Multiple(results)),
         )
         : result
     );
