@@ -31,7 +31,7 @@ describe("sorted", () => {
         }, passErr, done);
     });
 
-    it("should not emit for null router", (done) => {
+    it("should not emit on null", (done) => {
         sorted(
             () => null,
         )().subscribe(throwErr, passErr, done);
