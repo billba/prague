@@ -89,12 +89,12 @@ const repeat = from((a: string, b: number) => a.repeat(b));
 repeat("Bill", 2)
     .subscribe(
         result => {
-            // handle result here
+            // handle result (if there is one) here
         },
         err => {
             // handle error here
         },
-        done = {
+        () => {
             // this is called when there are no more results
         }
     )
