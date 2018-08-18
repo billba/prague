@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, Observableable, toObservable, Action } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
 

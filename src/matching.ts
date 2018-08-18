@@ -1,4 +1,4 @@
-import { of } from 'rxjs';
+import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
 import { Observableable, Match, from, pipe, toObservable, first, tap } from './prague';
 
@@ -40,7 +40,7 @@ function _if<
 ) {
     return match(
         pipe(
-            (...args: ARGS) => of(args).pipe(
+            (...args: ARGS) => observableOf(args).pipe(
                 map(args => predicate(...args)),
                 flatMap(toObservable),
                 map(result => result instanceof Match ? !!result.value : !!result)

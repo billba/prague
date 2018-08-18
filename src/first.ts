@@ -1,6 +1,6 @@
 import { Result, Transform, Norm, from } from "./prague";
 import { from as observableFrom} from "rxjs";
-import { concatMap, take, filter } from "rxjs/operators";
+import { concatMap, take } from "rxjs/operators";
 
 export function first(): Transform<[], never>;
 
