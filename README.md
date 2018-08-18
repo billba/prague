@@ -1,4 +1,4 @@
-# Prague
+# *Prague*
 
 An experimental rule system handy for games and conversational user interfaces. I thought of it as I walked around Prague on a sunny Spring day. **This is not an official Microsoft project.**
 
@@ -7,12 +7,12 @@ Major features of Prague:
 * deeply asynchronous via [RxJS](https://github.com/reactivex/rxjs) (but you don't have to use RxJS)
 * utilizes and promotes functional programming (you do actually have to use functional programming)
 
-Some types of applications you could build with Prague:
+Some types of applications you could build with *Prague*:
 * OS shell
 * Chat bot
 * Games
 
-## Building Prague
+## Building *Prague*
 
 * clone or fork this repo
 * `npm install`
@@ -21,30 +21,28 @@ Some types of applications you could build with Prague:
 ## To add to your app
 * `npm install prague`
 
-## Prague Essentials
+## *Prague* Essentials
 
 ### `Transform`
-The fundamental unit of Prague is a *Transform*:
+The fundamental unit of *Prague* is a `Transform`:
 
 ```ts
-type Transform<ARGS extends any[], RESULT | undefined> = (...args: ARGS) => Observable<RESULT | undefined>;
+type Transform<ARGS extends any[], RESULT extends Result> = (...args: ARGS) => Observable<RESULT>;
 ```
 
-A Transform returns an `Observable` of either: 
-* `undefined`, meaning no transformation occurred (i.e. the rule was not satisfied), or
-* a subclass of the abstract base class `Result`
+If a transformation occurred, the `Transform` emits a `Result` object. If no transformation occurred, nothing is emitted.
 
 ### `Result`
 
-The following `Result` subclasses are built in, but you can provide your own:
+`Result` is an abstract base class. The following subclasses of `Result` are built in, but you can provide your own:
 * `Match<VALUE>` - a value
 * `Action` - a function to execute at a future time
 * `ActionReference` - a serializable reference to a function to execute at a future time
-* `Multiple` - an array of `Result`s (typically the result of a tie) to be disambiguated
+* `Multiple` - an array of `Result`s
 
 ### `from`
 
-The `from` function allows you to write Tranforms more simply, by returning a value instead a `Match`, a function instead of an `Action`, or a `Promise` or a synchronous result instead of an Observable:
+The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Match`, a function instead of an `Action`, `undefined`/`null` when nothing is to be emitted, or a `Promise` or a synchronous result instead of an `Observable`:
 
 ```ts
 const repeat = from((a: string) => a.repeat(5))
@@ -61,30 +59,29 @@ const repeat = (a: string) => Rx.of.(new Match(a.repeat(5)));
 const confirm = (a: number) => Rx.of(new Action(() => console.log(`You picked ${a.toString()}`)));
 
 const getName = (a: string) => Rx.from(fetch(`url/${a}`).then(r => r.json()).then(r => new Match(r.someString)));
-
 ```
 
-For your convenience, `from` is automatically called every place you supply a Transform:
+For your convenience, `from` is automatically called every place you supply a `Transform`:
 ```ts
 first(
-    (t: string) => t === "Bill" ? "Bill Barnes" : undefined,
-    t => t === "Hao" ? "Hao Luo" : undefined,
-    t => t === "Kevin" ? "Kevin Leung" : undefined,
+    (t: string) => t === "Bill" ? "Bill Barnes" : null,
+    t => t === "Hao" ? "Hao Luo" : null,
+    t => t === "Kevin" ? "Kevin Leung" : null,
 )
 ```
 is equivalent to:
 ```ts
 first(
-    from((t: string) => t === "Bill" ? "Bill Barnes" : undefined),
-    from(t => t === "Hao" ? "Hao Luo" : undefined),
-    from(t => t === "Kevin" ? "Kevin Leung" : undefined),
+    from((t: string) => t === "Bill" ? "Bill Barnes" : null),
+    from(t => t === "Hao" ? "Hao Luo" : null),
+    from(t => t === "Kevin" ? "Kevin Leung" : null),
 )
 ```
 As a result you never need to explicitly call `from` unless you are writing your own helper function.
 
 ### working with `Observable`s
 
-Observables are a powerful and flexible approach to writing asynchronous code, but you don't have to go all the way down that rabbit hole to use Prague. To run a Transform you just `subscribe`:
+`Observable`s are a powerful and flexible approach to writing asynchronous code, but you don't have to go all the way down that rabbit hole to use *Prague*. To run a `Transform` you just `subscribe`:
 
 ```ts
 const repeat = from((a: string, b: number) => a.repeat(b));
@@ -97,10 +94,13 @@ repeat("Bill", 2)
         err => {
             // handle error here
         },
+        done = {
+            // this is called when there are no more results
+        }
     )
 ```
 
-If you think this looks a like like writing resolve/reject handlers for a `Promise`s, you're right. In fact, you can easily convert an `Observable` to a `Promise`:
+If you think this looks like writing resolve/reject handlers for a `Promise`, you're right. In fact, you can easily convert an `Observable` to a `Promise` as follows:
 
 ```ts
 import { toPromise } from 'rxjs/operators';
@@ -118,64 +118,70 @@ repeat("Bill", 2).pipe(toPromise)
 
 ### Composition via helpers
 
-You can compose Transforms together into a new transform using one of the following high-order functions, or create your own. In all the below helpers, your Transforms are automatically normalized via `from`.
+You can compose `Transform`s together into a new transform using one of the following high-order functions, or create your own. In all the below helpers, your `Transform`s are automatically normalized via `from`.
 
 #### `first`
 
-`first` returns a new Transform which calls each of the supplied transforms in turn until one returns a non-`undefined` result, then stops and returns that. If they all return `undefined`, it returns `undefined`. 
+`first` returns a new `Transform` which calls each of the supplied `Transform`s in turn. If one emits a `Result`, it stops and returns that. If none emit a `Result`, it doesn't either. 
 
 ```ts
 import { first } from 'prague';
 
 const fullName = first(
-    (t: string) => t === "Bill" ? "Bill Barnes" : undefined,
-    t => t === "Hao" ? "Hao Luo" : undefined,
-    t => t === "Kevin" ? "Kevin Leung" : undefined,
+    (t: string) => t === "Bill" ? "Bill Barnes" : null,
+    t => t === "Hao" ? "Hao Luo" : null,
+    t => t === "Kevin" ? "Kevin Leung" : null,
 );
 
 fullName("Bill").subscribe(console.log);    // Match{ value: "Bill Barnes" }
 fullName("Hao").subscribe(console.log);     // Match{ value: "Hao Luo" }
-fullName("Yomi").subscribe(console.log);    // undefined
+fullName("Yomi").subscribe(console.log);    //
 ```
 
-Note that all the Transforms have the same argument types. However you only need to declare the argument types for the first Transform. TypeScript will use those for the rest, and for the new Transform, automatically.
+Note that all the `Transform`s have the same argument types. However you only need to declare the argument types for the first `Transform`. TypeScript will use those for the rest, and for the resultant `Transform`, automatically.
 
 #### `pipe`
 
-`pipe` returns a new Transform which calls each of the supplied Transforms in turn. You supply the arguments for the first, its result is the argument for the second, and so on. If any of the Tranforms return `undefined`, the new Transform returns `undefined`, otherwise the return value is the result of the last Transform.
+`pipe` returns a new `Transform` which calls each of the supplied `Transform`s in turn. You supply the arguments for the first, its `Result` is the argument for the second, and so on. If all of the `Transform`s emit a `Result`, the last one is the `Result` of the new `Transform`, otherwise it doesn't emit.
 
 ```ts
 import { pipe } from 'prague';
 
-const greet = pipe(
+const someAssemblyRequired = pipe(
     (a: string, b: string) => a + b,
     fullName,
-    m => {
-        if (m instanceof Match)
-            return `Nice to meet you, ${m.value}.`;
-        else
-            return `I don't know you.`;
-    },
 );
 
-greet("Kev", "in").subscribe(console.log);      // Match{ value: "Nice to meet you, Kevin Leung." }
-greet("Yo", "mi").subscribe(console.log);       // Match( value: "I don't know you." }
+someAssemblyRequired("Kev", "in").subscribe(console.log);      // Match{ value: "Kevin Leung." }
+someAssemblyRequired("Yo", "mi").subscribe(console.log);       //
 ```
 
-Note that you only need to declare the argument types for the first transform. TypeScript will infer the argument types for the rest (and for the new Transform) automatically.
+Note that you only need to declare the argument types for the first transform. TypeScript will infer the argument types for the rest (and for the resultant `Transform`) automatically.
 
 #### `match`
 
-`match` is a special case of `pipe` optimized for the common case of having one outcome if a value is successfully extracted, and another if not. The above can be rewritten as:
+Consider this `Transform`:
+
+```ts
+const greet = first(
+    pipe(
+        fullName,
+        m => `Nice to meet you, ${m.value}.`,
+    ),
+    () => `I don't know you.`,
+)
+
+greet("Kevin").subscribe(console.log);      // Match{ value: "Nice to meet you, Kevin Leung." }
+greet("Yomi").subscribe(console.log);      // Match{ value: "I don't know you." }
+```
+
+if `fullName` emits, we do one thing, otherwise we do another. This is a very common case, and the `match` helper is a little shorter and a lot more expressive. Here's the same `Transform`, rewritten with `match`:
 
 ```ts
 import { match } from 'prague';
 
 const greet = match(
-    pipe(
-        (a: string, b: string) => a + b,
-        fullName,
-    ),
+    fullName,
     m => `Nice to meet you, ${m.value}.`,
     () => `I don't know you.`,
 );
@@ -183,12 +189,15 @@ const greet = match(
 
 #### `if`
 
-`if` is a special case of `match` for the common case of testing a predicate. Beacause `if` is a JavaScript reserved word, if you `import` Prague functions individually you'll need to rename it:
+`if` is a special case of `match` for the common case of testing a "truthy" predicate.
+
+Pro Tip: Because `if` is a JavaScript reserved word, if you `import` *Prague* functions individually you'll need to rename it:
 
 ```ts
 import { if as _if } from 'prague';
 
-const greet = _if((t: string) => t === "Bill",
+const greet = _if(
+    (t: string) => t === "Bill",
     () => `I greet you, my creator!`,
     () => `Meh.`,
 );
@@ -199,11 +208,11 @@ greet("Bill")
 
 #### `tap`
 
-`tap` creates a transform that executes a function but ignores its output, returning its original input. This is a great way to debug:
+`tap` returns a `Transform` that executes a function but ignores its output, returning its original input. This is a great way to debug:
 
 ```ts
 pipe(
-    (t: string) => t === "Bill" ? "Bill Barnes" : undefined,
+    (t: string) => t === "Bill" ? "Bill Barnes" : null,
     tap(console.log),
     t => t.repeat(2),
 ).("Bill")
@@ -229,20 +238,17 @@ bot("Wassup")
 .subscribe(); // WAAAASSSUUUUUUP
 ```
 
-This works, but it isn't the Prague way. Rather than executing code immediately, we prefer to return `Action`s:
+This works, but it isn't the *Prague* way. Rather than executing code immediately, we prefer to return `Action`s:
 
 ```ts
-const bot = first(
-    _if((t: string) => t === "current time",
-        () => () => console.log(`The time is ${new Date().toLocaleTimeString()}`),
-    ),
-    _if(t => t === "I'm hungry",
-        () => () => console.log(`You shoud eat some protein.`),
-    ),
-    _if(t => t === "Wassup",
-        () => () => console.log(`WAAAASSSUUUUUUP!`),
-    ),
-)
+const bot = from((t: string) => {
+    if (t === "current time")
+        return () => console.log(`The time is ${new Date().toLocaleTimeString()}`);
+    else if (t === "I'm hungry")
+        return () => console.log(`You shoud eat some protein.`);
+    else if (t === "Wassup")
+        return () => console.log(`WAAAASSSUUUUUUP!`);
+})
 ```
 
 Now we can use `tap` to call the action:
@@ -257,7 +263,7 @@ pipe(
 .subscribe(); // WAAAASSSUUUUUUP
 ```
 
-This is common enough that Prague provides a helper called `run`:
+This is common enough that *Prague* provides a helper called `run`:
 
 ```ts
 pipe(
@@ -284,13 +290,13 @@ In this example we'll first score two different potential responses to a request
 ```ts
 import { best } from 'prague';
 
-const bot = best
+const bot = best(
     match(
         best(
             pipe(
                 (t: string) => /My name is (.*)/i.exec(t),
-                matches => matches.value[1]; // gets converted to a Match of score 1
-            },
+                matches => matches.value[1], // gets converted to a Match of score 1
+            ),
             t => new Match(t, .5),
         ),
         m => new Action(() => console.log(`Nice to meet you, ${m.value}`), m.score)
@@ -304,7 +310,7 @@ const bot = best
 const test = (a: string) => pipe(
     bot,
     run
-).subscribe();
+)(a).subscribe();
 
 test("Bill"); // Nice to meet you, Bill
 test("My name is Bill"); // Nice to meet you, Bill
@@ -330,12 +336,12 @@ best(
 
 Calling `best` can be unsatisfactory when there is a tie at the top. Things get even more challenging if you want to program in some wiggle room, say 5%, so that "aloha" becomes a third valid result.
 
-It turns out that `best` is a special case of a helper called `sorted`, which returns a Transform which calls each supplied Transform with the supplied arguments. If all return `undefined`, it returns `undefined`. If one returns a `Result`, it returns that. If two or more return a `Result`, it returns a `Multiple`, which is a `Result` containing an array of all the `Result`s.
+It turns out that `best` is a special case of a helper called `sorted`, which returns a `Transform` which calls each supplied `Transform` with the supplied arguments. If none emit, neither does it. If one returns a `Result`, it returns that. If two or more return a `Result`, it returns a `Multiple`, which is a `Result` containing an array of all the `Result`s.
 
 ```ts
 const sortme = sorted(
     ...transforms
-)();
+);
 
 sortme()
 .subscribe(console.log); // Multiple{ results:[ /* all the results */ ] }

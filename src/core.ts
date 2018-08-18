@@ -1,5 +1,5 @@
-import { Observable, from as observableFrom, of as observableOf} from 'rxjs';
-import { take, map, flatMap, mapTo } from 'rxjs/operators';
+import { Observable, from as observableFrom, of as observableOf, empty} from 'rxjs';
+import { take, map, flatMap } from 'rxjs/operators';
 
 export type BaseType <T> =
     T extends Observable<infer BASETYPE> ? BASETYPE :
@@ -74,7 +74,7 @@ export class Match <VALUE> extends Result {
 }
 
 type NormalizedResult<R> =
-    R extends undefined | null ? undefined :
+    R extends undefined | null ? never :
     R extends Result ? R :
     R extends () => any ? Action :
     Match<R>;
@@ -83,14 +83,14 @@ export type Norm<R> = NormalizedResult<BaseType<R>>;
 
 export type Transform <
     ARGS extends any[],
-    RESULT extends Result | undefined,
+    RESULT extends Result,
 > = (...args: ARGS) => Observable<RESULT>;
 
-const none = () => observableOf(undefined);
+const none = () => empty();
 
 export function from <
-    ARGS extends any[] = [],
-    R = undefined,
+    ARGS extends any[],
+    R,
 > (
     transform?: null | ((...args: ARGS) => R),
 ): Transform<ARGS, Norm<R>>
@@ -107,17 +107,10 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        map(result => {
-            if (result instanceof Result)
-                return result;
-        
-            if (result == null)
-                return undefined;
-        
-            if (typeof result === 'function')
-                return new Action(result);
-        
-            return new Match(result);
-        }),
+        flatMap(result => result == null ? empty() : observableOf(
+            result instanceof Result ? result :
+            typeof result === 'function' ? new Action(result) :
+            new Match(result)
+        )),
     );
 }

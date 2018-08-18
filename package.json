@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "0.20.3",
+  "version": "0.21.0",
   "description": "EDSL for rules",
   "main": "lib/src/prague.js",
   "types": "lib/src/prague.d.ts",

@@ -74,24 +74,15 @@ export function sorted <
 export function sorted (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform)));
+    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Result>));
 
     return (...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
-        flatMap(result => 
-            result === undefined ? empty() :
-            result instanceof Multiple ? observableFrom(result.results) :
-            observableOf(result)
-        ),
+        flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
         toArray(),
-        flatMap(results => observableFrom(results.sort((a, b) => b.score - a.score)).pipe(
-            toArray(),
-            map(results =>
-                results.length === 0 ? undefined :
-                results.length === 1 ? results[0] :
-                new Multiple(results)
-            ),
-        ))
+        flatMap(results => results.length === 0 ? empty() : observableOf(
+            results.length === 1 ? results[0] : new Multiple(results.sort((a, b) => b.score - a.score))
+        )),
     );
 }
 
@@ -121,7 +112,7 @@ export function top <
         ? observableFrom(result.results).pipe(
             takeWhile((m, i) => i < maxResults && m.score + tolerance >= result.results[0].score),
             toArray(),
-            map(results => results.length === 1 ? results[0] : new Multiple(results))
+            map(results => results.length === 1 ? results[0] : new Multiple(results)),
         )
         : result
     );

@@ -62,7 +62,7 @@ export function pipe <
 > (
     transform: (...args: ARGS) => any,
     ...functions: ((... args: any[]) => any)[]
-): Transform<ARGS, Result | undefined>;
+): Transform<ARGS, Result>;
 
 export function pipe (
     ...transforms: ((...args: any[]) => any)[]
@@ -70,28 +70,28 @@ export function pipe (
     const _transforms = observableFrom(transforms.map(transform => from(transform)));
 
     return (...args: any[]) => _transforms.pipe(
-        reduce<Transform<any[], Result | undefined>, Observable<any[] | undefined>>(
+        reduce<Transform<any[], Result>, Observable<any[] | Result>>(
             (args$, transform) => args$.pipe(
-                flatMap(args => args ? transform(...args) : observableOf(args)),
-                map(result => result && [result]),
+                flatMap(args => args instanceof Result ? transform(args) : transform(...args)),
             ),
             observableOf(args)
         ),
         mergeAll(),
-        map(results => results && results[0]),
     );
 }
 
 export const _tap = <
-    RESULT extends Result | undefined,
+    RESULT extends Result,
 > (
-    fn: (route: RESULT) => any,
+    fn: (result: RESULT) => any,
 ): Transform<[RESULT], RESULT> =>
-    (route: RESULT) => observableOf(route).pipe(
-        map(route => fn(route)),
+    (result: RESULT) => observableOf(result).pipe(
+        map(result => fn(result)),
         flatMap(toObservable),
-        mapTo(route)
+        mapTo(result)
     );
+
+export const log = _tap(console.log);
 
 export { _tap as tap }
 

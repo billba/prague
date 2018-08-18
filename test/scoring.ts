@@ -1,4 +1,4 @@
-import { describe, expect, passErr } from './common';
+import { describe, expect, passErr, throwErr } from './common';
 import { Match, sorted, Multiple, pipe, top, best} from '../src/prague';
 
 const matches = [
@@ -28,12 +28,10 @@ describe("sorted", () => {
         }, passErr, done);
     });
 
-    it("should return undefined for null router", (done) => {
+    it("should not emit for null router", (done) => {
         sorted(
             () => null,
-        )().subscribe(_m => {
-            expect(_m).to.be.undefined;
-        }, passErr, done);
+        )().subscribe(throwErr, passErr, done);
     });
 
     it("should return Multiple for multiple results", (done) => {
@@ -83,11 +81,16 @@ describe("sorted", () => {
 describe("top", () => {
     it("should default to quantity infinity, tolerance 0", done => {
         pipe(
-            () => new Multiple(spreaded),
+            () => new Multiple([
+                new Match("hi", .5),
+                new Match("hello", .5),
+                new Match("aloha", .5),
+                new Match("wassup", .3),
+            ]),
             top(),
         )().subscribe(m => {
-            expect(m).not.instanceof(Multiple);
-            expect(m).equals(spreaded[0]);
+            expect(m).instanceof(Multiple);
+            expect((m as Multiple).results.length).equals(3);
         }, passErr, done);
     });
 
