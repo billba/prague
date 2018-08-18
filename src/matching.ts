@@ -2,7 +2,7 @@ import { of } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
 import { Observableable, Match, from, pipe, toObservable, first, tap } from './prague';
 
-const getMatchError = new Error("matching function should only return MatchRoute or NoRoute");
+const getMatchError = new Error("matching function should only return Match");
 
 export function match<
     ARGS extends any[],
@@ -23,7 +23,7 @@ export function match<
             }),
             onMatch,
         ),
-        from(onNoMatch),
+        onNoMatch,
     )
 }
 
@@ -45,12 +45,12 @@ function _if<
                 flatMap(toObservable),
                 map(result => result instanceof Match ? !!result.value : !!result)
             ),
-            route => {
-                if (route instanceof Match) {
-                    if (route.value === true)
+            result => {
+                if (result instanceof Match) {
+                    if (result.value === true)
                         return true;
 
-                    if (route.value === false)
+                    if (result.value === false)
                         return undefined;
                 }
                 throw ifPredicateError;

@@ -2,69 +2,71 @@ import { Result, Transform, Norm, from } from "./prague";
 import { from as observableFrom} from "rxjs";
 import { concatMap, take, filter } from "rxjs/operators";
 
+export function first(): Transform<[], never>;
+
 export function first <
-    ARGS extends any[],
-    R0,
+    ARGS extends any[] = [],
+    R0 = never,
 > (...args: [
-    (...args: ARGS) => R0
+    null | undefined | ((...args: ARGS) => R0)
 ]): Transform<ARGS, Norm<R0>>;
 
 export function first <
-    ARGS extends any[],
-    R0,
-    R1,
+    ARGS extends any[] = [],
+    R0 = never,
+    R1 = never,
 > (...args: [
-    (...args: ARGS) => R0,
-    (...args: ARGS) => R1
+    null | undefined | ((...args: ARGS) => R0),
+    null | undefined | ((...args: ARGS) => R1)
 ]): Transform<ARGS, Norm<R0 | R1>>;
 
 export function first <
-    ARGS extends any[],
-    R0,
-    R1,
-    R2,
+    ARGS extends any[] = [],
+    R0 = never,
+    R1 = never,
+    R2 = never,
 > (...args: [
-    (...args: ARGS) => R0,
-    (...args: ARGS) => R1,
-    (...args: ARGS) => R2
+    null | undefined | ((...args: ARGS) => R0),
+    null | undefined | ((...args: ARGS) => R1),
+    null | undefined | ((...args: ARGS) => R2)
 ]): Transform<ARGS, Norm<R0 | R1 | R2>>;
 
 export function first <
-    ARGS extends any[],
-    R0,
-    R1,
-    R2,
-    R3,
+    ARGS extends any[] = [],
+    R0 = never,
+    R1 = never,
+    R2 = never,
+    R3 = never,
 > (...args: [
-    (...args: ARGS) => R0,
-    (...args: ARGS) => R1,
-    (...args: ARGS) => R2,
-    (...args: ARGS) => R3
+    null | undefined | ((...args: ARGS) => R0),
+    null | undefined | ((...args: ARGS) => R1),
+    null | undefined | ((...args: ARGS) => R2),
+    null | undefined | ((...args: ARGS) => R3)
 ]): Transform<ARGS, Norm<R0 | R1 | R2 | R3>>;
 
 export function first <
-    ARGS extends any[],
-    R0,
-    R1,
-    R2,
-    R3,
-    R4,
+    ARGS extends any[] = [],
+    R0 = never,
+    R1 = never,
+    R2 = never,
+    R3 = never,
+    R4 = never,
 > (...args: [
-    (...args: ARGS) => R0,
-    (...args: ARGS) => R1,
-    (...args: ARGS) => R2,
-    (...args: ARGS) => R3,
-    (...args: ARGS) => R4
+    null | undefined | ((...args: ARGS) => R0),
+    null | undefined | ((...args: ARGS) => R1),
+    null | undefined | ((...args: ARGS) => R2),
+    null | undefined | ((...args: ARGS) => R3),
+    null | undefined | ((...args: ARGS) => R4)
 ]): Transform<ARGS, Norm<R0 | R1 | R2 | R3 | R4>>;
 
 export function first <
-    ARGS extends any[],
+    ARGS extends any[] = [],
 > (...args:
-    ((...args: ARGS) => any)[]
+    (null | undefined | ((...args: ARGS) => any))[]
 ): Transform<ARGS, Result>;
 
 export function first (
-    ...transforms: ((...args: any[]) => any)[]
+    ...transforms: (null | undefined | ((...args: any[]) => any))[]
 ) {
     const _transforms = observableFrom(transforms.map(transform => from(transform)));
 

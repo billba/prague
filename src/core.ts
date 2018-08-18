@@ -74,7 +74,7 @@ export class Match <VALUE> extends Result {
 }
 
 type NormalizedResult<R> =
-    R extends undefined | null ? never :
+    R extends never | undefined | null ? never :
     R extends Result ? R :
     R extends () => any ? Action :
     Match<R>;
@@ -86,7 +86,7 @@ export type Transform <
     RESULT extends Result,
 > = (...args: ARGS) => Observable<RESULT>;
 
-const none = () => empty();
+const returnsEmpty = () => empty();
 
 export function from <
     ARGS extends any[],
@@ -99,7 +99,7 @@ export function from (
     transform?: any,
 ) {
     if (!transform)
-        return none;
+        return returnsEmpty;
 
     if (typeof transform !== 'function')
         throw new Error("I can't transform that.");
