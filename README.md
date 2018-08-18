@@ -24,21 +24,26 @@ Some types of applications you could build with *Prague*:
 ## *Prague* Essentials
 
 ### `Transform`
-The fundamental unit of *Prague* is a `Transform`:
+The fundamental unit of *Prague* is a special type of function called a `Transform`:
 
 ```ts
 type Transform<ARGS extends any[], RESULT extends Result> = (...args: ARGS) => Observable<RESULT>;
 ```
 
-If a transformation occurred, the `Transform` emits a `Result` object. If no transformation occurred, nothing is emitted.
+A `Transform` is called with arguments as normal. If a transformation occurred, the resultant `Observable` emits a `Result` object and completes, oherwise it ompletes without emitting.
+
+If you're new to `Observable`s and none of this makes sense to you, you may want to read [Obervables and Promises](#observables-and-promises), which has both a quick introduction to `Observable`s and also shows how to ignore them and just work with `Promise`s. 
 
 ### `Result`
 
-`Result` is an abstract base class. The following subclasses of `Result` are built in, but you can provide your own:
+`Result` is an abstract base class. The following two subclasses of `Result` are "core" to *Prague*:
 * `Match<VALUE>` - a value
 * `Action` - a function to execute at a future time
+
+The following subclasses of `Result` are used for various helpers:
 * `ActionReference` - a serializable reference to a function to execute at a future time
 * `Multiple` - an array of `Result`s
+* `NoResult` - a way to get a positive "no result" signal from a `Transform`
 
 ### `from`
 
@@ -78,43 +83,6 @@ first(
 )
 ```
 As a result you never need to explicitly call `from` unless you are writing your own helper function.
-
-### working with `Observable`s
-
-`Observable`s are a powerful and flexible approach to writing asynchronous code, but you don't have to go all the way down that rabbit hole to use *Prague*. To run a `Transform` you just `subscribe`:
-
-```ts
-const repeat = from((a: string, b: number) => a.repeat(b));
-
-repeat("Bill", 2)
-    .subscribe(
-        result => {
-            // handle result (if there is one) here
-        },
-        err => {
-            // handle error here
-        },
-        () => {
-            // this is called when there are no more results
-        }
-    )
-```
-
-If you think this looks like writing resolve/reject handlers for a `Promise`, you're right. In fact, you can easily convert an `Observable` to a `Promise` as follows:
-
-```ts
-import { toPromise } from 'rxjs/operators';
-
-repeat("Bill", 2).pipe(toPromise)
-    .then(
-        result => {
-            // handle result here
-        },
-        err => {
-            // handle error here
-        },
-    )
-```
 
 ### Composition via helpers
 
@@ -404,6 +372,66 @@ const best = (...transforms) => pipe(
 #### `ActionReference` and `ActionReferences`
 
 tk
+
+
+### `Observable`s and `Promise`s
+
+`Observable`s are a powerful and flexible approach to writing asynchronous code, but you don't have to go all the way down that rabbit hole to use *Prague*. All you need to knoe is that an `Observable` emits zero or more values, and then either throws an error or completes. *Prague* `Transforms` never emit more than one value, which will always be a `Result`.
+
+#### Calling a `Transform`
+
+```ts
+fullName("Bill")
+    .subscribe(
+        result => {
+            // handle result (if there is one) here
+        },
+        err => {
+            // handle error here
+        },
+        () => {
+            // this is called when there are no more results, whether one was emitted or not
+        }
+    )
+```
+
+#### Using `Promise`s instead
+
+If you think this looks similar to writing resolve/reject handlers for a `Promise`, you're right. In fact, you can easily convert an `Observable` to a `Promise` as follows:
+
+```ts
+fullName("Bill")
+    .toPromise() // returns a Promise<Result | undefined>
+    .then(
+        result  => {
+            if (result === undefined) {
+                // No result was emitted
+            } else {
+                // handle result
+            }
+        },
+        err => {
+            // handle error here
+        },
+    )
+```
+
+### NoResult
+
+A quirk of `Observables` is that you don't automatically know if one emitted a value before completing. If you want a positive signal that no `Result` was emitted by your `Transform`, you can wrap it in `emitNoResult` as follows:
+
+```ts
+import { NoResult, emitNoResult } from 'prague';
+
+emitNoResult(
+    fullName
+)("Yomi")
+.subscribe(console.log); // NoResult{}
+```
+
+This is especially useful for writing unit tests for `Transform`s.
+
+(Another solution is to convert it to a `Promise` and check for an `undefined` result, as shown [above](#using-promises-instead).)
 
 ## Reference
 

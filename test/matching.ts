@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { match, Match, if as _if } from '../src/prague';
+import { match, Match, if as _if, emitNoResult } from '../src/prague';
 
 describe("match", () => {
     it("should not emit when no match and no onNoMatch handler", done => {
@@ -10,10 +10,12 @@ describe("match", () => {
     });
 
     it("should call onNoMatch handler when no match", done => {
-        match(
-            () => undefined,
-            throwErr,
-            () => "hi"
+        emitNoResult(
+            match(
+                () => undefined,
+                throwErr,
+                () => "hi"
+            )
         )().subscribe(m => {
             expect(m).instanceof(Match);
             expect((m as Match<string>).value).equals("hi");
@@ -21,10 +23,12 @@ describe("match", () => {
     });
 
     it("should call onMatch handler when match", done => {
-        match(
-            () => "hi",
-            a => a,
-            throwErr,
+        emitNoResult(
+            match(
+                () => "hi",
+                a => a,
+                throwErr,
+            )
         )().subscribe(m => {
             expect(m).instanceof(Match);
             expect((m as Match<string>).value).equals("hi");
@@ -32,10 +36,12 @@ describe("match", () => {
     });
 
     it("should pass through args", done => {
-        match(
-            (a: string, b: number) => a.repeat(b),
-            a => a,
-            throwErr,
+        emitNoResult(
+            match(
+                (a: string, b: number) => a.repeat(b),
+                a => a,
+                throwErr,
+            )
         )("hi", 2).subscribe(m => {
             expect(m).instanceof(Match);
             expect((m as Match<string>).value).equals("hihi");
@@ -43,10 +49,12 @@ describe("match", () => {
     });
 
     it("should throw on Action", done => {
-        match(
-            () => () => console.log("huh"),
-            a => a,
-            () => "hi",
+        emitNoResult(
+            match(
+                () => () => console.log("huh"),
+                a => a,
+                () => "hi",
+            )
         )().subscribe(throwErr, () => done(), throwErr);
     });
 });
@@ -64,10 +72,12 @@ describe("_if", () => {
         });
 
         it("should call onFalse on ${value}", done => {
-            _if(
-                () => value,
-                throwErr,
-                () => "hi",
+            emitNoResult(
+                _if(
+                    () => value,
+                    throwErr,
+                    () => "hi",
+                )
             )().subscribe(m => {
                 expect(m).instanceof(Match);
                 expect((m as Match<string>).value).equals("hi");
@@ -76,10 +86,12 @@ describe("_if", () => {
     });
 
     it("should pass through arguments", done => {
-        _if(
-            (a: number, b: number) => a > b,
-            () => "hi",
-            throwErr,
+        emitNoResult(
+            _if(
+                (a: number, b: number) => a > b,
+                () => "hi",
+                throwErr,
+            )
         )(5, 2).subscribe(m => {
             expect(m).instanceof(Match);
             expect((m as Match<string>).value).equals("hi");
@@ -88,9 +100,11 @@ describe("_if", () => {
 
     truthyValues.map(value => {
         it("should call onTrue handler on ${value}", done => {
-            _if(
-                () => value,
-                () => "hi",
+            emitNoResult(
+                _if(
+                    () => value,
+                    () => "hi",
+                )
             )().subscribe(m => {
                 expect(m).instanceof(Match);
                 expect((m as Match<string>).value).equals("hi");

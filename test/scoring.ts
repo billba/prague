@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { Match, sorted, Multiple, pipe, top, best} from '../src/prague';
+import { Match, sorted, Multiple, pipe, top, best, emitNoResult} from '../src/prague';
 
 const matches = [
     new Match("hello", .75),
@@ -21,8 +21,11 @@ const spreaded = [
 describe("sorted", () => {
     it("should pass through a single result", (done) => {
         const m = new Match("hello", .5);
-        sorted(
-            () => m,
+
+        emitNoResult(
+            sorted(
+                () => m,
+            )
         )().subscribe(_m => {
             expect(_m).equals(m);
         }, passErr, done);
@@ -35,8 +38,10 @@ describe("sorted", () => {
     });
 
     it("should return Multiple for multiple results", (done) => {
-        sorted(
-            ...matches.map(m => () => m)
+        emitNoResult(
+            sorted(
+                ...matches.map(m => () => m)
+            )
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals(matches)
@@ -44,8 +49,10 @@ describe("sorted", () => {
     });
 
     it("should return Multiple in sorted order for sorted results", (done) => {
-        sorted(
-            ...matches.map(m => () => m)
+        emitNoResult(
+            sorted(
+                ...matches.map(m => () => m)
+            )
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals(matches)
@@ -53,8 +60,10 @@ describe("sorted", () => {
     });
 
     it("should return Multiple in sorted order for unsorted results", (done) => {
-        sorted(
-            ...matches.reverse().map(m => () => m)
+        emitNoResult(
+            sorted(
+                ...matches.reverse().map(m => () => m)
+            )
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals(matches.reverse())
@@ -62,10 +71,12 @@ describe("sorted", () => {
     });
 
     it("should spread and sort Multiples", (done) => {
-        sorted(
-            () => matches[0],
-            () => new Multiple(spreadme),
-            () => matches[1],
+        emitNoResult(
+            sorted(
+                () => matches[0],
+                () => new Multiple(spreadme),
+                () => matches[1],
+            )
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
             expect((_m as Multiple).results).deep.equals([
@@ -80,14 +91,16 @@ describe("sorted", () => {
 
 describe("top", () => {
     it("should default to quantity infinity, tolerance 0", done => {
-        pipe(
-            () => new Multiple([
-                new Match("hi", .5),
-                new Match("hello", .5),
-                new Match("aloha", .5),
-                new Match("wassup", .3),
-            ]),
-            top(),
+        emitNoResult(
+            pipe(
+                () => new Multiple([
+                    new Match("hi", .5),
+                    new Match("hello", .5),
+                    new Match("aloha", .5),
+                    new Match("wassup", .3),
+                ]),
+                top(),
+            )
         )().subscribe(m => {
             expect(m).instanceof(Multiple);
             expect((m as Multiple).results.length).equals(3);
@@ -95,11 +108,13 @@ describe("top", () => {
     });
 
     it("should return one item when maxLength == 2 but tolerance is zero", done => {
-        pipe(
-            () => new Multiple(spreaded),
-            top({
-                maxResults: 2,
-            })
+        emitNoResult(
+            pipe(
+                () => new Multiple(spreaded),
+                top({
+                    maxResults: 2,
+                }),
+            )
         )().subscribe(m => {
             expect(m).not.instanceof(Multiple);
             expect(m).equals(matches[0]);
@@ -107,12 +122,14 @@ describe("top", () => {
     });
 
     it("should return two items when maxLength == 2 but tolerance is .1", done => {
-        pipe(
-            () => new Multiple(spreaded),
-            top({
-                maxResults: 2,
-                tolerance: .1,
-            })
+        emitNoResult(
+            pipe(
+                () => new Multiple(spreaded),
+                top({
+                    maxResults: 2,
+                    tolerance: .1,
+                }),
+            )
         )().subscribe(m => {
             expect(m).instanceof(Multiple);
             expect((m as Multiple).results.length).equals(2);
@@ -122,11 +139,13 @@ describe("top", () => {
     });
 
     it("should return all items when tolerance is 1", done => {
-        pipe(
-            () => new Multiple(spreaded),
-            top({
-                tolerance: 1,
-            })
+        emitNoResult(
+            pipe(
+                () => new Multiple(spreaded),
+                top({
+                    tolerance: 1,
+                }),
+            )
         )().subscribe(m => {
             expect(m).instanceof(Multiple);
             expect((m as Multiple).results.length).equals(4);
@@ -137,13 +156,15 @@ describe("top", () => {
 
 describe("best", () => {
     it("should return the top 1 item", done => {
-        best(
-            () => matches[0],
-            () => new Multiple(spreadme),
-            () => matches[1],
+        emitNoResult(
+            best(
+                () => matches[0],
+                () => new Multiple(spreadme),
+                () => matches[1],
+            )
         )()
         .subscribe(m => {
-            expect(m).not.instanceof(Multiple);
+            expect(m).instanceof(Match);
             expect(m).equals(matches[0]);
         }, passErr, done);
     })
