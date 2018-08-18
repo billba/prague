@@ -61,20 +61,21 @@ export function pipe <
     ARGS extends any[],
 > (
     transform: (...args: ARGS) => any,
-    ...functions: ((... args: any[]) => any)[]
+    ...transforms: ((result: any) => any)[]
 ): Transform<ARGS, Result>;
 
 export function pipe (
-    ...transforms: ((...args: any[]) => any)[]
+    transform: (...args: any[]) => Result,
+    ...transforms: ((result: Result) => Result)[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform)));
+    const _transforms = observableFrom(transforms.map(_transform => from(_transform)));
 
     return (...args: any[]) => _transforms.pipe(
-        reduce<Transform<any[], Result>, Observable<any[] | Result>>(
-            (args$, transform) => args$.pipe(
-                flatMap(args => args instanceof Result ? transform(args) : transform(...args)),
+        reduce<Transform<[Result], Result>, Observable<Result>>(
+            (result$, _transform) => result$.pipe(
+                flatMap(result => _transform(result)),
             ),
-            observableOf(args)
+            from(transform)(...args)
         ),
         mergeAll(),
     );
