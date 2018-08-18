@@ -1,4 +1,4 @@
-import { Result, first, from } from './prague';
+import { Result, first } from './prague';
 
 export class NoResult extends Result {
 }
@@ -11,7 +11,7 @@ export function emitNoResult <
     score?: number,
 ) {
     return first(
-        from(transform),
+        transform,
         () => new NoResult(score),
     )
 }

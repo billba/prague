@@ -43,4 +43,20 @@ describe("emitNoResult", () => {
             done();
         })
     });
+
+    it("should emit NoResult with score on no result", done => {
+        let emitted = false;
+
+        emitNoResult(
+            () => null,
+            .5
+        )().subscribe(r => {
+            emitted = true;
+            expect(r).instanceof(NoResult);
+            expect(r.score).equals(.5);
+        }, passErr, () => {
+            expect(emitted).is.true;
+            done();
+        })
+    });
 });
