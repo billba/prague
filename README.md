@@ -418,15 +418,22 @@ fullName("Bill")
 
 ### NoResult
 
-A quirk of `Observables` is that you don't automatically know if one emitted a value before completing. If you want a positive signal that no `Result` was emitted by your `Transform`, you can wrap it in `emitNoResult` as follows:
+A quirk of `Observables` is that you don't automatically know if one emitted a value before completing:
+
+```ts
+fullName("Bill").subscribe(console.log); // Match{ value: "Bill Barnes" }
+fullName("Yomi").subscribe(console.log); // <crickets>
+```
+
+You can force a transform to always emit *something* by wrapping it in `emitNoResult` as follows:
 
 ```ts
 import { NoResult, emitNoResult } from 'prague';
 
-emitNoResult(
-    fullName
-)("Yomi")
-.subscribe(console.log); // NoResult{}
+const fullNameAlwaysEmits = emitNoResult(fullName);
+
+fullNameAlwaysEmits("Bill").subscribe(console.log); // Match{ value: "Bill Barnes" }
+fullNameAlwaysEmits("Yomi").subscribe(console.log); // NoResult{}
 ```
 
 This is especially useful for writing unit tests for `Transform`s.
