@@ -425,12 +425,12 @@ fullName("Bill").subscribe(console.log); // Value{ value: "Bill Barnes" }
 fullName("Yomi").subscribe(console.log); // <crickets>
 ```
 
-You can force a transform to always emit *something* by wrapping it in `emitNoResult` as follows:
+You can force a transform to always emit *something* by wrapping it in `alwaysEmit` as follows:
 
 ```ts
-import { NoResult, emitNoResult } from 'prague';
+import { NoResult, alwaysEmit } from 'prague';
 
-const fullNameAlwaysEmits = emitNoResult(fullName);
+const fullNameAlwaysEmits = alwaysEmit(fullName);
 
 fullNameAlwaysEmits("Bill").subscribe(console.log); // Value{ value: "Bill Barnes" }
 fullNameAlwaysEmits("Yomi").subscribe(console.log); // NoResult{}
