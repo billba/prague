@@ -1,24 +1,24 @@
 import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
-import { Observableable, Match, from, pipe, toObservable, first, tap } from './prague';
+import { Observableable, Value, from, pipe, toObservable, first, tap } from './prague';
 
-const getMatchError = new Error("matching function should only return Match");
+const getMatchError = new Error("matching function should only return Value");
 
 export function match<
     ARGS extends any[],
     VALUE,
     ONMATCH,
     ONNOMATCH
->(
-    getMatch: (...args: ARGS) => Observableable<null | undefined | VALUE | Match<VALUE>>,
-    onMatch: (match: Match<VALUE>) => ONMATCH,
+> (
+    getMatch: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
+    onMatch: (value: Value<VALUE>) => ONMATCH,
     onNoMatch?: () => ONNOMATCH
 ) {
     return first(
         pipe(
             getMatch,
             tap(result => {
-                if (!(result instanceof Match))
+                if (!(result instanceof Value))
                     throw getMatchError;
             }),
             onMatch,
@@ -43,10 +43,10 @@ function _if<
             (...args: ARGS) => observableOf(args).pipe(
                 map(args => predicate(...args)),
                 flatMap(toObservable),
-                map(result => result instanceof Match ? !!result.value : !!result)
+                map(result => result instanceof Value ? !!result.value : !!result)
             ),
             result => {
-                if (result instanceof Match) {
+                if (result instanceof Value) {
                     if (result.value === true)
                         return true;
 

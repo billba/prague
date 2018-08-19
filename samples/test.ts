@@ -1,4 +1,4 @@
-import { Match, first, pipe, run, match, if as _if, best, re, ActionReferences, tap, sorted, Action } from '../src/prague';
+import { Value, first, pipe, run, match, if as _if, best, re, ActionReferences, tap, sorted, Action } from '../src/prague';
 
 // _if looks for a truthy result and doesn't capture any matches
 const askTime = _if(
@@ -17,7 +17,7 @@ const giveName = pipe(
         re(/My name is (.*)/),
         re(/Je m'appelle (.*)/),
     ),
-    r => r instanceof Match ? r.value[1] : r,
+    r => r instanceof Value ? r.value[1] : r,
 ); 
 
 const sayGoodbye = first(
@@ -56,9 +56,9 @@ greetings.map(t => pipe(
 console.log("*** Scoring ***");
 
 best(
-    () => new Match("bill", .85),
-    () => new Match("fred", .50),
-    () => new Match("joe", .85),
+    () => new Value("bill", .85),
+    () => new Value("fred", .50),
+    () => new Value("joe", .85),
 )()
 .subscribe(console.log)
 

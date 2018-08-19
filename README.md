@@ -37,17 +37,17 @@ If you're new to `Observable`s and none of this makes sense to you, you may want
 ### `Result`
 
 `Result` is an abstract base class. The following two subclasses of `Result` are "core" to *Prague*:
-* `Match<VALUE>` - a value
-* `Action` - a function to execute at a future time
+* `Value<VALUE>` - contains a value of type VALUE
+* `Action` - contains an action (function) to potentially execute at a future time
 
-The following subclasses of `Result` are used for various helpers:
-* `ActionReference` - a serializable reference to a function to execute at a future time
-* `Multiple` - an array of `Result`s
-* `NoResult` - a way to get a positive "no result" signal from a `Transform`
+*Prague* also includes and makes use of these subclasses of `Result`:
+* `ActionReference` - contains the (serializable) name and arguments of a function to potentially execute at a future time
+* `Multiple` - contains an array of `Result`s
+* `NoResult` - a way to get a positive "no result" signal from a `Transform` using [emitNoResults](#noresult)
 
 ### `from`
 
-The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Match`, a function instead of an `Action`, `undefined`/`null` when nothing is to be emitted, or a `Promise` or a synchronous result instead of an `Observable`:
+The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Value`, a function instead of an `Action`, `undefined`/`null` when nothing is to be emitted, or a `Promise` or a synchronous result instead of an `Observable`:
 
 ```ts
 const repeat = from((a: string) => a.repeat(5))
@@ -59,11 +59,11 @@ const getName = from((a: string) => fetch(`url/${a}`).then(r => r.json()).then(r
 ```
 are equivalent to:
 ```ts
-const repeat = (a: string) => Rx.of.(new Match(a.repeat(5)));
+const repeat = (a: string) => Rx.of.(new Value(a.repeat(5)));
 
 const confirm = (a: number) => Rx.of(new Action(() => console.log(`You picked ${a.toString()}`)));
 
-const getName = (a: string) => Rx.from(fetch(`url/${a}`).then(r => r.json()).then(r => new Match(r.someString)));
+const getName = (a: string) => Rx.from(fetch(`url/${a}`).then(r => r.json()).then(r => new Value(r.someString)));
 ```
 
 For your convenience, `from` is automatically called every place you supply a `Transform`:
@@ -101,8 +101,8 @@ const fullName = first(
     t => t === "Kevin" ? "Kevin Leung" : null,
 );
 
-fullName("Bill").subscribe(console.log);    // Match{ value: "Bill Barnes" }
-fullName("Hao").subscribe(console.log);     // Match{ value: "Hao Luo" }
+fullName("Bill").subscribe(console.log);    // Value{ value: "Bill Barnes" }
+fullName("Hao").subscribe(console.log);     // Value{ value: "Hao Luo" }
 fullName("Yomi").subscribe(console.log);    //
 ```
 
@@ -120,7 +120,7 @@ const someAssemblyRequired = pipe(
     fullName,
 );
 
-someAssemblyRequired("Kev", "in").subscribe(console.log);      // Match{ value: "Kevin Leung." }
+someAssemblyRequired("Kev", "in").subscribe(console.log);      // Value{ value: "Kevin Leung." }
 someAssemblyRequired("Yo", "mi").subscribe(console.log);       //
 ```
 
@@ -139,8 +139,8 @@ const greet = first(
     () => `I don't know you.`,
 )
 
-greet("Kevin").subscribe(console.log);      // Match{ value: "Nice to meet you, Kevin Leung." }
-greet("Yomi").subscribe(console.log);      // Match{ value: "I don't know you." }
+greet("Kevin").subscribe(console.log);      // Value{ value: "Nice to meet you, Kevin Leung." }
+greet("Yomi").subscribe(console.log);      // Value{ value: "I don't know you." }
 ```
 
 if `fullName` emits, we do one thing, otherwise we do another. This is a very common case, and the `match` helper is a little shorter and a lot more expressive. Here's the same `Transform`, rewritten with `match`:
@@ -171,7 +171,7 @@ const greet = _if(
 );
 
 greet("Bill")
-.subscribe(console.log); // Match{ value: "I greet you, my creator!" }
+.subscribe(console.log); // Value{ value: "I greet you, my creator!" }
 ```
 
 #### `tap`
@@ -185,7 +185,7 @@ pipe(
     t => t.repeat(2),
 ).("Bill")
 .subscribe();
-// Match{ value: "Bill Barnes" }
+// Value{ value: "Bill Barnes" }
 ```
 
 #### `Action` and `run`
@@ -248,7 +248,7 @@ Obviously actions can do much more than `console.log`. This approach of waiting 
 Something we have not touched on is that every `Result` has a `score`, a floating point numeric value between 0 and 1, inclusive. By default this score is 1, but you can specify a different score when creating any `Result`:
 
 ```ts
-new Match("Bill", .5); // Match{ value: "Bill", score: .5 }
+new Value("Bill", .5); // Value{ value: "Bill", score: .5 }
 ```
 
 Scores are useful when the situation is ambiguous. Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others to mean "I am telling you my name". One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where scoring comes in.
@@ -263,9 +263,9 @@ const bot = best(
         best(
             pipe(
                 (t: string) => /My name is (.*)/i.exec(t),
-                matches => matches.value[1], // gets converted to a Match of score 1
+                matches => matches.value[1], // gets converted to a Value of score 1
             ),
-            t => new Match(t, .5),
+            t => new Value(t, .5),
         ),
         m => new Action(() => console.log(`Nice to meet you, ${m.value}`), m.score)
     ),
@@ -290,16 +290,16 @@ So far, so good. But consider this case:
 
 ```ts
 const transforms = [
-    () => new Match("hi", .75),
-    () => new Match("hello", .75),
-    () => new Match("aloha", .70),
-    () => new Match("wassup", .65),
+    () => new Value("hi", .75),
+    () => new Value("hello", .75),
+    () => new Value("aloha", .70),
+    () => new Value("wassup", .65),
 ];
 
 best(
     ...transforms
 )()
-.subscribe(console.log) // Match{ value: "hi", score: .75 }
+.subscribe(console.log) // Value{ value: "hi", score: .75 }
 ```
 
 Calling `best` can be unsatisfactory when there is a tie at the top. Things get even more challenging if you want to program in some wiggle room, say 5%, so that "aloha" becomes a third valid result.
@@ -324,7 +324,7 @@ pipe(
     sortme,
     top(),
 )()
-.subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, ] }
+.subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, ] }
 ```
 
 To include "aloha" we can add a tolerance of 5%:
@@ -336,7 +336,7 @@ pipe(
         tolerance: .05,
     }),
 )()
-.subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, Match{ value: "aloha", score: .70 }, ] }
+.subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, Value{ value: "aloha", score: .70 }, ] }
 ```
 
 We can set a tolerance of 1 (include all the results) but set the maximum results to 3. This will have the same effect as the above:
@@ -349,7 +349,7 @@ pipe(
         tolerance: 1,
     }),
 )()
-.subscribe(console.log); // Multiple{ results:[ Match{ value: "hi", score: .75 }, Match{ value: "hello", score: .75 }, Match{ value: "aloha", score: .70 }, ] }
+.subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, Value{ value: "aloha", score: .70 }, ] }
 ```
 
 Increasing `tolerance` includes more items in the "high score". It defaults to `0`.
@@ -421,7 +421,7 @@ fullName("Bill")
 A quirk of `Observables` is that you don't automatically know if one emitted a value before completing:
 
 ```ts
-fullName("Bill").subscribe(console.log); // Match{ value: "Bill Barnes" }
+fullName("Bill").subscribe(console.log); // Value{ value: "Bill Barnes" }
 fullName("Yomi").subscribe(console.log); // <crickets>
 ```
 
@@ -432,7 +432,7 @@ import { NoResult, emitNoResult } from 'prague';
 
 const fullNameAlwaysEmits = emitNoResult(fullName);
 
-fullNameAlwaysEmits("Bill").subscribe(console.log); // Match{ value: "Bill Barnes" }
+fullNameAlwaysEmits("Bill").subscribe(console.log); // Value{ value: "Bill Barnes" }
 fullNameAlwaysEmits("Yomi").subscribe(console.log); // NoResult{}
 ```
 

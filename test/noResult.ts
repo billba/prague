@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { first, Match, NoResult, emitNoResult } from '../src/prague';
+import { Value, NoResult, alwaysEmit } from '../src/prague';
 
 describe("NoResult", () => {
     it("should create a NoResult", () => {
@@ -14,12 +14,12 @@ describe("NoResult", () => {
     });
 });
 
-describe("emitNoResult", () => {
+describe("alwaysEmit", () => {
     it("should pass through result", done => {
         let emitted = false;
-        const m = new Match("Hi");
+        const m = new Value("Hi");
 
-        emitNoResult(
+        alwaysEmit(
             () => m
         )().subscribe(r => {
             emitted = true;
@@ -33,7 +33,7 @@ describe("emitNoResult", () => {
     it("should emit NoResult on no result", done => {
         let emitted = false;
 
-        emitNoResult(
+        alwaysEmit(
             () => null
         )().subscribe(r => {
             emitted = true;
@@ -47,7 +47,7 @@ describe("emitNoResult", () => {
     it("should emit NoResult with score on no result", done => {
         let emitted = false;
 
-        emitNoResult(
+        alwaysEmit(
             () => null,
             .5
         )().subscribe(r => {

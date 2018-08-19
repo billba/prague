@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { first, Match, emitNoResult, NoResult } from '../src/prague';
+import { first, Value, alwaysEmit, NoResult } from '../src/prague';
 
 describe("first", () => {
     it("should not emit on no transforms", done => {
@@ -13,50 +13,50 @@ describe("first", () => {
         )().subscribe(throwErr, passErr, done)
     });
 
-    it("returns result of first transform when Match", done => {
-        emitNoResult(
+    it("returns result of first transform when Value", done => {
+        alwaysEmit(
             first(
                 () => "hi"
             )
         )().subscribe(m => {
-            expect(m).instanceof(Match);
-            expect((m as Match<string>).value).equals("hi");
+            expect(m).instanceof(Value);
+            expect((m as Value<string>).value).equals("hi");
         }, passErr, done)
     });
 
     it("returns result of second transform when first is undefined", done => {
-        emitNoResult(
+        alwaysEmit(
             first(
                 () => undefined,
                 () => "hi",
             )
         )().subscribe(m => {
-            expect(m).instanceof(Match);
-            expect((m as Match<string>).value).equals("hi");
+            expect(m).instanceof(Value);
+            expect((m as Value<string>).value).equals("hi");
         }, passErr, done)
     });
 
     it("ignores second transform when first is Match", done => {
-        emitNoResult(
+        alwaysEmit(
             first(
                 () => "hi",
                 throwErr,
             )
         )().subscribe(m => {
-            expect(m).instanceof(Match);
-            expect((m as Match<string>).value).equals("hi");
+            expect(m).instanceof(Value);
+            expect((m as Value<string>).value).equals("hi");
         }, passErr, done)
     });
 
     it("passes through arguments to all functions", done => {
-        emitNoResult(
+        alwaysEmit(
             first(
                 (a: string, b: number) => undefined,
                 (a, b) => a.repeat(b),
             )
         )("hi", 2).subscribe(m => {
-            expect(m).instanceof(Match);
-            expect((m as Match<string>).value).equals("hihi");
+            expect(m).instanceof(Value);
+            expect((m as Value<string>).value).equals("hihi");
         }, passErr, done)
     });
 });

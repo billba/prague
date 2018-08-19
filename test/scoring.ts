@@ -1,14 +1,14 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { Match, sorted, Multiple, pipe, top, best, emitNoResult} from '../src/prague';
+import { Value, sorted, Multiple, pipe, top, best, alwaysEmit} from '../src/prague';
 
 const matches = [
-    new Match("hello", .75),
-    new Match("hi", .5),
+    new Value("hello", .75),
+    new Value("hi", .5),
 ];
 
 const spreadme = [
-    new Match("aloha", .65),
-    new Match("wassup", .3),
+    new Value("aloha", .65),
+    new Value("wassup", .3),
 ];
 
 const spreaded = [
@@ -20,9 +20,9 @@ const spreaded = [
 
 describe("sorted", () => {
     it("should pass through a single result", (done) => {
-        const m = new Match("hello", .5);
+        const m = new Value("hello", .5);
 
-        emitNoResult(
+        alwaysEmit(
             sorted(
                 () => m,
             )
@@ -38,7 +38,7 @@ describe("sorted", () => {
     });
 
     it("should return Multiple for multiple results", (done) => {
-        emitNoResult(
+        alwaysEmit(
             sorted(
                 ...matches.map(m => () => m)
             )
@@ -49,7 +49,7 @@ describe("sorted", () => {
     });
 
     it("should return Multiple in sorted order for sorted results", (done) => {
-        emitNoResult(
+        alwaysEmit(
             sorted(
                 ...matches.map(m => () => m)
             )
@@ -60,7 +60,7 @@ describe("sorted", () => {
     });
 
     it("should return Multiple in sorted order for unsorted results", (done) => {
-        emitNoResult(
+        alwaysEmit(
             sorted(
                 ...matches.reverse().map(m => () => m)
             )
@@ -71,7 +71,7 @@ describe("sorted", () => {
     });
 
     it("should spread and sort Multiples", (done) => {
-        emitNoResult(
+        alwaysEmit(
             sorted(
                 () => matches[0],
                 () => new Multiple(spreadme),
@@ -91,13 +91,13 @@ describe("sorted", () => {
 
 describe("top", () => {
     it("should default to quantity infinity, tolerance 0", done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 () => new Multiple([
-                    new Match("hi", .5),
-                    new Match("hello", .5),
-                    new Match("aloha", .5),
-                    new Match("wassup", .3),
+                    new Value("hi", .5),
+                    new Value("hello", .5),
+                    new Value("aloha", .5),
+                    new Value("wassup", .3),
                 ]),
                 top(),
             )
@@ -108,7 +108,7 @@ describe("top", () => {
     });
 
     it("should return one item when maxLength == 2 but tolerance is zero", done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 () => new Multiple(spreaded),
                 top({
@@ -122,7 +122,7 @@ describe("top", () => {
     });
 
     it("should return two items when maxLength == 2 but tolerance is .1", done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 () => new Multiple(spreaded),
                 top({
@@ -139,7 +139,7 @@ describe("top", () => {
     });
 
     it("should return all items when tolerance is 1", done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 () => new Multiple(spreaded),
                 top({
@@ -156,7 +156,7 @@ describe("top", () => {
 
 describe("best", () => {
     it("should return the top 1 item", done => {
-        emitNoResult(
+        alwaysEmit(
             best(
                 () => matches[0],
                 () => new Multiple(spreadme),
@@ -164,7 +164,7 @@ describe("best", () => {
             )
         )()
         .subscribe(m => {
-            expect(m).instanceof(Match);
+            expect(m).instanceof(Value);
             expect(m).equals(matches[0]);
         }, passErr, done);
     })

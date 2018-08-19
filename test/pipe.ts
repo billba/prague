@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { pipe, run, Match, tap, Action, emitNoResult } from '../src/prague';
+import { pipe, run, Value, tap, Action, alwaysEmit } from '../src/prague';
 
 describe("pipe", () => {
 
@@ -24,36 +24,36 @@ describe("pipe", () => {
     });
 
     it('should pass through argument to first transform', done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (a: string) => a,
             )
         )("hi").subscribe(m => {
-            expect(m).instanceOf(Match);
-            expect((m as Match<string>).value).equals("hi");
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hi");
         }, passErr, done)
     });
 
     it('should pass through multiple arguments to first transform', done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (a: string, b: number) => a.repeat(b),
             )
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Match);
-            expect((m as Match<string>).value).equals("hihi");
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hihi");
         }, passErr, done)
     });
 
     it('should pass result of first transform to second transform', done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (a: string, b: number) => a.repeat(b),
                 a => a,
             )
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Match);
-            expect((m as Match<string>).value).equals("hihi");
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hihi");
         }, passErr, done)
     });
 });
@@ -61,7 +61,7 @@ describe("pipe", () => {
 describe("tap", () => {
     it("should get the result of the previous function, and pass through to following function", done => {
         let handled = "no";
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (a: string, b: number) => a.repeat(b),
                 tap(a => {
@@ -71,29 +71,29 @@ describe("tap", () => {
             )  
         )("hi", 2).subscribe(m => {
             expect(handled).to.equal("hihi");
-            expect(m).instanceOf(Match);
-            expect((m as Match<string>).value).to.equal("hihi");
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).to.equal("hihi");
         }, passErr, done);
     });
 });
 
 describe("run", () => {
     it("should ignore non-action result", done => {
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (a: string, b: number) => a.repeat(b),
                 run,
             )
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Match);
-            expect((m as Match<string>).value).to.equal("hihi");
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).to.equal("hihi");
         }, passErr, done);
     });
 
     it("should run action of Action", done => {
         let handled = "no";
 
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (a: string) => () => {
                     handled = a;

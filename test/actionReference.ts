@@ -1,5 +1,5 @@
 import { describe, expect, passErr } from './common';
-import { ActionReference, ActionReferences, pipe, run, emitNoResult, Action } from '../src/prague';
+import { ActionReference, ActionReferences, pipe, run, alwaysEmit, Action } from '../src/prague';
 
 describe("ActionReference", () => {
     it("should create an ActionReference with no args and default options", () => {
@@ -102,7 +102,7 @@ describe("ActionReferences", () => {
     it("should convert greeting reference to greeting function", (done) => {
         output = [];
 
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 (name: string) => actions.reference.greeting(name),
                 actions.toAction(sendToOutput),
@@ -117,7 +117,7 @@ describe("ActionReferences", () => {
     it("should convert farewell reference to farewell function", (done) => {
         output = [];
 
-        emitNoResult(
+        alwaysEmit(
             pipe(
                 () => actions.reference.farewell(),
                 actions.toAction(sendToOutput),

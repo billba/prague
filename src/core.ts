@@ -63,7 +63,7 @@ export class Action extends Result {
     }
 }
 
-export class Match <VALUE> extends Result {
+export class Value <VALUE> extends Result {
 
     constructor (
         public value: VALUE,
@@ -73,13 +73,13 @@ export class Match <VALUE> extends Result {
     }
 }
 
-type NormalizedResult<R> =
+type NormalizedResult <R> =
     R extends never | undefined | null ? never :
     R extends Result ? R :
     R extends () => any ? Action :
-    Match<R>;
+    Value<R>;
 
-export type Norm<R> = NormalizedResult<BaseType<R>>;
+export type Norm <R> = NormalizedResult<BaseType<R>>;
 
 export type Transform <
     ARGS extends any[],
@@ -89,8 +89,8 @@ export type Transform <
 const returnsEmpty = () => empty();
 
 export function from <
-    ARGS extends any[],
-    R,
+    ARGS extends any[] = [],
+    R = never,
 > (
     transform?: null | ((...args: ARGS) => R),
 ): Transform<ARGS, Norm<R>>
@@ -110,7 +110,7 @@ export function from (
         flatMap(result => result == null ? empty() : observableOf(
             result instanceof Result ? result :
             typeof result === 'function' ? new Action(result) :
-            new Match(result)
+            new Value(result)
         )),
     );
 }

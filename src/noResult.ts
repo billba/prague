@@ -3,7 +3,7 @@ import { Result, first } from './prague';
 export class NoResult extends Result {
 }
 
-export function emitNoResult <
+export function alwaysEmit <
     ARGS extends any[],
     R,
 > (
