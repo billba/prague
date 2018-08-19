@@ -110,7 +110,7 @@ Note that all the `Transform`s have the same argument types. However you only ne
 
 #### `pipe`
 
-`pipe` returns a new `Transform` which calls each of the supplied `Transform`s in turn. You supply the arguments for the first, its `Result` is the argument for the second, and so on. If all of the `Transform`s emit a `Result`, the last one is the `Result` of the new `Transform`, otherwise it doesn't emit.
+`pipe` returns a new `Transform` which calls each of the supplied `Transform`s in turn. You supply the arguments for the first, its `Result` is the argument for the second, and so on. If all of the `Transform`s emit a `Result`, the the new `Transform` emits the last one, otherwise it doesn't emit.
 
 ```ts
 import { pipe } from 'prague';
@@ -139,7 +139,7 @@ const greet = first(
     () => `I don't know you.`,
 )
 
-greet("Kevin").subscribe(console.log);      // Value{ value: "Nice to meet you, Kevin Leung." }
+greet("Kevin").subscribe(console.log);     // Value{ value: "Nice to meet you, Kevin Leung." }
 greet("Yomi").subscribe(console.log);      // Value{ value: "I don't know you." }
 ```
 
@@ -159,7 +159,7 @@ const greet = match(
 
 `if` is a special case of `match` for the common case of testing a "truthy" predicate.
 
-Pro Tip: Because `if` is a JavaScript reserved word, if you `import` *Prague* functions individually you'll need to rename it:
+**Note**: Because `if` is a JavaScript reserved word, if you `import` *Prague* functions individually you'll need to rename it:
 
 ```ts
 import { if as _if } from 'prague';
