@@ -1,6 +1,6 @@
 # *Prague*
 
-An experimental rule system handy for games and conversational user interfaces. I thought of it as I walked around Prague on a sunny Spring day. **This is not an official Microsoft project.**
+A rule system handy for games and conversational user interfaces. I thought of it as I walked around the city of Prague on a sunny Spring day. **This is not an official Microsoft project.**
 
 Major features of Prague:
 * strongly-typed when using [TypeScript](https://www.typescriptlang.org) (but you don't have to use TypeScript)
@@ -14,7 +14,7 @@ Some types of applications you could build with *Prague*:
 
 ## Building *Prague*
 
-* clone or fork this repo
+* clone this repo
 * `npm install`
 * `npm run build` (or `npm run watch` to build on file changes)
 
@@ -447,7 +447,3 @@ tk
 ## Samples
 
 Some miscelaneous [samples](samples/test.ts) exist, but mostly tk.
-
-## Tests
-
-These are in the process of being ported from 0.19.1
