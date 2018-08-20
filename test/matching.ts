@@ -57,6 +57,14 @@ describe("match", () => {
             )
         )().subscribe(throwErr, () => done(), throwErr);
     });
+
+    it("should not call onNoMatch on match when onMatch doesn't emit", done => {
+        match(
+            () => "hi",
+            () => undefined,
+            throwErr,
+        )().subscribe(throwErr, passErr, done);
+    });
 });
 
 describe("_if", () => {

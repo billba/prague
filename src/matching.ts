@@ -1,6 +1,7 @@
 import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
 import { Observableable, Value, from, pipe, toObservable, first, tap } from './prague';
+import { alwaysEmit, NoResult } from './noResult';
 
 const getMatchError = new Error("matching function should only return Value");
 
@@ -14,17 +15,23 @@ export function match<
     onMatch: (value: Value<VALUE>) => ONMATCH,
     onNoMatch?: () => ONNOMATCH
 ) {
-    return first(
-        pipe(
-            getMatch,
-            tap(result => {
-                if (!(result instanceof Value))
-                    throw getMatchError;
-            }),
-            onMatch,
+    const _onMatch   = from(onMatch  );
+    const _onNoMatch = from(onNoMatch);
+
+    return pipe(
+        alwaysEmit(
+            getMatch
         ),
-        onNoMatch,
-    )
+        result => {
+            if (result instanceof Value)
+                return _onMatch(result);
+            
+            if (result instanceof NoResult)
+                return _onNoMatch();
+
+            throw getMatchError;
+        },
+    );
 }
 
 const ifPredicateError = new Error("predicate must return true or false");
