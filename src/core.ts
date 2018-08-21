@@ -43,6 +43,18 @@ export abstract class Result {
     }
 }
 
+export class NoResult extends Result {
+    private constructor() {
+        super();
+    }
+
+    static singleton = new NoResult();
+
+    static transform = () => observableOf(NoResult.singleton);
+
+    static filterOut = (result: Result) => result !== NoResult.singleton;
+}
+
 export interface ResultClass <
     T extends Result
 > {
@@ -82,7 +94,7 @@ export class Value <VALUE> extends Result {
 }
 
 type NormalizedResult <R> =
-    R extends never | undefined | null ? never :
+    R extends undefined | null ? NoResult :
     R extends Result ? R :
     R extends () => any ? Action :
     Value<R>;
@@ -93,8 +105,6 @@ export type Transform <
     ARGS extends any[],
     RESULT extends Result,
 > = (...args: ARGS) => Observable<RESULT>;
-
-const returnsEmpty = () => empty();
 
 export function from <
     ARGS extends any[] = [],
@@ -107,7 +117,7 @@ export function from (
     transform?: any,
 ) {
     if (!transform)
-        return returnsEmpty;
+        return NoResult.transform;
 
     if (typeof transform !== 'function')
         throw new Error("I can't transform that.");
@@ -115,10 +125,11 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        flatMap(result => result == null ? empty() : observableOf(
+        map(result =>
+            result == null ? NoResult.singleton :
             result instanceof Result ? result :
             typeof result === 'function' ? new Action(result) :
             new Value(result)
-        )),
+        ),
     );
 }

@@ -1,40 +1,32 @@
 import { of as observableOf } from 'rxjs';
-import { map, flatMap } from 'rxjs/operators';
-import { Observableable, Value, from, pipe, toObservable } from './prague';
-import { alwaysEmit, NoResult } from './noResult';
+import { map, flatMap, tap } from 'rxjs/operators';
+import { Observableable, Value, from, pipe, toObservable, NoResult, log } from './prague';
 
-const getMatchError = new Error("getValue transform should only return Value");
+const getMatchError = new Error("getValue transform should only return Value or NoResult");
 
 export function match<
     ARGS extends any[],
     VALUE,
     ONVALUE,
-    ONNOVALUE
+    ONNOVALUE = null,
 > (
-    getValue: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
+    getValue: (...args: ARGS) => Observableable<null | undefined | NoResult | VALUE | Value<VALUE>>,
     onValue: (value: Value<VALUE>) => ONVALUE,
-    onNoValue?: () => ONNOVALUE
+    onNoValue?: () => ONNOVALUE,
 ) {
-    const _onMatch   = from(onValue  );
-    const _onNoMatch = from(onNoValue);
-
-    return pipe(
-        alwaysEmit(
-            getValue
-        ),
-        result => {
+    return from((...args: ARGS) => from(getValue)(...args).pipe(
+        tap(console.log),
+        map(result => {
             if (result instanceof Value)
-                return _onMatch(result);
-            
-            if (result instanceof NoResult)
-                return _onNoMatch();
+                return onValue(result);
+        
+            if (result === NoResult.singleton)
+                return onNoValue ? onNoValue() : result;
 
             throw getMatchError;
-        },
-    );
+        })
+    ));
 }
-
-const ifPredicateError = new Error("predicate must return true or false");
 
 export function matchIf <
     ARGS extends any[],
@@ -52,17 +44,8 @@ export function matchIf <
                 flatMap(toObservable),
                 map(result => result instanceof Value ? !!result.value : !!result)
             ),
-            result => {
-                if (result instanceof Value) {
-                    if (result.value === true)
-                        return true;
-
-                    if (result.value === false)
-                        return undefined;
-                }
-                throw ifPredicateError;
-            }
-        ),
+            result => result.value === true ? result : NoResult.singleton,
+        ),  
         onTrue,
         onFalse
     );

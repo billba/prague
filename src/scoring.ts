@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, pipe } from "./prague";
+import { Result, Transform, Norm, from, pipe, NoResult } from "./prague";
 import { from as observableFrom, of as observableOf, empty} from "rxjs";
 import { flatMap, toArray, map, takeWhile } from "rxjs/operators";
 
@@ -80,9 +80,11 @@ export function sorted (
         flatMap(transform => transform(...args)),
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
         toArray(),
-        flatMap(results => results.length === 0 ? empty() : observableOf(
-            results.length === 1 ? results[0] : new Multiple(results.sort((a, b) => b.score - a.score))
-        )),
+        map(results =>
+            results.length === 0 ? NoResult.singleton : 
+            results.length === 1 ? results[0] :
+            new Multiple(results.sort((a, b) => b.score - a.score))
+        ),
     );
 }
 

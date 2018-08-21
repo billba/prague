@@ -1,10 +1,10 @@
-import { describe, expect, passErr, throwErr, nullablevalues, values, } from './common';
+import { describe, expect, passErr, throwErr, nullablevalues, values, isNoResult, } from './common';
 import { of, empty, from as observableFrom } from 'rxjs';
-import { toObservable, Action, Value, from, alwaysEmit, NoResult} from '../src/prague';
+import { toObservable, Action, Value, from, NoResult} from '../src/prague';
 import { toArray } from 'rxjs/operators';
 
 describe("toObservable", () => {
-    nullablevalues.map(value => {
+    nullablevalues.forEach(value => {
         it(`should convert ${value} to an observable`, (done) => {
             toObservable(value)
                 .subscribe(n => {
@@ -41,6 +41,13 @@ describe("toObservable", () => {
                 expect(n.length === 1)
                 expect(n[0]).equals(1);
             }, passErr, done);       
+    });
+});
+
+describe("NoResult", () => {
+    it("should create a NoResult", () => {
+        const r = NoResult.singleton;
+        expect(r).instanceof(NoResult);
     });
 });
 
@@ -151,26 +158,25 @@ describe("from", () => {
         }
     });
 
-    it("should not emit on undefined", (done) => {
+    it("should emit NoResult on undefined", (done) => {
         from(undefined)
-        ().subscribe(throwErr, passErr, done);
+        ().subscribe(isNoResult, passErr, done);
     });
 
-    it("should not emit for null", (done) => {
+    it("should emit NoResult on null", (done) => {
         from(null)
-        ().subscribe(throwErr, passErr, done)
-});
+        ().subscribe(isNoResult, passErr, done)
+    });
 
-    it("should not emit for no args", (done) => {
+    it("should emit NoResult on no args", (done) => {
         from()
-        ().subscribe(throwErr, passErr, done)
-});
+        ().subscribe(isNoResult, passErr, done)
+    });
 
-    values.map(value => {
+    values.forEach(value => {
         it(`should return () => Observable.of(Value) for () => ${typeof value}`, (done) => {
-            alwaysEmit(
-                from(() => value)
-            )().subscribe(r => {
+            from(() => value)
+            ().subscribe(r => {
                 expect(r).instanceof(Value);
                 expect((r as Value<string>).value).equals(value);
             }, passErr, done)
@@ -179,9 +185,8 @@ describe("from", () => {
         it(`should pass through () => Observable.of(Value<${typeof value}>) for () => Value<${typeof value}>`, (done) => {
             const m = new Value(value);
 
-            alwaysEmit(
-                from(() => m)
-            )().subscribe(r => {
+            from(() => m)
+            ().subscribe(r => {
                 expect(r).instanceof(Value);
                 expect(r).equals(m);
             }, passErr, done)
@@ -192,11 +197,10 @@ describe("from", () => {
     it("should return () => Observable.of(Action) for () => () =>  ...", (done) => {
         let handled = false;
 
-        alwaysEmit(
-            from(() => () => {
-                handled = true;
-            })
-        )().subscribe(r => {
+        from(() => () => {
+            handled = true;
+        })
+        ().subscribe(r => {
             expect(r).instanceof(Action);
             (r as Action)
                 .action()
@@ -212,9 +216,8 @@ describe("from", () => {
             handled = true;
         });
 
-        alwaysEmit(
-            from(() => action)
-        )().subscribe(r => {
+        from(() => action)
+        ().subscribe(r => {
             expect(r).instanceof(Action);
             expect(r).to.equal(action);
             (r as Action)
@@ -228,11 +231,10 @@ describe("from", () => {
     it("should pass through an argument", (done) => {
         let handled = false;
 
-        alwaysEmit(
-            from((a: boolean) => () => {
-                handled = a;
-            })
-        )(true).subscribe(r => {
+        from((a: boolean) => () => {
+            handled = a;
+        })
+        (true).subscribe(r => {
             expect(r).instanceof(Action);
             (r as Action)
                 .action()

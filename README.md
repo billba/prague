@@ -30,24 +30,22 @@ The fundamental unit of *Prague* is a special type of function called a `Transfo
 type Transform<ARGS extends any[], RESULT extends Result> = (...args: ARGS) => Observable<RESULT>;
 ```
 
-A `Transform` is called with arguments as normal. If a transformation occurred, the resultant `Observable` emits a `Result` object and completes, oherwise it ompletes without emitting.
-
-If you're new to `Observable`s and none of this makes sense to you, you may want to read [Obervables and Promises](#observables-and-promises), which has both a quick introduction to `Observable`s and also shows how to ignore them and just work with `Promise`s. 
+A `Transform` function is called with arguments as normal. But instead of returning a result directly, it returns an object called an `Observable`. You subscribe to that object to get the result. If you're new to `Observable`s, you may want to read [Obervables and Promises](#observables-and-promises), which has both a quick introduction to `Observable`s and also shows how to ignore them and just work with `Promise`s. 
 
 ### `Result`
 
-`Result` is an abstract base class. The following two subclasses of `Result` are "core" to *Prague*:
+`Result` is an abstract base class. The following three subclasses of `Result` are "core" to *Prague*:
+* `NoResult` - interpreted as "the transform was unable to produce a result"
 * `Value<VALUE>` - contains a value of type VALUE
 * `Action` - contains an action (function) to potentially execute at a future time
 
 *Prague* also includes and makes use of these subclasses of `Result`:
 * `ActionReference` - contains the (serializable) name and arguments of a function to potentially execute at a future time
 * `Multiple` - contains an array of `Result`s
-* `NoResult` - a way to get a positive "no result" signal from a `Transform` using [emitNoResults](#noresult)
 
 ### `from`
 
-The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Value`, a function instead of an `Action`, `undefined`/`null` when nothing is to be emitted, or a `Promise` or a synchronous result instead of an `Observable`:
+The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Value`, a function instead of an `Action`, `undefined`/`null` instead of a `NoResult`, or a `Promise` or a synchronous result instead of an `Observable`:
 
 ```ts
 const repeat = from((a: string) => a.repeat(5))

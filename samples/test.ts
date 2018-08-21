@@ -46,7 +46,8 @@ const greetings = [
     "I'm Bill",
 ];
 
-greetings.map(t => pipe(
+greetings.map(t =>
+    pipe(
         app,
         run,
     )(t)

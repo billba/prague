@@ -1,6 +1,6 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, NoResult } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
-import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
+import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty, filter } from "rxjs/operators";
 
 export function pipe <
     ARGS extends any[],
@@ -74,10 +74,14 @@ export function pipe (
         reduce<Transform<[Result], Result>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
+                filter(NoResult.filterOut),
             ),
-            from(transform)(...args)
+            from(transform)(...args).pipe(
+                filter(NoResult.filterOut),
+            )
         ),
         mergeAll(),
+        defaultIfEmpty(NoResult.singleton),
     );
 }
 

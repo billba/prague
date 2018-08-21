@@ -1,6 +1,6 @@
-import { Result, Transform, Norm, from } from "./prague";
+import { Result, Transform, Norm, from, NoResult } from "./prague";
 import { from as observableFrom} from "rxjs";
-import { concatMap, take } from "rxjs/operators";
+import { concatMap, take, filter, defaultIfEmpty } from "rxjs/operators";
 
 export function first(): Transform<[], never>;
 
@@ -73,7 +73,9 @@ export function first (
     return (...args: any[]) => _transforms.pipe(
         // we put concatMap here because it forces everything to after it to execute serially
         concatMap(transform => transform(...args)),
+        filter(NoResult.filterOut),
         // Stop when one emits a result
         take(1), 
+        defaultIfEmpty(NoResult.singleton),
     );
 }
