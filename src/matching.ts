@@ -8,15 +8,15 @@ const getMatchError = new Error("getValue transform should only return Value");
 export function match<
     ARGS extends any[],
     VALUE,
-    ONMATCH,
-    ONNOMATCH
+    ONVALUE,
+    ONNOVALUE
 > (
     getValue: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
-    onMatch: (value: Value<VALUE>) => ONMATCH,
-    onNoMatch?: () => ONNOMATCH
+    onValue: (value: Value<VALUE>) => ONVALUE,
+    onNoValue?: () => ONNOVALUE
 ) {
-    const _onMatch   = from(onMatch  );
-    const _onNoMatch = from(onNoMatch);
+    const _onMatch   = from(onValue  );
+    const _onNoMatch = from(onNoValue);
 
     return pipe(
         alwaysEmit(
