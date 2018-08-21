@@ -128,22 +128,7 @@ Note that you only need to declare the argument types for the first transform. T
 
 #### `match`
 
-Consider this `Transform`:
-
-```ts
-const greet = first(
-    pipe(
-        fullName,
-        m => `Nice to meet you, ${m.value}.`,
-    ),
-    () => `I don't know you.`,
-)
-
-greet("Kevin").subscribe(console.log);     // Value{ value: "Nice to meet you, Kevin Leung." }
-greet("Yomi").subscribe(console.log);      // Value{ value: "I don't know you." }
-```
-
-if `fullName` emits, we do one thing, otherwise we do another. This is a very common case, and the `match` helper is a little shorter and a lot more expressive. Here's the same `Transform`, rewritten with `match`:
+`match(getValue, onValue, onNoValue)` returns a new `Transform` that calls `getValue`. If it emits a value, it calls `onValue` with that value. If that emits a result, that result is emitted by the new `Transform`. If `getValue` didn't emit, `onNoValue` is called with no arguments. If it emits a result, that result is emitted by the new `Transform`. `onNoValue` can be omitted, in which case the new `Transform` doesn't emit if `getValue` doesn't emit.
 
 ```ts
 import { match } from 'prague';
@@ -153,18 +138,19 @@ const greet = match(
     m => `Nice to meet you, ${m.value}.`,
     () => `I don't know you.`,
 );
+
+greet("Kevin").subscribe(console.log);     // Value{ value: "Nice to meet you, Kevin Leung." }
+greet("Yomi").subscribe(console.log);      // Value{ value: "I don't know you." }
 ```
 
-#### `if`
+#### `matchIf`
 
-`if` is a special case of `match` for the common case of testing a "truthy" predicate.
-
-**Note**: Because `if` is a JavaScript reserved word, if you `import` *Prague* functions individually you'll need to rename it:
+`matchIf` is a special case of `match` for the common case of testing a "truthy" predicate.
 
 ```ts
-import { if as _if } from 'prague';
+import { matchIf } from 'prague';
 
-const greet = _if(
+const greet = matchIf(
     (t: string) => t === "Bill",
     () => `I greet you, my creator!`,
     () => `Meh.`,
