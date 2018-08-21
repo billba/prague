@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { match, Value, if as _if, alwaysEmit } from '../src/prague';
+import { match, Value, matchIf, alwaysEmit } from '../src/prague';
 
 describe("match", () => {
     it("should not emit on no match and no onNoMatch handler", done => {
@@ -67,13 +67,13 @@ describe("match", () => {
     });
 });
 
-describe("_if", () => {
+describe("matchIf", () => {
     const falseyValues = [false, undefined, null, 0];
     const truthyValues = [true, 13, "hi", () => "hi", { dog: "dog" }];
 
     falseyValues.map(value => {
         it("should not emit on ${value} and no onFalse handler", done => {
-            _if(
+            matchIf(
                 () => value,
                 throwErr,
             )().subscribe(throwErr, passErr, done);
@@ -81,7 +81,7 @@ describe("_if", () => {
 
         it("should call onFalse on ${value}", done => {
             alwaysEmit(
-                _if(
+                matchIf(
                     () => value,
                     throwErr,
                     () => "hi",
@@ -95,7 +95,7 @@ describe("_if", () => {
 
     it("should pass through arguments", done => {
         alwaysEmit(
-            _if(
+            matchIf(
                 (a: number, b: number) => a > b,
                 () => "hi",
                 throwErr,
@@ -109,7 +109,7 @@ describe("_if", () => {
     truthyValues.map(value => {
         it("should call onTrue handler on ${value}", done => {
             alwaysEmit(
-                _if(
+                matchIf(
                     () => value,
                     () => "hi",
                 )

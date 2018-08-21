@@ -43,6 +43,14 @@ export abstract class Result {
     }
 }
 
+export interface ResultClass <
+    T extends Result
+> {
+    new (
+        ...args: any[]
+    ): T;
+}
+
 export class Action extends Result {
      
     action: () => Observable<any>;

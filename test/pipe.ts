@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { pipe, run, Value, tap, Action, alwaysEmit } from '../src/prague';
+import { pipe, run, Value, tap, Action, alwaysEmit, transformResult } from '../src/prague';
 
 describe("pipe", () => {
 
@@ -73,6 +73,33 @@ describe("tap", () => {
             expect(handled).to.equal("hihi");
             expect(m).instanceOf(Value);
             expect((m as Value<string>).value).to.equal("hihi");
+        }, passErr, done);
+    });
+});
+
+describe("transformResult", () => {
+    it("should pass through results of other than the stated class", done => {
+        const v = new Value("hi");
+        alwaysEmit(
+            pipe(
+                () => v,
+                transformResult(Action, throwErr),
+            )
+        )().subscribe(m => {
+            expect(m).equals(v);
+        }, passErr, done);
+    });
+
+    it("should transform results of the stated class", done => {
+        const v = new Value("hi");
+        const v2 = new Value("bye");
+        alwaysEmit(
+            pipe(
+                () => v,
+                transformResult(Value, () => v2),
+            )
+        )().subscribe(m => {
+            expect(m).equals(v2);
         }, passErr, done);
     });
 });

@@ -1,9 +1,9 @@
 import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
-import { Observableable, Value, from, pipe, toObservable, first, tap } from './prague';
+import { Observableable, Value, from, pipe, toObservable } from './prague';
 import { alwaysEmit, NoResult } from './noResult';
 
-const getMatchError = new Error("matching function should only return Value");
+const getMatchError = new Error("getValue transform should only return Value");
 
 export function match<
     ARGS extends any[],
@@ -11,7 +11,7 @@ export function match<
     ONMATCH,
     ONNOMATCH
 > (
-    getMatch: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
+    getValue: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
     onMatch: (value: Value<VALUE>) => ONMATCH,
     onNoMatch?: () => ONNOMATCH
 ) {
@@ -20,7 +20,7 @@ export function match<
 
     return pipe(
         alwaysEmit(
-            getMatch
+            getValue
         ),
         result => {
             if (result instanceof Value)
@@ -36,7 +36,7 @@ export function match<
 
 const ifPredicateError = new Error("predicate must return true or false");
 
-function _if<
+export function matchIf <
     ARGS extends any[],
     ONTRUE,
     ONFALSE
@@ -67,4 +67,3 @@ function _if<
         onFalse
     );
 }
-export { _if as if };

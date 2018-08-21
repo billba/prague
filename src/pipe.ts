@@ -1,6 +1,6 @@
-import { Result, Transform, Norm, from, toObservable, Action } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
-import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
+import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
 
 export function pipe <
     ARGS extends any[],
@@ -81,7 +81,7 @@ export function pipe (
     );
 }
 
-export const _tap = <
+export const tap = <
     RESULT extends Result,
 > (
     fn: (result: RESULT) => any,
@@ -89,16 +89,18 @@ export const _tap = <
     (result: RESULT) => observableOf(result).pipe(
         map(result => fn(result)),
         flatMap(toObservable),
-        mapTo(result)
+        defaultIfEmpty(result),
+        mapTo(result),
     );
 
-export const log = _tap(console.log);
+export const log = tap(console.log);
 
-export { _tap as tap }
+export const transformResult = <
+    T extends Result,
+    R,
+> (
+    TargetResult: ResultClass<T>,
+    transform: (result: T) => R,
+) => from((result: Result) => result instanceof TargetResult ? transform(result as T) : result);
 
-export const run = _tap(result => {
-    if (result instanceof Action)
-        return result.action();
-});
-
-
+export const run = tap(transformResult(Action, result => result.action()));

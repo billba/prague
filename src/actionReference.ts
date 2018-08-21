@@ -1,4 +1,4 @@
-import { Result, from } from './prague';
+import { Result, transformResult } from './prague';
 
 interface ActionReferenceOptions {
     source?: any, 
@@ -74,7 +74,7 @@ export class ActionReferences <
         private actions: (...contextargs: CONTEXTARGS) => ACTIONS,
     ) {
         Object
-            .keys(actions(...new Array<any>(actions.length) as CONTEXTARGS))
+            .keys(actions(...new Array(actions.length) as CONTEXTARGS))
             .forEach(name => {
                 this.reference[name] = (...args) => new ActionReference(name, ...args);
                 this.referenceWithOptions[name] = (options, ...args) => new ActionReference({
@@ -85,20 +85,14 @@ export class ActionReferences <
             });
     }
 
-    toAction <
-        RESULT extends Result | undefined,
-    > (
+    toAction (
         ...contextargs: CONTEXTARGS
     ) {
-        return from((result: RESULT) => {
-            if (result instanceof ActionReference) {
-                const action = this.actions(...contextargs)[result.name];
+        return transformResult(ActionReference, result => {
+            const action = this.actions(...contextargs)[result.name];
 
-                if (action)
-                    return () => action(...result.args);
-            }
-
-            return result;
+            if (action)
+                return () => action(...result.args);
         });
     }
 }

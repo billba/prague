@@ -1,7 +1,7 @@
-import { Value, first, pipe, run, match, if as _if, best, re, ActionReferences, tap, sorted, Action } from '../src/prague';
+import { Value, first, pipe, run, match, matchIf, best, re, ActionReferences } from '../src/prague';
 
-// _if looks for a truthy result and doesn't capture any matches
-const askTime = _if(
+// matchIf looks for a truthy result and doesn't capture any matches
+const askTime = matchIf(
     (t: string) => t === "time", 
     () => () => console.log(`The time is ${new Date().toLocaleDateString()}`),
 );
