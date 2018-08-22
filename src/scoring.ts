@@ -74,9 +74,7 @@ export function sorted <
 export function sorted (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>));
-
-    return (...args: any[]) => _transforms.pipe(
+    return from((...args: any[]) => observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>)).pipe(
         flatMap(transform => transform(...args)),
         NoResult.filterOut,
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
@@ -86,7 +84,7 @@ export function sorted (
             results.length === 1 ? results[0] :
             new Multiple(results.sort((a, b) => b.score - a.score))
         ),
-    );
+    ));
 }
 
 export interface TopOptions {

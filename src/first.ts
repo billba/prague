@@ -68,14 +68,12 @@ export function first <
 export function first (
     ...transforms: (null | undefined | ((...args: any[]) => any))[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform)));
-
-    return (...args: any[]) => _transforms.pipe(
+    return from((...args: any[]) => observableFrom(transforms.map(transform => from(transform))).pipe(
         // we put concatMap here because it forces everything to after it to execute serially
         concatMap(transform => transform(...args)),
         NoResult.filterOut,
         // Stop when one emits a result
         take(1), 
         NoResult.defaultIfEmpty,
-    );
+    ));
 }

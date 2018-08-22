@@ -68,9 +68,7 @@ export function pipe (
     transform: (...args: any[]) => any,
     ...transforms: ((result: Result) => any)[]
 ) {
-    const _transforms = observableFrom(transforms.map(_transform => from(_transform)));
-
-    return (...args: any[]) => _transforms.pipe(
+    return from((...args: any[]) => observableFrom(transforms.map(_transform => from(_transform))).pipe(
         reduce<Transform<[Result], Output>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
@@ -82,7 +80,7 @@ export function pipe (
         ),
         mergeAll(),
         NoResult.defaultIfEmpty,
-    );
+    ));
 }
 
 export const tap = <
