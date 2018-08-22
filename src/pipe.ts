@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, Nullable } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
 
@@ -15,8 +15,8 @@ export function pipe <
     R1,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1
-]): Transform<ARGS, Norm<R1>>;
+    (arg: NonNullable<Norm<R0>>) => R1
+]): Transform<ARGS, Nullable<Norm<R0>> | Norm<R1>>;
 
 export function pipe <
     ARGS extends any[],
@@ -25,9 +25,9 @@ export function pipe <
     R2,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2
-]): Transform<ARGS, Norm<R2>>;
+    (arg: NonNullable<Norm<R0>>) => R1,
+    (arg: NonNullable<Norm<R1>>) => R2
+]): Transform<ARGS, Nullable<Norm<R0 | R1>> | Norm<R2>>;
 
 export function pipe <
     ARGS extends any[],
@@ -37,10 +37,10 @@ export function pipe <
     R3,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2,
-    (arg: Norm<R2>) => R3
-]): Transform<ARGS, Norm<R3>>;
+    (arg: NonNullable<Norm<R0>>) => R1,
+    (arg: NonNullable<Norm<R1>>) => R2,
+    (arg: NonNullable<Norm<R2>>) => R3
+]): Transform<ARGS, Nullable<Norm<R0 | R1 | R2>> | Norm<R3>>;
 
 export function pipe <
     ARGS extends any[],
@@ -51,34 +51,36 @@ export function pipe <
     R4,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2,
-    (arg: Norm<R2>) => R3,
-    (arg: Norm<R2>) => R4
-]): Transform<ARGS, Norm<R4>>;
+    (arg: NonNullable<Norm<R0>>) => R1,
+    (arg: NonNullable<Norm<R1>>) => R2,
+    (arg: NonNullable<Norm<R2>>) => R3,
+    (arg: NonNullable<Norm<R2>>) => R4
+]): Transform<ARGS, Nullable<Norm<R0 | R1 | R2 | R3>> | Norm<R4>>;
 
 export function pipe <
     ARGS extends any[],
 > (
     transform: (...args: ARGS) => any,
-    ...transforms: ((result: any) => any)[]
-): Transform<ARGS, Result>;
+    ...transforms: ((result: Result) => any)[]
+): Transform<ARGS, Output>;
 
 export function pipe (
-    transform: (...args: any[]) => Result,
-    ...transforms: ((result: Result) => Result)[]
+    transform: (...args: any[]) => any,
+    ...transforms: ((result: Result) => any)[]
 ) {
-    const _transforms = observableFrom(transforms.map(_transform => from(_transform)));
-
-    return (...args: any[]) => _transforms.pipe(
-        reduce<Transform<[Result], Result>, Observable<Result>>(
+    return from((...args: any[]) => observableFrom(transforms.map(_transform => from(_transform))).pipe(
+        reduce<Transform<[Result], Output>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
+                filterOutNull,
             ),
-            from(transform)(...args)
+            from(transform)(...args).pipe(
+                filterOutNull,
+            )
         ),
         mergeAll(),
-    );
+        nullIfEmpty,
+    ));
 }
 
 export const tap = <
@@ -89,7 +91,7 @@ export const tap = <
     (result: RESULT) => observableOf(result).pipe(
         map(result => fn(result)),
         flatMap(toObservable),
-        defaultIfEmpty(result),
+        nullIfEmpty,
         mapTo(result),
     );
 
@@ -100,7 +102,13 @@ export const transformResult = <
     R,
 > (
     TargetResult: ResultClass<T>,
-    transform: (result: T) => R,
-) => from((result: Result) => result instanceof TargetResult ? transform(result as T) : result);
+    transform: (r: T) => R,
+) => from((r: Result) => r instanceof TargetResult ? transform(r as T) : r);
 
-export const run = tap(transformResult(Action, result => result.action()));
+export const transformNull = <
+    R,
+> (
+    transform: () => R,
+) => from((o: Output) => o === null ? transform() : o);
+
+export const run = tap(transformResult(Action, action => action.action()));

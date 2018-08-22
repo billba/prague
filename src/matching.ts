@@ -1,69 +1,50 @@
 import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
-import { Observableable, Value, from, pipe, toObservable } from './prague';
-import { alwaysEmit, NoResult } from './noResult';
+import { Observableable, Value, from, toObservable } from './prague';
 
-const getMatchError = new Error("getValue transform should only return Value");
+const getMatchError = new Error("getValue transform should only return Value or null");
 
 export function match<
     ARGS extends any[],
     VALUE,
-    ONMATCH,
-    ONNOMATCH
+    ONVALUE,
+    ONNULL = null,
 > (
     getValue: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
-    onMatch: (value: Value<VALUE>) => ONMATCH,
-    onNoMatch?: () => ONNOMATCH
+    onValue: (value: Value<VALUE>) => ONVALUE,
+    onNull?: () => ONNULL,
 ) {
-    const _onMatch   = from(onMatch  );
-    const _onNoMatch = from(onNoMatch);
-
-    return pipe(
-        alwaysEmit(
-            getValue
-        ),
-        result => {
-            if (result instanceof Value)
-                return _onMatch(result);
-            
-            if (result instanceof NoResult)
-                return _onNoMatch();
+    return from((...args: ARGS) => from(getValue)(...args).pipe(
+        map(o => {
+            if (o instanceof Value)
+                return onValue(o);
+        
+            if (o === null)
+                return onNull ? onNull() : o;
 
             throw getMatchError;
-        },
-    );
+        })
+    ));
 }
 
-const ifPredicateError = new Error("predicate must return true or false");
+const trueValue = new Value(true);
 
 export function matchIf <
     ARGS extends any[],
-    ONTRUE,
-    ONFALSE
+    ONTRUTHY,
+    ONFALSEY
 > (
     predicate: (...args: ARGS) => any,
-    onTrue: () => ONTRUE,
-    onFalse?: () => ONFALSE,
+    onTruthy: () => ONTRUTHY,
+    onFalsey?: () => ONFALSEY,
 ) {
     return match(
-        pipe(
-            (...args: ARGS) => observableOf(args).pipe(
-                map(args => predicate(...args)),
-                flatMap(toObservable),
-                map(result => result instanceof Value ? !!result.value : !!result)
-            ),
-            result => {
-                if (result instanceof Value) {
-                    if (result.value === true)
-                        return true;
-
-                    if (result.value === false)
-                        return undefined;
-                }
-                throw ifPredicateError;
-            }
+        (...args: ARGS) => observableOf(args).pipe(
+            map(args => predicate(...args)),
+            flatMap(toObservable),
+            map(o => o instanceof Value && !o.value || !o ? null : trueValue)
         ),
-        onTrue,
-        onFalse
+        onTruthy,
+        onFalsey
     );
 }

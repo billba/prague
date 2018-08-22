@@ -1,3 +1,12 @@
+# Ideas
+
+## Spell out "magic" functions:
+
+arg => first(...)(arg)
+
+## Do "simple" Prague:
+
+
 # *Prague*
 
 A rule system handy for games and conversational user interfaces. I thought of it as I walked around the city of Prague on a sunny Spring day. **This is not an official Microsoft project.**
@@ -27,46 +36,44 @@ Some types of applications you could build with *Prague*:
 The fundamental unit of *Prague* is a special type of function called a `Transform`:
 
 ```ts
-type Transform<ARGS extends any[], RESULT extends Result> = (...args: ARGS) => Observable<RESULT>;
+type Transform<ARGS extends any[], OUTPUT extends Result | null> = (...args: ARGS) => Observable<OUTPUT>;
 ```
 
-A `Transform` is called with arguments as normal. If a transformation occurred, the resultant `Observable` emits a `Result` object and completes, oherwise it ompletes without emitting.
+A `Transform` function is called with arguments as normal. But instead of returning a result directly, it returns an object called an `Observable`. You subscribe to that object to get the result. If you're new to `Observable`s, you may want to read [Observables and Promises](#observables-and-promises), which has both a quick introduction to `Observable`s and also shows how to ignore them and just work with `Promise`s. 
 
-If you're new to `Observable`s and none of this makes sense to you, you may want to read [Obervables and Promises](#observables-and-promises), which has both a quick introduction to `Observable`s and also shows how to ignore them and just work with `Promise`s. 
+A `Transform` emits either `null` or a subclass of `Result`.
 
 ### `Result`
 
-`Result` is an abstract base class. The following two subclasses of `Result` are "core" to *Prague*:
+`Result` is an abstract base class. The following three subclasses of `Result` are "core" to *Prague*:
 * `Value<VALUE>` - contains a value of type VALUE
 * `Action` - contains an action (function) to potentially execute at a future time
 
 *Prague* also includes and makes use of these subclasses of `Result`:
 * `ActionReference` - contains the (serializable) name and arguments of a function to potentially execute at a future time
 * `Multiple` - contains an array of `Result`s
-* `NoResult` - a way to get a positive "no result" signal from a `Transform` using [emitNoResults](#noresult)
 
 ### `from`
 
-The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Value`, a function instead of an `Action`, `undefined`/`null` when nothing is to be emitted, or a `Promise` or a synchronous result instead of an `Observable`:
+The `from` function allows you to write `Tranform`s more simply, by returning a value instead a `Value`, a function instead of an `Action`, `undefined` instead of `null`, or a `Promise` or a synchronous result instead of an `Observable`:
 
 ```ts
 const repeat = from((a: string) => a.repeat(5))
 
-const confirm = from((a: number) => () => 
-console.log(`You picked ${a.toString()}`));
+const confirm = from((a: number) => () => console.log(`You picked ${a.toString()}`));
 
 const getName = from((a: string) => fetch(`url/${a}`).then(r => r.json()).then(r => r.name));
 ```
 are equivalent to:
 ```ts
-const repeat = (a: string) => Rx.of.(new Value(a.repeat(5)));
+const repeat = (a: string) => Rx.of(new Value(a.repeat(5)));
 
 const confirm = (a: number) => Rx.of(new Action(() => console.log(`You picked ${a.toString()}`)));
 
-const getName = (a: string) => Rx.from(fetch(`url/${a}`).then(r => r.json()).then(r => new Value(r.someString)));
+const getName = (a: string) => Rx.from(fetch(`url/${a}`).then(r => r.json()).then(r => new Value(r.name)));
 ```
 
-For your convenience, `from` is automatically called every place you supply a `Transform`:
+For your convenience, `from` is automatically called every place a `Transform` is expected. For example:
 ```ts
 first(
     (t: string) => t === "Bill" ? "Bill Barnes" : null,
@@ -86,11 +93,11 @@ As a result you never need to explicitly call `from` unless you are writing your
 
 ### Composition via helpers
 
-You can compose `Transform`s together into a new transform using one of the following high-order functions, or create your own. In all the below helpers, your `Transform`s are automatically normalized via `from`.
+You can compose `Transform`s together into a new `Transform` using a variety of high-order functions included in *Prague*, or you can create your own.
 
 #### `first`
 
-`first` returns a new `Transform` which calls each of the supplied `Transform`s in turn. If one emits a `Result`, it stops and returns that. If none emit a `Result`, it doesn't either. 
+`first` returns a new `Transform` which calls each of the supplied `Transform`s in turn. If one emits a `Result`, it stops and emits that. If all emit `null`, it emits `null`.
 
 ```ts
 import { first } from 'prague';
@@ -103,14 +110,14 @@ const fullName = first(
 
 fullName("Bill").subscribe(console.log);    // Value{ value: "Bill Barnes" }
 fullName("Hao").subscribe(console.log);     // Value{ value: "Hao Luo" }
-fullName("Yomi").subscribe(console.log);    //
+fullName("Yomi").subscribe(console.log);    // null
 ```
 
-Note that all the `Transform`s have the same argument types. However you only need to declare the argument types for the first `Transform`. TypeScript will use those for the rest, and for the resultant `Transform`, automatically.
+Note that all the `Transform`s have the same argument types. However you only need to declare the argument types for the first `Transform`. TypeScript will use those for the rest, and for the resultant `Transform`, automatically. It will also complain if your `Transforms` have incompatibile argument types.
 
 #### `pipe`
 
-`pipe` returns a new `Transform` which calls each of the supplied `Transform`s in turn. You supply the arguments for the first, its `Result` is the argument for the second, and so on. If all of the `Transform`s emit a `Result`, the the new `Transform` emits the last one, otherwise it doesn't emit.
+`pipe` returns a new `Transform` which calls each of the supplied `Transform`s in turn. You supply the arguments for the first. If it emits a `Result`, that becomes the argument for the second, and so on. If any of the `Transform`s emit `null`, the new `Transform` stops and emits `null`. Otherwise the new `Transform` emits the `Result` emitted by the last `Transform`.
 
 ```ts
 import { pipe } from 'prague';
@@ -121,29 +128,14 @@ const someAssemblyRequired = pipe(
 );
 
 someAssemblyRequired("Kev", "in").subscribe(console.log);      // Value{ value: "Kevin Leung." }
-someAssemblyRequired("Yo", "mi").subscribe(console.log);       //
+someAssemblyRequired("Yo", "mi").subscribe(console.log);       // null
 ```
 
 Note that you only need to declare the argument types for the first transform. TypeScript will infer the argument types for the rest (and for the resultant `Transform`) automatically.
 
 #### `match`
 
-Consider this `Transform`:
-
-```ts
-const greet = first(
-    pipe(
-        fullName,
-        m => `Nice to meet you, ${m.value}.`,
-    ),
-    () => `I don't know you.`,
-)
-
-greet("Kevin").subscribe(console.log);     // Value{ value: "Nice to meet you, Kevin Leung." }
-greet("Yomi").subscribe(console.log);      // Value{ value: "I don't know you." }
-```
-
-if `fullName` emits, we do one thing, otherwise we do another. This is a very common case, and the `match` helper is a little shorter and a lot more expressive. Here's the same `Transform`, rewritten with `match`:
+`match(getValue, onValue, onNull)` returns a new `Transform` that calls `getValue`. If that emits a `Value`, it calls `onValue` with that value, and emits its output. If `getValue` emits `null`, `onNull` is called with no arguments, and the new `Transform` emits its output. If `onNull` is omitted, the new `Transform` emits `null` when `getValue` emits `null`.
 
 ```ts
 import { match } from 'prague';
@@ -153,30 +145,31 @@ const greet = match(
     m => `Nice to meet you, ${m.value}.`,
     () => `I don't know you.`,
 );
+
+greet("Kevin").subscribe(console.log);     // Value{ value: "Nice to meet you, Kevin Leung." }
+greet("Yomi").subscribe(console.log);      // Value{ value: "I don't know you." }
 ```
 
-#### `if`
+#### `matchIf`
 
-`if` is a special case of `match` for the common case of testing a "truthy" predicate.
-
-**Note**: Because `if` is a JavaScript reserved word, if you `import` *Prague* functions individually you'll need to rename it:
+`matchIf` is a special case of `match` for the common case of testing a "truthy" predicate.
 
 ```ts
-import { if as _if } from 'prague';
+import { matchIf } from 'prague';
 
-const greet = _if(
+const greet = matchIf(
     (t: string) => t === "Bill",
     () => `I greet you, my creator!`,
     () => `Meh.`,
 );
 
-greet("Bill")
-.subscribe(console.log); // Value{ value: "I greet you, my creator!" }
+greet("Bill").subscribe(console.log); // Value{ value: "I greet you, my creator!" }
+greet("Yomi").subscribe(console.log); // Value{ value: "Meh." }
 ```
 
 #### `tap`
 
-`tap` returns a `Transform` that executes a function but ignores its output, returning its original input. This is a great way to debug:
+`tap` returns a `Transform` that executes a function but ignores its output, returning the original input. This is a great way to debug:
 
 ```ts
 pipe(
@@ -187,6 +180,8 @@ pipe(
 .subscribe();
 // Value{ value: "Bill Barnes" }
 ```
+
+This is common enough that *Prague* provides a helper called `log` which is equivalent to `tap(console.log)`.
 
 #### `Action` and `run`
 
@@ -202,8 +197,7 @@ const bot = from((t: string) => {
         console.log(`WAAAASSSUUUUUUP!`);
 });
 
-bot("Wassup")
-.subscribe(); // WAAAASSSUUUUUUP
+bot("Wassup").subscribe(); // WAAAASSSUUUUUUP
 ```
 
 This works, but it isn't the *Prague* way. Rather than executing code immediately, we prefer to return `Action`s:
@@ -227,8 +221,7 @@ pipe(
         if (m instanceof Action)
             return m.action();
     }),
-)("Wassup")
-.subscribe(); // WAAAASSSUUUUUUP
+)("Wassup").subscribe(); // WAAAASSSUUUUUUP
 ```
 
 This is common enough that *Prague* provides a helper called `run`:
@@ -237,8 +230,7 @@ This is common enough that *Prague* provides a helper called `run`:
 pipe(
     bot,
     run,
-)("Wassup")
-.subscribe(); // WAAAASSSUUUUUUP
+)("Wassup").subscribe(); // WAAAASSSUUUUUUP
 ```
 
 Obviously actions can do much more than `console.log`. This approach of waiting to executing side effects until you're done is a classic functional programming pattern, and makes for much more declarative code.
@@ -269,7 +261,7 @@ const bot = best(
         ),
         m => new Action(() => console.log(`Nice to meet you, ${m.value}`), m.score)
     ),
-    _if(
+    matchIf(
         t => t === "current time",
         () => new Action(() => console.log(`The time is ${new Date().toLocaleTimeString()}`), .9),
     ),
@@ -298,8 +290,7 @@ const transforms = [
 
 best(
     ...transforms
-)()
-.subscribe(console.log) // Value{ value: "hi", score: .75 }
+)().subscribe(console.log) // Value{ value: "hi", score: .75 }
 ```
 
 Calling `best` can be unsatisfactory when there is a tie at the top. Things get even more challenging if you want to program in some wiggle room, say 5%, so that "aloha" becomes a third valid result.
@@ -311,8 +302,7 @@ const sortme = sorted(
     ...transforms
 );
 
-sortme()
-.subscribe(console.log); // Multiple{ results:[ /* all the results */ ] }
+sortme().subscribe(console.log); // Multiple{ results:[ /* all the results */ ] }
 ```
 
 We can narrow down this result using a helper called `top`.
@@ -323,11 +313,10 @@ To retrieve just the high scoring result(s):
 pipe(
     sortme,
     top(),
-)()
-.subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, ] }
+)().subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, ] }
 ```
 
-To include "aloha" we can add a tolerance of 5%:
+To include "aloha" we can add a `tolerance` of 5%:
 
 ```ts
 pipe(
@@ -335,11 +324,10 @@ pipe(
     top({
         tolerance: .05,
     }),
-)()
-.subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, Value{ value: "aloha", score: .70 }, ] }
+)().subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, Value{ value: "aloha", score: .70 }, ] }
 ```
 
-We can set a tolerance of 1 (include all the results) but set the maximum results to 3. This will have the same effect as the above:
+We can set a `tolerance` of 1 (include all the results) but set the maximum results to 3. This will have the same effect as the above:
 
 ```ts
 pipe(
@@ -352,9 +340,9 @@ pipe(
 .subscribe(console.log); // Multiple{ results:[ Value{ value: "hi", score: .75 }, Value{ value: "hello", score: .75 }, Value{ value: "aloha", score: .70 }, ] }
 ```
 
-Increasing `tolerance` includes more items in the "high score". It defaults to `0`.
+Increasing `tolerance` includes more items in the "high score". It defaults to `0` and has a maximum value of `1`.
 
-Decreasing `maxResults` limits of the number of "high score" results retrieved. it defaults to `Number.POSITIVE_INFINITY`.
+Decreasing `maxResults` limits of the number of "high score" results retrieved. It defaults to `Number.POSITIVE_INFINITY` and has a minimum value of `1`.
 
 In fact, `best` is just a special case of piping the results of `sorted` into `top`:
 
@@ -384,14 +372,11 @@ tk
 fullName("Bill")
     .subscribe(
         result => {
-            // handle result (if there is one) here
+            // handle result here
         },
         err => {
             // handle error here
         },
-        () => {
-            // this is called when there are no more results, whether one was emitted or not
-        }
     )
 ```
 
@@ -401,14 +386,10 @@ If you think this looks similar to writing resolve/reject handlers for a `Promis
 
 ```ts
 fullName("Bill")
-    .toPromise() // returns a Promise<Result | undefined>
+    .toPromise() // returns a Promise<Value<string> | null>
     .then(
         result  => {
-            if (result === undefined) {
-                // No result was emitted
-            } else {
-                // handle result
-            }
+            // handle result here
         },
         err => {
             // handle error here
@@ -416,34 +397,11 @@ fullName("Bill")
     )
 ```
 
-### NoResult
-
-A quirk of `Observables` is that you don't automatically know if one emitted a value before completing:
-
-```ts
-fullName("Bill").subscribe(console.log); // Value{ value: "Bill Barnes" }
-fullName("Yomi").subscribe(console.log); // <crickets>
-```
-
-You can force a transform to always emit *something* by wrapping it in `alwaysEmit` as follows:
-
-```ts
-import { NoResult, alwaysEmit } from 'prague';
-
-const fullNameAlwaysEmits = alwaysEmit(fullName);
-
-fullNameAlwaysEmits("Bill").subscribe(console.log); // Value{ value: "Bill Barnes" }
-fullNameAlwaysEmits("Yomi").subscribe(console.log); // NoResult{}
-```
-
-This is especially useful for writing unit tests for `Transform`s.
-
-(Another solution is to convert it to a `Promise` and check for an `undefined` result, as shown [above](#using-promises-instead).)
-
 ## Reference
 
 tk
 
 ## Samples
 
-Some miscelaneous [samples](samples/test.ts) exist, but mostly tk.
+tk
+

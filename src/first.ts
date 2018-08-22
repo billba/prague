@@ -1,8 +1,9 @@
-import { Result, Transform, Norm, from } from "./prague";
+import { Result, Transform, Norm, from, filterOutNull } from "./prague";
 import { from as observableFrom} from "rxjs";
 import { concatMap, take } from "rxjs/operators";
+import { transformToNull } from "./core";
 
-export function first(): Transform<[], never>;
+export function first(): Transform<[], null>;
 
 export function first <
     ARGS extends any[] = [],
@@ -18,7 +19,7 @@ export function first <
 > (...args: [
     null | undefined | ((...args: ARGS) => R0),
     null | undefined | ((...args: ARGS) => R1)
-]): Transform<ARGS, Norm<R0 | R1>>;
+]): Transform<ARGS, Norm<NonNullable<R0> | R1>>;
 
 export function first <
     ARGS extends any[] = [],
@@ -29,7 +30,7 @@ export function first <
     null | undefined | ((...args: ARGS) => R0),
     null | undefined | ((...args: ARGS) => R1),
     null | undefined | ((...args: ARGS) => R2)
-]): Transform<ARGS, Norm<R0 | R1 | R2>>;
+]): Transform<ARGS, Norm<NonNullable<R0 | R1> | R2>>;
 
 export function first <
     ARGS extends any[] = [],
@@ -42,7 +43,7 @@ export function first <
     null | undefined | ((...args: ARGS) => R1),
     null | undefined | ((...args: ARGS) => R2),
     null | undefined | ((...args: ARGS) => R3)
-]): Transform<ARGS, Norm<R0 | R1 | R2 | R3>>;
+]): Transform<ARGS, Norm<NonNullable<R0 | R1 | R2> | R3>>;
 
 export function first <
     ARGS extends any[] = [],
@@ -57,7 +58,7 @@ export function first <
     null | undefined | ((...args: ARGS) => R2),
     null | undefined | ((...args: ARGS) => R3),
     null | undefined | ((...args: ARGS) => R4)
-]): Transform<ARGS, Norm<R0 | R1 | R2 | R3 | R4>>;
+]): Transform<ARGS, Norm<NonNullable<R0 | R1 | R2 | R3> | R4>>;
 
 export function first <
     ARGS extends any[] = [],
@@ -68,12 +69,14 @@ export function first <
 export function first (
     ...transforms: (null | undefined | ((...args: any[]) => any))[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform)));
-
-    return (...args: any[]) => _transforms.pipe(
-        // we put concatMap here because it forces everything to after it to execute serially
-        concatMap(transform => transform(...args)),
-        // Stop when one emits a result
-        take(1), 
-    );
+    return transforms.length === 0
+        ? transformToNull
+        : from((...args: any[]) => observableFrom(transforms.map(transform => from(transform))).pipe(
+            // we put concatMap here because it forces everything to after it to execute serially
+            concatMap(transform => transform(...args)),
+            filterOutNull,
+            // Stop when one emits a result
+            take(1), 
+            filterOutNull,
+        ));
 }

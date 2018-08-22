@@ -1,5 +1,5 @@
-import { Observable, from as observableFrom, of as observableOf, empty} from 'rxjs';
-import { take, map, flatMap } from 'rxjs/operators';
+import { Observable, from as observableFrom, of as observableOf } from 'rxjs';
+import { take, map, flatMap, filter, defaultIfEmpty } from 'rxjs/operators';
 
 export type BaseType <T> =
     T extends Observable<infer BASETYPE> ? BASETYPE :
@@ -43,8 +43,20 @@ export abstract class Result {
     }
 }
 
+// null is the "No Result"
+
+export const transformToNull = () => observableOf(null);
+
+export const filterOutNull = filter<Result>((o: Output) => o !== null);
+
+export const nullIfEmpty = defaultIfEmpty(null);
+
+export type Output = Result | null;
+
+export type Nullable<T> = T extends null ? null : never;
+
 export interface ResultClass <
-    T extends Result
+    T extends Result,
 > {
     new (
         ...args: any[]
@@ -66,7 +78,7 @@ export class Action extends Result {
 
         this.action = () => observableOf(action).pipe(
             map(action => action()),
-            flatMap(toObservable)
+            flatMap(toObservable),
         );
     }
 }
@@ -81,33 +93,31 @@ export class Value <VALUE> extends Result {
     }
 }
 
-type NormalizedResult <R> =
-    R extends never | undefined | null ? never :
-    R extends Result ? R :
-    R extends () => any ? Action :
-    Value<R>;
+type NormalizedOutput <O> =
+    O extends undefined | null ? null :
+    O extends Result ? O :
+    O extends () => any ? Action :
+    Value<O>;
 
-export type Norm <R> = NormalizedResult<BaseType<R>>;
+export type Norm <O> = NormalizedOutput<BaseType<O>>;
 
 export type Transform <
     ARGS extends any[],
-    RESULT extends Result,
-> = (...args: ARGS) => Observable<RESULT>;
-
-const returnsEmpty = () => empty();
+    OUTPUT extends Output,
+> = (...args: ARGS) => Observable<OUTPUT>;
 
 export function from <
     ARGS extends any[] = [],
-    R = never,
+    O = null,
 > (
-    transform?: null | ((...args: ARGS) => R),
-): Transform<ARGS, Norm<R>>
+    transform?: null | ((...args: ARGS) => O),
+): Transform<ARGS, Norm<O>>
 
 export function from (
     transform?: any,
 ) {
     if (!transform)
-        return returnsEmpty;
+        return transformToNull;
 
     if (typeof transform !== 'function')
         throw new Error("I can't transform that.");
@@ -115,10 +125,11 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        flatMap(result => result == null ? empty() : observableOf(
-            result instanceof Result ? result :
-            typeof result === 'function' ? new Action(result) :
-            new Value(result)
-        )),
+        map(o =>
+            o == null ? null :
+            o instanceof Result ? o :
+            typeof o === 'function' ? new Action(o) :
+            new Value(o)
+        ),
     );
 }

@@ -1,5 +1,5 @@
-import { Result, Transform, Norm, from, pipe } from "./prague";
-import { from as observableFrom, of as observableOf, empty} from "rxjs";
+import { Output, Transform, Norm, from, pipe, Result, filterOutNull, transformResult } from "./prague";
+import { from as observableFrom, of as observableOf } from "rxjs";
 import { flatMap, toArray, map, takeWhile } from "rxjs/operators";
 
 export class Multiple extends Result {
@@ -69,21 +69,22 @@ export function sorted <
     ARGS extends any[],
 > (...args:
     ((...args: ARGS) => any)[]
-): Transform<ARGS, Result>;
+): Transform<ARGS, Output>;
 
 export function sorted (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Result>));
-
-    return (...args: any[]) => _transforms.pipe(
+    return from((...args: any[]) => observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>)).pipe(
         flatMap(transform => transform(...args)),
+        filterOutNull,
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
         toArray(),
-        flatMap(results => results.length === 0 ? empty() : observableOf(
-            results.length === 1 ? results[0] : new Multiple(results.sort((a, b) => b.score - a.score))
-        )),
-    );
+        map<Result[], Output>(results =>
+            results.length === 0 ? null : 
+            results.length === 1 ? results[0] :
+            new Multiple(results.sort((a, b) => b.score - a.score))
+        ),
+    ));
 }
 
 export interface TopOptions {
@@ -101,21 +102,30 @@ export function top <
     let tolerance  = 0;
 
     if (options) {
-        if (typeof options.maxResults === 'number')
+        if (options.maxResults) {
+            if (typeof options.maxResults !== 'number' || options.maxResults < 1)
+                throw new Error ("maxResults must be a number >= 1");
+
             maxResults = options.maxResults;
+        }
         
-        if (typeof options.tolerance  === 'number')
+        if (options.tolerance) {
+            if (typeof options.tolerance !== 'number' || options.tolerance < 0 || options.tolerance > 1)
+                throw new Error ("tolerance must be a number >= 0 and <= 1");
+
             tolerance  = options.tolerance;
+        }
     }
 
-    return from((result: RESULT) => result instanceof Multiple
-        ? observableFrom(result.results).pipe(
-            takeWhile((m, i) => i < maxResults && m.score + tolerance >= result.results[0].score),
+    return transformResult(Multiple, multiple => {
+        const highScore = multiple.results[0].score;
+
+        return observableFrom(multiple.results).pipe(
+            takeWhile((m, i) => i < maxResults && m.score + tolerance >= highScore),
             toArray(),
             map(results => results.length === 1 ? results[0] : new Multiple(results)),
         )
-        : result
-    );
+    });
 }
 
 export function best <
