@@ -1,6 +1,6 @@
 import { Result, Transform, Norm, from, toObservable, Action, ResultClass, NoResult, Output } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
-import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty, filter } from "rxjs/operators";
+import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
 
 export function pipe <
     ARGS extends any[],
@@ -81,7 +81,7 @@ export function pipe (
             )
         ),
         mergeAll(),
-        defaultIfEmpty(NoResult.singleton),
+        NoResult.ifEmpty,
     );
 }
 
@@ -108,7 +108,6 @@ export const transformResult = <
 ) => from((r: Result) => r instanceof TargetResult ? transform(r as T) : r);
 
 export const transformNoResult = <
-    T extends Output,
     R,
 > (
     transform: () => R,

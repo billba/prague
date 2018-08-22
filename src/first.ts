@@ -1,6 +1,6 @@
 import { Result, Transform, Norm, from, NoResult } from "./prague";
 import { from as observableFrom} from "rxjs";
-import { concatMap, take, filter, defaultIfEmpty } from "rxjs/operators";
+import { concatMap, take } from "rxjs/operators";
 
 export function first(): Transform<[], never>;
 
@@ -76,6 +76,6 @@ export function first (
         NoResult.filterOut,
         // Stop when one emits a result
         take(1), 
-        defaultIfEmpty(NoResult.singleton),
+        NoResult.ifEmpty,
     );
 }

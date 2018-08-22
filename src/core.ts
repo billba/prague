@@ -1,5 +1,5 @@
 import { Observable, from as observableFrom, of as observableOf } from 'rxjs';
-import { take, map, flatMap, filter } from 'rxjs/operators';
+import { take, map, flatMap, filter, defaultIfEmpty } from 'rxjs/operators';
 
 export type BaseType <T> =
     T extends Observable<infer BASETYPE> ? BASETYPE :
@@ -54,6 +54,8 @@ export class NoResult {
     static transform = () => observableOf(NoResult.singleton);
 
     static filterOut = filter<Result>((o: Output) => o !== NoResult.singleton);
+
+    static defaultIfEmpty = defaultIfEmpty(NoResult.singleton);
 }
 
 export type Output = Result | NoResult;
@@ -81,7 +83,7 @@ export class Action extends Result {
 
         this.action = () => observableOf(action).pipe(
             map(action => action()),
-            flatMap(toObservable)
+            flatMap(toObservable),
         );
     }
 }

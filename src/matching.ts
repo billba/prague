@@ -1,6 +1,6 @@
 import { of as observableOf } from 'rxjs';
-import { map, flatMap, tap } from 'rxjs/operators';
-import { Observableable, Value, from, pipe, toObservable, NoResult, log } from './prague';
+import { map, flatMap } from 'rxjs/operators';
+import { Observableable, Value, from, toObservable, NoResult } from './prague';
 
 const getMatchError = new Error("getValue transform should only return Value or NoResult");
 
