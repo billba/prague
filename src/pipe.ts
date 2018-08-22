@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, Nullable } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
 
@@ -15,8 +15,8 @@ export function pipe <
     R1,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1
-]): Transform<ARGS, Norm<R1>>;
+    (arg: NonNullable<Norm<R0>>) => R1
+]): Transform<ARGS, Nullable<Norm<R0>> | Norm<R1>>;
 
 export function pipe <
     ARGS extends any[],
@@ -25,9 +25,9 @@ export function pipe <
     R2,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2
-]): Transform<ARGS, Norm<R2>>;
+    (arg: NonNullable<Norm<R0>>) => R1,
+    (arg: NonNullable<Norm<R1>>) => R2
+]): Transform<ARGS, Nullable<Norm<R0 | R1>> | Norm<R2>>;
 
 export function pipe <
     ARGS extends any[],
@@ -37,10 +37,10 @@ export function pipe <
     R3,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2,
-    (arg: Norm<R2>) => R3
-]): Transform<ARGS, Norm<R3>>;
+    (arg: NonNullable<Norm<R0>>) => R1,
+    (arg: NonNullable<Norm<R1>>) => R2,
+    (arg: NonNullable<Norm<R2>>) => R3
+]): Transform<ARGS, Nullable<Norm<R0 | R1 | R2>> | Norm<R3>>;
 
 export function pipe <
     ARGS extends any[],
@@ -51,11 +51,11 @@ export function pipe <
     R4,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2,
-    (arg: Norm<R2>) => R3,
-    (arg: Norm<R2>) => R4
-]): Transform<ARGS, Norm<R4>>;
+    (arg: NonNullable<Norm<R0>>) => R1,
+    (arg: NonNullable<Norm<R1>>) => R2,
+    (arg: NonNullable<Norm<R2>>) => R3,
+    (arg: NonNullable<Norm<R2>>) => R4
+]): Transform<ARGS, Nullable<Norm<R0 | R1 | R2 | R3>> | Norm<R4>>;
 
 export function pipe <
     ARGS extends any[],
