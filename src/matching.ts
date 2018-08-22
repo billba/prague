@@ -15,18 +15,19 @@ export function match<
     onNoValue?: () => ONNOVALUE,
 ) {
     return from((...args: ARGS) => from(getValue)(...args).pipe(
-        tap(console.log),
-        map(result => {
-            if (result instanceof Value)
-                return onValue(result);
+        map(o => {
+            if (o instanceof Value)
+                return onValue(o);
         
-            if (result === NoResult.singleton)
-                return onNoValue ? onNoValue() : result;
+            if (o === NoResult.singleton)
+                return onNoValue ? onNoValue() : o;
 
             throw getMatchError;
         })
     ));
 }
+
+const trueValue = new Value(true);
 
 export function matchIf <
     ARGS extends any[],
@@ -38,14 +39,17 @@ export function matchIf <
     onFalse?: () => ONFALSE,
 ) {
     return match(
-        pipe(
-            (...args: ARGS) => observableOf(args).pipe(
-                map(args => predicate(...args)),
-                flatMap(toObservable),
-                map(result => result instanceof Value ? !!result.value : !!result)
-            ),
-            result => result.value === true ? result : NoResult.singleton,
-        ),  
+        (...args: ARGS) => observableOf(args).pipe(
+            map(args => predicate(...args)),
+            flatMap(toObservable),
+            map(o =>
+                o === NoResult.singleton ||
+                o instanceof Value && !o.value ||
+                !o
+                    ? NoResult.singleton
+                    : trueValue
+            )
+        ),
         onTrue,
         onFalse
     );

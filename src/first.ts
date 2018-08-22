@@ -73,7 +73,7 @@ export function first (
     return (...args: any[]) => _transforms.pipe(
         // we put concatMap here because it forces everything to after it to execute serially
         concatMap(transform => transform(...args)),
-        filter(NoResult.filterOut),
+        NoResult.filterOut,
         // Stop when one emits a result
         take(1), 
         defaultIfEmpty(NoResult.singleton),

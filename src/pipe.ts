@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass, NoResult } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, NoResult, Output } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty, filter } from "rxjs/operators";
 
@@ -61,23 +61,23 @@ export function pipe <
     ARGS extends any[],
 > (
     transform: (...args: ARGS) => any,
-    ...transforms: ((result: any) => any)[]
-): Transform<ARGS, Result>;
+    ...transforms: ((result: Result) => any)[]
+): Transform<ARGS, Output>;
 
 export function pipe (
-    transform: (...args: any[]) => Result,
-    ...transforms: ((result: Result) => Result)[]
+    transform: (...args: any[]) => any,
+    ...transforms: ((result: Result) => any)[]
 ) {
     const _transforms = observableFrom(transforms.map(_transform => from(_transform)));
 
     return (...args: any[]) => _transforms.pipe(
-        reduce<Transform<[Result], Result>, Observable<Result>>(
+        reduce<Transform<[Result], Output>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
-                filter(NoResult.filterOut),
+                NoResult.filterOut,
             ),
             from(transform)(...args).pipe(
-                filter(NoResult.filterOut),
+                NoResult.filterOut,
             )
         ),
         mergeAll(),
@@ -104,7 +104,14 @@ export const transformResult = <
     R,
 > (
     TargetResult: ResultClass<T>,
-    transform: (result: T) => R,
-) => from((result: Result) => result instanceof TargetResult ? transform(result as T) : result);
+    transform: (r: T) => R,
+) => from((r: Result) => r instanceof TargetResult ? transform(r as T) : r);
 
-export const run = tap(transformResult(Action, result => result.action()));
+export const transformNoResult = <
+    T extends Output,
+    R,
+> (
+    transform: () => R,
+) => from((o: Output) => o === NoResult.singleton ? transform() : o);
+
+export const run = tap(transformResult(Action, action => action.action()));

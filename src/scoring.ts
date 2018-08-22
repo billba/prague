@@ -1,5 +1,5 @@
-import { Result, Transform, Norm, from, pipe, NoResult } from "./prague";
-import { from as observableFrom, of as observableOf, empty} from "rxjs";
+import { Output, Transform, Norm, from, pipe, NoResult, Result } from "./prague";
+import { from as observableFrom, of as observableOf } from "rxjs";
 import { flatMap, toArray, map, takeWhile } from "rxjs/operators";
 
 export class Multiple extends Result {
@@ -69,18 +69,19 @@ export function sorted <
     ARGS extends any[],
 > (...args:
     ((...args: ARGS) => any)[]
-): Transform<ARGS, Result>;
+): Transform<ARGS, Output>;
 
 export function sorted (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Result>));
+    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>));
 
     return (...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
+        NoResult.filterOut,
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
         toArray(),
-        map(results =>
+        map<Result[], Output>(results =>
             results.length === 0 ? NoResult.singleton : 
             results.length === 1 ? results[0] :
             new Multiple(results.sort((a, b) => b.score - a.score))

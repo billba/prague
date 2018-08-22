@@ -178,7 +178,7 @@ describe("from", () => {
             from(() => value)
             ().subscribe(r => {
                 expect(r).instanceof(Value);
-                expect((r as Value<string>).value).equals(value);
+                expect((r as Value<any>).value).equals(value);
             }, passErr, done)
         });
 

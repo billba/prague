@@ -1,5 +1,5 @@
-import { Observable, from as observableFrom, of as observableOf, empty} from 'rxjs';
-import { take, map, flatMap } from 'rxjs/operators';
+import { Observable, from as observableFrom, of as observableOf } from 'rxjs';
+import { take, map, flatMap, filter } from 'rxjs/operators';
 
 export type BaseType <T> =
     T extends Observable<infer BASETYPE> ? BASETYPE :
@@ -43,20 +43,23 @@ export abstract class Result {
     }
 }
 
-export class NoResult extends Result {
+export class NoResult {
+    private value = "No Result";
+
     private constructor() {
-        super();
     }
 
     static singleton = new NoResult();
 
     static transform = () => observableOf(NoResult.singleton);
 
-    static filterOut = (result: Result) => result !== NoResult.singleton;
+    static filterOut = filter<Result>((o: Output) => o !== NoResult.singleton);
 }
 
+export type Output = Result | NoResult;
+
 export interface ResultClass <
-    T extends Result
+    T extends Result,
 > {
     new (
         ...args: any[]
@@ -93,25 +96,25 @@ export class Value <VALUE> extends Result {
     }
 }
 
-type NormalizedResult <R> =
-    R extends undefined | null ? NoResult :
-    R extends Result ? R :
-    R extends () => any ? Action :
-    Value<R>;
+type NormalizedOutput <O> =
+    O extends undefined | null | NoResult ? NoResult :
+    O extends Result ? O :
+    O extends () => any ? Action :
+    Value<O>;
 
-export type Norm <R> = NormalizedResult<BaseType<R>>;
+export type Norm <O> = NormalizedOutput<BaseType<O>>;
 
 export type Transform <
     ARGS extends any[],
-    RESULT extends Result,
-> = (...args: ARGS) => Observable<RESULT>;
+    OUTPUT extends Output,
+> = (...args: ARGS) => Observable<OUTPUT>;
 
 export function from <
     ARGS extends any[] = [],
-    R = never,
+    O = NoResult,
 > (
-    transform?: null | ((...args: ARGS) => R),
-): Transform<ARGS, Norm<R>>
+    transform?: null | ((...args: ARGS) => O),
+): Transform<ARGS, Norm<O>>
 
 export function from (
     transform?: any,
@@ -125,11 +128,11 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        map(result =>
-            result == null ? NoResult.singleton :
-            result instanceof Result ? result :
-            typeof result === 'function' ? new Action(result) :
-            new Value(result)
+        map(o =>
+            o == null || o === NoResult.singleton ? NoResult.singleton :
+            o instanceof Result ? o :
+            typeof o === 'function' ? new Action(o) :
+            new Value(o)
         ),
     );
 }
