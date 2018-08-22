@@ -76,6 +76,6 @@ export function first (
         NoResult.filterOut,
         // Stop when one emits a result
         take(1), 
-        NoResult.ifEmpty,
+        NoResult.defaultIfEmpty,
     );
 }

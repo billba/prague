@@ -81,7 +81,7 @@ export function pipe (
             )
         ),
         mergeAll(),
-        NoResult.ifEmpty,
+        NoResult.defaultIfEmpty,
     );
 }
 
