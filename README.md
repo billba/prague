@@ -27,15 +27,16 @@ Some types of applications you could build with *Prague*:
 The fundamental unit of *Prague* is a special type of function called a `Transform`:
 
 ```ts
-type Transform<ARGS extends any[], RESULT extends Result> = (...args: ARGS) => Observable<RESULT>;
+type Transform<ARGS extends any[], OUTPUT extends Result | null> = (...args: ARGS) => Observable<OUTPUT>;
 ```
 
 A `Transform` function is called with arguments as normal. But instead of returning a result directly, it returns an object called an `Observable`. You subscribe to that object to get the result. If you're new to `Observable`s, you may want to read [Obervables and Promises](#observables-and-promises), which has both a quick introduction to `Observable`s and also shows how to ignore them and just work with `Promise`s. 
 
+* `null` - interpreted as "the transform was unable to produce a result"
+
 ### `Result`
 
 `Result` is an abstract base class. The following three subclasses of `Result` are "core" to *Prague*:
-* `NoResult` - interpreted as "the transform was unable to produce a result"
 * `Value<VALUE>` - contains a value of type VALUE
 * `Action` - contains an action (function) to potentially execute at a future time
 

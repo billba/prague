@@ -1,4 +1,4 @@
-import { describe, expect, passErr, throwErr, isNoResult } from './common';
+import { describe, expect, passErr, isNull } from './common';
 import { Value, sorted, Multiple, pipe, top, best } from '../src/prague';
 
 const matches = [
@@ -29,10 +29,10 @@ describe("sorted", () => {
         }, passErr, done);
     });
 
-    it("should emit NoResult on null", (done) => {
+    it("should emit null on null", (done) => {
         sorted(
             () => null,
-        )().subscribe(isNoResult, passErr, done);
+        )().subscribe(isNull, passErr, done);
     });
 
     it("should return Multiple for multiple results", (done) => {

@@ -1,12 +1,12 @@
 export { describe } from 'mocha';
 import { use, expect } from 'chai';
 import subset = require('chai-subset');
-import { NoResult, Output } from '../src/prague';
+import { Output } from '../src/prague';
 use(subset);
 export { expect } from 'chai';
 
-export const isNoResult = (o: Output) => {
-    expect(o).equals(NoResult.singleton);
+export const isNull = (o: Output) => {
+    expect(o).is.null;
 }
 
 export const throwErr = () => {

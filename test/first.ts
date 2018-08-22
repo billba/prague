@@ -1,16 +1,16 @@
-import { describe, expect, passErr, throwErr, isNoResult } from './common';
-import { first, Value, NoResult } from '../src/prague';
+import { describe, expect, passErr, throwErr, isNull } from './common';
+import { first, Value } from '../src/prague';
 
 describe("first", () => {
-    it("should emit NoResult on no transforms", done => {
+    it("should emit null on no transforms", done => {
         first(
-        )().subscribe(isNoResult, passErr, done);
+        )().subscribe(isNull, passErr, done);
     });
 
-    it("should emit NoResult on undefined", done => {
+    it("should emit null on undefined", done => {
         first(
             () => undefined
-        )().subscribe(isNoResult, passErr, done)
+        )().subscribe(isNull, passErr, done)
     });
 
     it("returns result of first transform when Value", done => {

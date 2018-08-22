@@ -1,6 +1,6 @@
-import { describe, expect, passErr, throwErr, nullablevalues, values, isNoResult, } from './common';
+import { describe, expect, passErr, throwErr, nullablevalues, values, isNull } from './common';
 import { of, empty, from as observableFrom } from 'rxjs';
-import { toObservable, Action, Value, from, NoResult} from '../src/prague';
+import { toObservable, Action, Value, from } from '../src/prague';
 import { toArray } from 'rxjs/operators';
 
 describe("toObservable", () => {
@@ -41,13 +41,6 @@ describe("toObservable", () => {
                 expect(n.length === 1)
                 expect(n[0]).equals(1);
             }, passErr, done);       
-    });
-});
-
-describe("NoResult", () => {
-    it("should create a NoResult", () => {
-        const r = NoResult.singleton;
-        expect(r).instanceof(NoResult);
     });
 });
 
@@ -158,19 +151,19 @@ describe("from", () => {
         }
     });
 
-    it("should emit NoResult on undefined", (done) => {
+    it("should emit null on undefined", (done) => {
         from(undefined)
-        ().subscribe(isNoResult, passErr, done);
+        ().subscribe(isNull, passErr, done);
     });
 
-    it("should emit NoResult on null", (done) => {
+    it("should emit null on null", (done) => {
         from(null)
-        ().subscribe(isNoResult, passErr, done)
+        ().subscribe(isNull, passErr, done)
     });
 
-    it("should emit NoResult on no args", (done) => {
+    it("should emit null on no args", (done) => {
         from()
-        ().subscribe(isNoResult, passErr, done)
+        ().subscribe(isNull, passErr, done)
     });
 
     values.forEach(value => {

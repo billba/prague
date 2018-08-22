@@ -1,12 +1,12 @@
-import { describe, expect, passErr, throwErr, isNoResult } from './common';
+import { describe, expect, passErr, throwErr, isNull } from './common';
 import { match, Value, matchIf } from '../src/prague';
 
 describe("match", () => {
-    it("should emit NoResult on no value and no onNoValue handler", done => {
+    it("should emit null on no value and no onNoValue handler", done => {
         match(
             () => undefined,
             throwErr,
-        )().subscribe(isNoResult, passErr, done);
+        )().subscribe(isNull, passErr, done);
     });
 
     it("should call onNoValue handler on no value", done => {
@@ -50,12 +50,12 @@ describe("match", () => {
         )().subscribe(throwErr, () => done(), throwErr);
     });
 
-    it("should not call onNoValue on Value when onValue emits NoResult", done => {
+    it("should not call onNull on Value when onValue emits null", done => {
         match(
             () => "hi",
             () => undefined,
             throwErr,
-        )().subscribe(isNoResult, passErr, done);
+        )().subscribe(isNull, passErr, done);
     });
 });
 
@@ -64,11 +64,11 @@ describe("matchIf", () => {
     const truthyValues = [true, 13, "hi", () => "hi", { dog: "dog" }];
 
     falseyValues.map(value => {
-        it("should emit NoResult on ${value} and no onFalse handler", done => {
+        it("should emit null on ${value} and no onFalsey handler", done => {
             matchIf(
                 () => value,
                 throwErr,
-            )().subscribe(isNoResult, passErr, done);
+            )().subscribe(isNull, passErr, done);
         });
 
         it("should call onFalse on ${value}", done => {
@@ -95,7 +95,7 @@ describe("matchIf", () => {
     });
 
     truthyValues.map(value => {
-        it("should call onTrue handler on ${value}", done => {
+        it("should call onTruthy handler on ${value}", done => {
             matchIf(
                 () => value,
                 () => "hi",

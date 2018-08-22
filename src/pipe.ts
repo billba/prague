@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass, NoResult, Output } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
 
@@ -72,14 +72,14 @@ export function pipe (
         reduce<Transform<[Result], Output>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
-                NoResult.filterOut,
+                filterOutNull,
             ),
             from(transform)(...args).pipe(
-                NoResult.filterOut,
+                filterOutNull,
             )
         ),
         mergeAll(),
-        NoResult.defaultIfEmpty,
+        nullIfEmpty,
     ));
 }
 
@@ -91,7 +91,7 @@ export const tap = <
     (result: RESULT) => observableOf(result).pipe(
         map(result => fn(result)),
         flatMap(toObservable),
-        defaultIfEmpty(result),
+        nullIfEmpty,
         mapTo(result),
     );
 
@@ -105,10 +105,10 @@ export const transformResult = <
     transform: (r: T) => R,
 ) => from((r: Result) => r instanceof TargetResult ? transform(r as T) : r);
 
-export const transformNoResult = <
+export const transformNull = <
     R,
 > (
     transform: () => R,
-) => from((o: Output) => o === NoResult.singleton ? transform() : o);
+) => from((o: Output) => o === null ? transform() : o);
 
 export const run = tap(transformResult(Action, action => action.action()));

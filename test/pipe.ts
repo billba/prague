@@ -1,26 +1,26 @@
-import { describe, expect, passErr, throwErr, isNoResult } from './common';
+import { describe, expect, passErr, throwErr, isNull } from './common';
 import { pipe, run, Value, tap, Action, transformResult } from '../src/prague';
 
 describe("pipe", () => {
 
-    it('should not emit when first transform returns NoResult', done => {
+    it('should not emit when first transform returns null', done => {
         pipe(
             () => undefined,
-        )().subscribe(isNoResult, passErr, done)
+        )().subscribe(isNull, passErr, done)
     });
 
-    it('should not emit and not call second transform when first transform returns NoResult', done => {
+    it('should not emit and not call second transform when first transform returns null', done => {
         pipe(
             () => undefined,
             throwErr,
-        )().subscribe(isNoResult, passErr, done)
+        )().subscribe(isNull, passErr, done)
     });
 
-    it('should not emit when second transform returns NoResult', done => {
+    it('should not emit when second transform returns null', done => {
         pipe(
             () => "hi",
             () => undefined,
-        )().subscribe(isNoResult, passErr, done)
+        )().subscribe(isNull, passErr, done)
     });
 
     it('should pass through argument to first transform', done => {

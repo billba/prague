@@ -1,4 +1,4 @@
-import { Output, Transform, Norm, from, pipe, NoResult, Result } from "./prague";
+import { Output, Transform, Norm, from, pipe, Result, filterOutNull, transformResult } from "./prague";
 import { from as observableFrom, of as observableOf } from "rxjs";
 import { flatMap, toArray, map, takeWhile } from "rxjs/operators";
 
@@ -76,11 +76,11 @@ export function sorted (
 ) {
     return from((...args: any[]) => observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>)).pipe(
         flatMap(transform => transform(...args)),
-        NoResult.filterOut,
+        filterOutNull,
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
         toArray(),
         map<Result[], Output>(results =>
-            results.length === 0 ? NoResult.singleton : 
+            results.length === 0 ? null : 
             results.length === 1 ? results[0] :
             new Multiple(results.sort((a, b) => b.score - a.score))
         ),
@@ -109,14 +109,15 @@ export function top <
             tolerance  = options.tolerance;
     }
 
-    return from((result: RESULT) => result instanceof Multiple
-        ? observableFrom(result.results).pipe(
-            takeWhile((m, i) => i < maxResults && m.score + tolerance >= result.results[0].score),
+    return transformResult(Multiple, multiple => {
+        const highScore = multiple.results[0].score;
+
+        return observableFrom(multiple.results).pipe(
+            takeWhile((m, i) => i < maxResults && m.score + tolerance >= highScore),
             toArray(),
             map(results => results.length === 1 ? results[0] : new Multiple(results)),
         )
-        : result
-    );
+    });
 }
 
 export function best <
