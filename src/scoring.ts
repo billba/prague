@@ -102,11 +102,19 @@ export function top <
     let tolerance  = 0;
 
     if (options) {
-        if (typeof options.maxResults === 'number')
+        if (options.maxResults) {
+            if (typeof options.maxResults !== 'number' || options.maxResults < 1)
+                throw new Error ("maxResults must be a number >= 1");
+
             maxResults = options.maxResults;
+        }
         
-        if (typeof options.tolerance  === 'number')
+        if (options.tolerance) {
+            if (typeof options.tolerance !== 'number' || options.tolerance < 0 || options.tolerance > 1)
+                throw new Error ("tolerance must be a number >= 0 and <= 1");
+
             tolerance  = options.tolerance;
+        }
     }
 
     return transformResult(Multiple, multiple => {

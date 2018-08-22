@@ -80,6 +80,46 @@ describe("sorted", () => {
 });
 
 describe("top", () => {
+    it("should throw on non-number maxResults", () => {
+        expect(
+            () => top({
+                maxResults: 'bill' as unknown as number,
+            })
+        ).throws();
+    });
+
+    it("should throw on non-number tolerance", () => {
+        expect(
+            () => top({
+                tolerance: 'bill' as unknown as number,
+            })
+        ).throws();
+    });
+
+    it("should throw on maxResults < 1", () => {
+        expect(
+            () => top({
+                maxResults: 0.5,
+            })
+        ).throws();
+    });
+
+    it("should throw on tolerance < 0", () => {
+        expect(
+            () => top({
+                tolerance: -5,
+            })
+        ).throws();
+    });
+
+    it("should throw on tolerance > 1", () => {
+        expect(
+            () => top({
+                tolerance: 5,
+            })
+        ).throws();
+    });
+
     it("should default to quantity infinity, tolerance 0", done => {
         pipe(
             () => new Multiple([
