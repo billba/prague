@@ -1,8 +1,6 @@
 import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
-import { Value, from, toObservable, Norm } from './prague';
-
-const getMatchError = new Error("getValue transform should only return Value or null");
+import { Value, toObservable, Norm, combine } from './prague';
 
 type ValueType<T> = T extends Value<infer V> ? Value<V> : never;
 
@@ -16,17 +14,18 @@ export function match<
     onValue: (value: ValueType<Norm<O>>) => ONVALUE,
     onNull?: () => ONNULL,
 ) {
-    return from((...args: ARGS) => from(getValue)(...args).pipe(
-        map(o => {
+    return combine(
+        getValue,
+        o => {
             if (o === null)
                 return onNull ? onNull() : null;
 
             if (o instanceof Value)
                 return onValue(o as unknown as ValueType<Norm<O>>);
         
-            throw getMatchError;
-        })
-    ));
+            throw "getValue transform should only return Value or null";
+        },
+    );
 }
 
 const trueValue = new Value(true);
@@ -41,10 +40,9 @@ export function matchIf <
     onFalsey?: () => ONFALSEY,
 ) {
     return match(
-        (...args: ARGS) => observableOf(args).pipe(
-            map(args => predicate(...args)),
-            flatMap(toObservable),
-            map(o => o instanceof Value && !o.value || !o ? null : trueValue)
+        combine(
+            predicate,
+            o => o instanceof Value && !o.value || !o ? null : trueValue,
         ),
         onTruthy,
         onFalsey

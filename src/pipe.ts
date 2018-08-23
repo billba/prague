@@ -112,3 +112,80 @@ export const transformNull = <
 ) => from((o: Output) => o === null ? transform() : o);
 
 export const run = tap(transformResult(Action, action => action.action()));
+
+export function combine <
+    ARGS extends any[],
+    R0,
+> (...args: [
+    (...args: ARGS) => R0
+]): Transform<ARGS, Norm<R0>>;
+
+export function combine <
+    ARGS extends any[],
+    R0,
+    R1,
+> (...args: [
+    (...args: ARGS) => R0,
+    (arg: Norm<R0>) => R1
+]): Transform<ARGS, Norm<R1>>;
+
+export function combine <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+> (...args: [
+    (...args: ARGS) => R0,
+    (arg: Norm<R0>) => R1,
+    (arg: Norm<R1>) => R2
+]): Transform<ARGS, Norm<R2>>;
+
+export function combine <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+> (...args: [
+    (...args: ARGS) => R0,
+    (arg: Norm<R0>) => R1,
+    (arg: Norm<R1>) => R2,
+    (arg: Norm<R2>) => R3
+]): Transform<ARGS, Norm<R3>>;
+
+export function combine <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+> (...args: [
+    (...args: ARGS) => R0,
+    (arg: Norm<R0>) => R1,
+    (arg: Norm<R1>) => R2,
+    (arg: Norm<R2>) => R3,
+    (arg: Norm<R2>) => R4
+]): Transform<ARGS, Norm<R4>>;
+
+export function combine <
+    ARGS extends any[],
+> (
+    transform: (...args: ARGS) => any,
+    ...transforms: ((result: Output) => any)[]
+): Transform<ARGS, Output>;
+
+export function combine (
+    transform: (...args: any[]) => any,
+    ...transforms: ((result: Output) => any)[]
+) {
+    return from((...args: any[]) => observableFrom(transforms.map(_transform => from(_transform))).pipe(
+        reduce<Transform<[Output], Output>, Observable<Output>>(
+            (result$, _transform) => result$.pipe(
+                flatMap(result => _transform(result)),
+            ),
+            from(transform)(...args)
+        ),
+        mergeAll(),
+    ));
+}

@@ -1,22 +1,22 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
-import { pipe, run, Value, tap, Action, transformResult } from '../src/prague';
+import { pipe, run, Value, tap, Action, transformResult, combine } from '../src/prague';
 
 describe("pipe", () => {
 
-    it('should not emit when first transform returns null', done => {
+    it('should emit null when first transform returns null', done => {
         pipe(
             () => undefined,
         )().subscribe(isNull, passErr, done)
     });
 
-    it('should not emit and not call second transform when first transform returns null', done => {
+    it('should emit null and not call second transform when first transform returns null', done => {
         pipe(
             () => undefined,
             throwErr,
         )().subscribe(isNull, passErr, done)
     });
 
-    it('should not emit when second transform returns null', done => {
+    it('should emit null when second transform returns null', done => {
         pipe(
             () => "hi",
             () => undefined,
@@ -118,5 +118,49 @@ describe("run", () => {
             expect(handled).equals("hi");
             expect(m).instanceOf(Action);
         }, passErr, done);
+    });
+});
+
+describe("combine", () => {
+
+    it('should emit null when first transform returns null', done => {
+        combine(
+            () => undefined,
+        )().subscribe(isNull, passErr, done)
+    });
+
+    it('should emit null when second transform returns null', done => {
+        combine(
+            () => "hi",
+            () => undefined,
+        )().subscribe(isNull, passErr, done)
+    });
+
+    it('should pass through argument to first transform', done => {
+        combine(
+            (a: string) => a,
+        )("hi").subscribe(m => {
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hi");
+        }, passErr, done)
+    });
+
+    it('should pass through multiple arguments to first transform', done => {
+        combine(
+            (a: string, b: number) => a.repeat(b),
+        )("hi", 2).subscribe(m => {
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hihi");
+        }, passErr, done)
+    });
+
+    it('should pass result of first transform to second transform', done => {
+        combine(
+            (a: string, b: number) => a.repeat(b),
+            a => a,
+        )("hi", 2).subscribe(m => {
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hihi");
+        }, passErr, done)
     });
 });
