@@ -1,27 +1,29 @@
 import { of as observableOf } from 'rxjs';
 import { map, flatMap } from 'rxjs/operators';
-import { Observableable, Value, from, toObservable } from './prague';
+import { Value, from, toObservable, Norm } from './prague';
 
 const getMatchError = new Error("getValue transform should only return Value or null");
 
+type ValueType<T> = T extends Value<infer V> ? Value<V> : never;
+
 export function match<
     ARGS extends any[],
-    VALUE,
+    O,
     ONVALUE,
     ONNULL = null,
 > (
-    getValue: (...args: ARGS) => Observableable<null | undefined | VALUE | Value<VALUE>>,
-    onValue: (value: Value<VALUE>) => ONVALUE,
+    getValue: (...args: ARGS) => O,
+    onValue: (value: ValueType<Norm<O>>) => ONVALUE,
     onNull?: () => ONNULL,
 ) {
     return from((...args: ARGS) => from(getValue)(...args).pipe(
         map(o => {
-            if (o instanceof Value)
-                return onValue(o);
-        
             if (o === null)
-                return onNull ? onNull() : o;
+                return onNull ? onNull() : null;
 
+            if (o instanceof Value)
+                return onValue(o as unknown as ValueType<Norm<O>>);
+        
             throw getMatchError;
         })
     ));

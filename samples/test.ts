@@ -12,12 +12,12 @@ const askTime = matchIf(
 //   }
   
 
-const giveName = pipe(
+const giveName = match(
     first(
         re(/My name is (.*)/),
         re(/Je m'appelle (.*)/),
     ),
-    r => r instanceof Value ? r.value[1] : r,
+    ({value}) => value[1],
 ); 
 
 const sayGoodbye = first(
@@ -77,7 +77,7 @@ const actions = new ActionReferences((send: (...args: any[]) => void) => ({
 
 const intro = match(
     giveName,
-    r => actions.reference.greeting(r.value),
+    ({value}) => actions.reference.greeting(value),
 );
 
 const outro = match(
@@ -94,6 +94,6 @@ const namedActionApp = pipe(
     run,
 );
 
-["bye bye"].map(t => namedActionApp(t)
+["My name is Inigo Montoyez, prepare to die", "bye bye"].forEach(t => namedActionApp(t)
     .subscribe()
 );
