@@ -31,12 +31,10 @@ const introduction = match(
     r => () => console.log(`Nice to meet you, ${r.value}`),
 );
 
-const app = pipe(
-    first(
-        askTime,
-        introduction,
-        t => () => console.log(`I don't understand "${t}"`),
-    ),
+const app = first(
+    askTime,
+    introduction,
+    t => () => console.log(`I don't understand "${t}"`),
 );
 
 const greetings = [
