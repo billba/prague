@@ -1,6 +1,6 @@
 import { Result, Transform, Norm, from, filterOutNull } from "./prague";
 import { from as observableFrom} from "rxjs";
-import { concatMap, take } from "rxjs/operators";
+import { concatMap, take, map } from "rxjs/operators";
 import { transformToNull } from "./core";
 
 export function first(): Transform<[], null>;
@@ -69,14 +69,20 @@ export function first <
 export function first (
     ...transforms: (null | undefined | ((...args: any[]) => any))[]
 ) {
-    return transforms.length === 0
-        ? transformToNull
-        : from((...args: any[]) => observableFrom(transforms.map(transform => from(transform))).pipe(
-            // we put concatMap here because it forces everything to after it to execute serially
-            concatMap(transform => transform(...args)),
-            filterOutNull,
-            // Stop when one emits a result
-            take(1), 
-            filterOutNull,
-        ));
+    if (transforms.length === 0)
+        return transformToNull;
+
+    const _transforms = observableFrom(transforms
+        .filter(transform => !!transform)
+        .map(transform => from(transform))
+    );
+
+    return from((...args: any[]) => _transforms.pipe(
+        // we put concatMap here because it forces everything to after it to execute serially
+        concatMap(transform => transform(...args)),
+        filterOutNull,
+        // Stop when one emits a result
+        take(1), 
+        filterOutNull,
+    ));
 }

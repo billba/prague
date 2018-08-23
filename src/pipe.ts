@@ -1,6 +1,6 @@
 import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, Nullable } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
-import { reduce, flatMap, map, mergeAll, mapTo, defaultIfEmpty } from "rxjs/operators";
+import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
 
 export function pipe <
     ARGS extends any[],
@@ -65,16 +65,18 @@ export function pipe <
 ): Transform<ARGS, Output>;
 
 export function pipe (
-    transform: (...args: any[]) => any,
-    ...transforms: ((result: Result) => any)[]
+    ...transforms: ((...args: any[]) => any)[]
 ) {
-    return from((...args: any[]) => observableFrom(transforms.map(_transform => from(_transform))).pipe(
+    const [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
+    const __transforms = observableFrom(_transforms);
+
+    return from((...args: any[]) => __transforms.pipe(
         reduce<Transform<[Result], Output>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
                 filterOutNull,
             ),
-            from(transform)(...args).pipe(
+            _transform(...args).pipe(
                 filterOutNull,
             )
         ),
@@ -176,15 +178,17 @@ export function combine <
 ): Transform<ARGS, Output>;
 
 export function combine (
-    transform: (...args: any[]) => any,
-    ...transforms: ((result: Output) => any)[]
+    ...transforms: ((...args: any[]) => any)[]
 ) {
-    return from((...args: any[]) => observableFrom(transforms.map(_transform => from(_transform))).pipe(
+    const [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
+    const __transforms = observableFrom(_transforms);
+
+    return from((...args: any[]) => __transforms.pipe(
         reduce<Transform<[Output], Output>, Observable<Output>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
             ),
-            from(transform)(...args)
+            _transform(...args)
         ),
         mergeAll(),
     ));

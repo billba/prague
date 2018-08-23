@@ -74,7 +74,9 @@ export function sorted <
 export function sorted (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    return from((...args: any[]) => observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>)).pipe(
+    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>));
+
+    return from((...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
         filterOutNull,
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
