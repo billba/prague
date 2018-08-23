@@ -44,7 +44,7 @@ export class ActionReference extends Result {
     }
 }
 
-export type Actions = Record<string, (...args: any[]) => any>;
+export type Actions = Record<string, Function>;
 
 type Args <F extends Actions> = {
     [P in keyof F]: F[P] extends (...args: infer ARGS) => any ? ARGS : never;
