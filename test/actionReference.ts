@@ -1,4 +1,4 @@
-import { describe, expect, passErr } from './common';
+import { describe, expect, passErr, throwErr } from './common';
 import { ActionReference, ActionReferences, pipe, run, Action } from '../src/prague';
 
 describe("ActionReference", () => {
@@ -123,5 +123,12 @@ describe("ActionReferences", () => {
             expect(m).instanceof(Action);
             expect(output).deep.equals(["Goodbye"]);
         }, passErr, done);
+    });
+
+    it("should throw on unknown name", (done) => {
+        pipe(
+            () => new ActionReference('dog'),
+            actions.toAction(sendToOutput),
+        )().subscribe(throwErr, () => done(), throwErr);
     });
 });

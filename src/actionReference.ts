@@ -91,8 +91,10 @@ export class ActionReferences <
         return transformResult(ActionReference, result => {
             const action = this.actions(...contextargs)[result.name];
 
-            if (action)
-                return () => action(...result.args);
+            if (!action)
+                throw `unknown action ${result.name}`;
+
+            return () => action(...result.args);
         });
     }
 }
