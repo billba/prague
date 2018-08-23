@@ -17,7 +17,7 @@ export function first <
 > (...args: [
     (...args: ARGS) => R0,
     (...args: ARGS) => R1
-]): Transform<ARGS, Norm<NonNullable<R0> | R1>>;
+]): Transform<ARGS, NonNullable<Norm<R0>> | Norm<R1>>;
 
 export function first <
     ARGS extends any[],
@@ -28,7 +28,7 @@ export function first <
     (...args: ARGS) => R0,
     (...args: ARGS) => R1,
     (...args: ARGS) => R2
-]): Transform<ARGS, Norm<NonNullable<R0 | R1> | R2>>;
+]): Transform<ARGS, NonNullable<Norm<R0 | R1>> | Norm<R2>>;
 
 export function first <
     ARGS extends any[],
@@ -41,7 +41,7 @@ export function first <
     (...args: ARGS) => R1,
     (...args: ARGS) => R2,
     (...args: ARGS) => R3
-]): Transform<ARGS, Norm<NonNullable<R0 | R1 | R2> | R3>>;
+]): Transform<ARGS, NonNullable<Norm<R0 | R1 | R2>> | Norm<R3>>;
 
 export function first <
     ARGS extends any[],
@@ -56,7 +56,7 @@ export function first <
     (...args: ARGS) => R2,
     (...args: ARGS) => R3,
     (...args: ARGS) => R4
-]): Transform<ARGS, Norm<NonNullable<R0 | R1 | R2 | R3> | R4>>;
+]): Transform<ARGS, NonNullable<Norm<R0 | R1 | R2 | R3>> | Norm<R4>>;
 
 export function first <
     ARGS extends any[],
