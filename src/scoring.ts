@@ -79,7 +79,7 @@ export function sorted (
     return from((...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
         filterOutNull,
-        flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
+        flatMap(transformResult(Multiple, multiple => observableFrom(multiple.results))),
         toArray(),
         map<Result[], Output>(results =>
             results.length === 0 ? null : 
@@ -126,7 +126,7 @@ export function top <
             takeWhile((m, i) => i < maxResults && m.score + tolerance >= highScore),
             toArray(),
             map(results => results.length === 1 ? results[0] : new Multiple(results)),
-        )
+        );
     });
 }
 

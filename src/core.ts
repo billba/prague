@@ -9,7 +9,7 @@ export type BaseType <T> =
 export const toObservable = <T> (
     t: T,
 ) =>
-    t instanceof Observable ? t.pipe(take(1)) :
+    t instanceof Observable ? t :
     t instanceof Promise ? observableFrom(t) :
     observableOf(t);
 
