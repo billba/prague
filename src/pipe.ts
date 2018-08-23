@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, Nullable } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, NullIfNullable } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
 
@@ -16,7 +16,7 @@ export function pipe <
 > (...args: [
     (...args: ARGS) => R0,
     (arg: NonNullable<Norm<R0>>) => R1
-]): Transform<ARGS, Nullable<Norm<R0>> | Norm<R1>>;
+]): Transform<ARGS, NullIfNullable<Norm<R0>> | Norm<R1>>;
 
 export function pipe <
     ARGS extends any[],
@@ -27,7 +27,7 @@ export function pipe <
     (...args: ARGS) => R0,
     (arg: NonNullable<Norm<R0>>) => R1,
     (arg: NonNullable<Norm<R1>>) => R2
-]): Transform<ARGS, Nullable<Norm<R0 | R1>> | Norm<R2>>;
+]): Transform<ARGS, NullIfNullable<Norm<R0 | R1>> | Norm<R2>>;
 
 export function pipe <
     ARGS extends any[],
@@ -40,7 +40,7 @@ export function pipe <
     (arg: NonNullable<Norm<R0>>) => R1,
     (arg: NonNullable<Norm<R1>>) => R2,
     (arg: NonNullable<Norm<R2>>) => R3
-]): Transform<ARGS, Nullable<Norm<R0 | R1 | R2>> | Norm<R3>>;
+]): Transform<ARGS, NullIfNullable<Norm<R0 | R1 | R2>> | Norm<R3>>;
 
 export function pipe <
     ARGS extends any[],
@@ -55,7 +55,7 @@ export function pipe <
     (arg: NonNullable<Norm<R1>>) => R2,
     (arg: NonNullable<Norm<R2>>) => R3,
     (arg: NonNullable<Norm<R2>>) => R4
-]): Transform<ARGS, Nullable<Norm<R0 | R1 | R2 | R3>> | Norm<R4>>;
+]): Transform<ARGS, NullIfNullable<Norm<R0 | R1 | R2 | R3>> | Norm<R4>>;
 
 export function pipe <
     ARGS extends any[],

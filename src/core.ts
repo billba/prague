@@ -51,7 +51,7 @@ export const nullIfEmpty = defaultIfEmpty(null);
 
 export type Output = Result | null;
 
-export type Nullable<T> = T extends null ? null : never;
+export type NullIfNullable<T> = T extends null ? null : never;
 
 export interface ResultClass <
     T extends Result,
