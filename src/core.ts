@@ -6,10 +6,8 @@ export type BaseType <T> =
     T extends Promise<infer BASETYPE> ? BASETYPE :
     T;
 
-export type Observableable<T> = Observable<T> | Promise<T> | T;
-
 export const toObservable = <T> (
-    t: Observableable<T>,
+    t: T,
 ) =>
     t instanceof Observable ? t.pipe(take(1)) :
     t instanceof Promise ? observableFrom(t) :
