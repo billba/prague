@@ -1,6 +1,6 @@
 import { Result, Transform, Norm, from, filterOutNull } from "./prague";
 import { from as observableFrom} from "rxjs";
-import { concatMap, take, map } from "rxjs/operators";
+import { concatMap, take } from "rxjs/operators";
 import { transformToNull } from "./core";
 
 export function first(): Transform<[], null>;

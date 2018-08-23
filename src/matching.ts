@@ -1,6 +1,4 @@
-import { of as observableOf } from 'rxjs';
-import { map, flatMap } from 'rxjs/operators';
-import { Value, toObservable, Norm, combine } from './prague';
+import { Value, Norm, combine } from './prague';
 
 type ValueType<T> = T extends Value<infer V> ? Value<V> : never;
 
