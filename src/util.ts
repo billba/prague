@@ -1,4 +1,4 @@
-import { match, Value, matchIf } from './prague';
+import { match, Value } from './prague';
 
 export const re = (regexp: RegExp) => (text: string) => regexp.exec(text);
 
@@ -10,7 +10,6 @@ export const matchRE = <
     onMatch: (value: Value<RegExpExecArray>) => ONMATCH,
     onNoMatch?: () => ONNOMATCH,
 ) => match(re(regexp), onMatch, onNoMatch);
-
 
 export const ifMatchRE = <
     ONMATCH,
