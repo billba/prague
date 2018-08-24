@@ -1,7 +1,6 @@
-import { Result, Transform, Norm, from, filterOutNull } from "./prague";
+import { Transform, Norm, from, filterOutNull, nullIfEmpty, Output } from "./prague";
 import { from as observableFrom} from "rxjs";
 import { concatMap, take } from "rxjs/operators";
-import { nullIfEmpty } from "./core";
 
 export function first <
     ARGS extends any[],
@@ -62,7 +61,7 @@ export function first <
     ARGS extends any[],
 > (...args:
     ((...args: ARGS) => any)[]
-): Transform<ARGS, Result>;
+): Transform<ARGS, Output>;
 
 export function first (
     ...transforms: ((...args: any[]) => any)[]
