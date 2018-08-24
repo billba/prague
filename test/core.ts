@@ -1,7 +1,7 @@
 import { describe, expect, passErr, throwErr, nullablevalues, values, isNull } from './common';
 import { of, empty, from as observableFrom } from 'rxjs';
 import { toObservable, Action, Value, from } from '../src/prague';
-import { toArray } from 'rxjs/operators';
+import { toArray, defaultIfEmpty } from 'rxjs/operators';
 
 describe("toObservable", () => {
     nullablevalues.forEach(value => {
@@ -153,17 +153,23 @@ describe("from", () => {
 
     it("should emit null on undefined", (done) => {
         from(undefined)
-        ().subscribe(isNull, passErr, done);
+        ()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done);
     });
 
     it("should emit null on null", (done) => {
         from(null)
-        ().subscribe(isNull, passErr, done)
+        ()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it("should emit null on no args", (done) => {
         from()
-        ().subscribe(isNull, passErr, done)
+        ()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     values.forEach(value => {

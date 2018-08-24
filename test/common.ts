@@ -2,10 +2,12 @@ export { describe } from 'mocha';
 import { use, expect } from 'chai';
 import subset = require('chai-subset');
 import { Output } from '../src/prague';
+import { Observable } from 'rxjs';
+import { defaultIfEmpty } from 'rxjs/operators';
 use(subset);
 export { expect } from 'chai';
 
-export const isNull = (o: Output) => {
+export const isNull = (o: any) => {
     expect(o).is.null;
 }
 

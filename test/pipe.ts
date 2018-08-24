@@ -1,26 +1,33 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
 import { pipe, run, Value, tap, Action, transformResult, combine } from '../src/prague';
+import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("pipe", () => {
 
     it('should emit null when first transform returns null', done => {
         pipe(
             () => undefined,
-        )().subscribe(isNull, passErr, done)
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it('should emit null and not call second transform when first transform returns null', done => {
         pipe(
             () => undefined,
             throwErr,
-        )().subscribe(isNull, passErr, done)
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it('should emit null when second transform returns null', done => {
         pipe(
             () => "hi",
             () => undefined,
-        )().subscribe(isNull, passErr, done)
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it('should pass through argument to first transform', done => {
@@ -126,14 +133,18 @@ describe("combine", () => {
     it('should emit null when first transform returns null', done => {
         combine(
             () => undefined,
-        )().subscribe(isNull, passErr, done)
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it('should emit null when second transform returns null', done => {
         combine(
             () => "hi",
             () => undefined,
-        )().subscribe(isNull, passErr, done)
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it('should pass through argument to first transform', done => {

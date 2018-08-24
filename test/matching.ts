@@ -1,12 +1,15 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
 import { match, Value, matchIf } from '../src/prague';
+import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("match", () => {
     it("should emit null on no value and no onNoValue handler", done => {
         match(
             () => undefined,
             throwErr,
-        )().subscribe(isNull, passErr, done);
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done);
     });
 
     it("should call onNoValue handler on no value", done => {
@@ -50,12 +53,14 @@ describe("match", () => {
         )().subscribe(throwErr, () => done(), throwErr);
     });
 
-    it("should not call onNull on Value when onValue emits null", done => {
+    it("should emit null and not call onNull on Value when onValue emits null", done => {
         match(
             () => "hi",
             () => undefined,
             throwErr,
-        )().subscribe(isNull, passErr, done);
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done);
     });
 });
 
@@ -68,7 +73,9 @@ describe("matchIf", () => {
             matchIf(
                 () => value,
                 throwErr,
-            )().subscribe(isNull, passErr, done);
+            )()
+            .pipe(defaultIfEmpty(13))
+            .subscribe(isNull, passErr, done);
         });
 
         it("should call onFalse on ${value}", done => {

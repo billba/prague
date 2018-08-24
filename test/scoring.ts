@@ -1,5 +1,6 @@
 import { describe, expect, passErr, isNull } from './common';
 import { Value, sorted, Multiple, pipe, top, best } from '../src/prague';
+import { defaultIfEmpty } from 'rxjs/operators';
 
 const matches = [
     new Value("hello", .75),
@@ -32,7 +33,9 @@ describe("sorted", () => {
     it("should emit null on null", (done) => {
         sorted(
             () => null,
-        )().subscribe(isNull, passErr, done);
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done);
     });
 
     it("should return Multiple for multiple results", (done) => {
