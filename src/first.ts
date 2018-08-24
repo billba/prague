@@ -1,6 +1,7 @@
 import { Result, Transform, Norm, from, filterOutNull } from "./prague";
 import { from as observableFrom} from "rxjs";
 import { concatMap, take } from "rxjs/operators";
+import { nullIfEmpty } from "./core";
 
 export function first <
     ARGS extends any[],
@@ -74,6 +75,6 @@ export function first (
         filterOutNull,
         // Stop when one emits a result
         take(1), 
-        filterOutNull,
+        nullIfEmpty,
     ));
 }

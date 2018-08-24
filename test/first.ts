@@ -1,16 +1,21 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
 import { first, Value } from '../src/prague';
+import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("first", () => {
     it("should emit null on no transforms", done => {
         first(
-        )().subscribe(isNull, passErr, done);
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done);
     });
 
     it("should emit null on undefined", done => {
         first(
             () => undefined
-        )().subscribe(isNull, passErr, done)
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
     });
 
     it("returns result of first transform when Value", done => {
