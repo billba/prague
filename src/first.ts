@@ -73,8 +73,9 @@ export function first (
         // we put concatMap here because it forces everything to after it to execute serially
         concatMap(transform => transform(...args)),
         filterOutNull,
-        // Stop when one emits a result
-        take(1), 
+        // stop when one emits a result
+        take(1),
+        // if none of the transforms emitted a Result, emit null
         nullIfEmpty,
     ));
 }
