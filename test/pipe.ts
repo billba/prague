@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
-import { pipe, run, Value, tap, Action, transformResult, combine } from '../src/prague';
+import { pipe, run, Value, tap, Action, transformResult, combine, transformNull } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("pipe", () => {
@@ -98,6 +98,34 @@ describe("transformResult", () => {
             transformResult(Value, () => v2),
         )().subscribe(m => {
             expect(m).equals(v2);
+        }, passErr, done);
+    });
+});
+
+describe("transformNull", () => {
+    it("should pass through non-null values", done => {
+        const v = new Value("hi");
+
+        combine(
+            () => v,
+            transformNull(throwErr),
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(m => {
+            expect(m).equals(v);
+        }, passErr, done);
+    });
+
+    it("should transform results of the stated class", done => {
+        const v = new Value("hi");
+
+        combine(
+            () => null,
+            transformNull(() => v),
+        )()
+        .pipe(defaultIfEmpty(13))
+        .subscribe(m => {
+            expect(m).equals(v);
         }, passErr, done);
     });
 });

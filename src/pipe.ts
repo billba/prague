@@ -111,7 +111,7 @@ export const transformNull = <
     R,
 > (
     transform: () => R,
-) => from((o: Output) => o === null ? transform() : o);
+) => from((o: Output) => o || transform());
 
 export const run = tap(transformResult(Action, action => action.action()));
 
