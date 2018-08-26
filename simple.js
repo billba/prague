@@ -51,9 +51,9 @@ const match = (getValue, onValue, onNull) => combine(
     getValue,
     o => {
         if (o === null)
-            return onNull ? from(onNull)() : null;
+            return onNull ? onNull() : null;
         if (o instanceof Value)
-            return from(onValue)(o.value);
+            return onValue(o.value);
         throw "expecting Value or null";
     }
 );
