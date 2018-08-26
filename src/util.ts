@@ -11,7 +11,7 @@ export const matchRE = <
     onNoMatch?: () => ONNOMATCH,
 ) => match(re(regexp), onMatch, onNoMatch);
 
-export const ifMatchRE = <
+export const matchIfRE = <
     ONMATCH,
     ONNOMATCH = null,
 > (
