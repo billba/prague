@@ -1,4 +1,4 @@
-import { Result, transformResult } from './prague';
+import { Result, transformResult, pipe, doAction } from './prague';
 
 interface ActionReferenceOptions {
     source?: any, 
@@ -86,15 +86,29 @@ export class ActionReferences <
     }
 
     toAction (
-        ...contextargs: CONTEXTARGS
+        ...contextArgs: CONTEXTARGS
     ) {
         return transformResult(ActionReference, result => {
-            const action = this.actions(...contextargs)[result.name];
+            const action = this.actions(...contextArgs)[result.name];
 
             if (!action)
                 throw `unknown action ${result.name}`;
 
             return () => action(...result.args);
         });
+    }
+
+    run <
+        ARGS extends any[],
+        O
+    > (
+        transform: (...args: ARGS) => O,
+        ...contextArgs: CONTEXTARGS
+    ) {
+        return pipe(
+            transform,
+            this.toAction(...contextArgs),
+            doAction,
+        );
     }
 }
