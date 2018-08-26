@@ -183,7 +183,7 @@ pipe(
 
 This is common enough that *Prague* provides a helper called `log` which is equivalent to `tap(console.log)`.
 
-#### `Action` and `run`
+#### `Action`, `doAction`, and `run`
 
 Imagine we're creating a chatbot that can respond to several phrases:
 
@@ -224,13 +224,19 @@ pipe(
 )("Wassup").subscribe(); // WAAAASSSUUUUUUP
 ```
 
-This is common enough that *Prague* provides a helper called `run`:
+*Prague* provides a helper called `doAction` for this specific *tap*:
 
 ```ts
 pipe(
     bot,
-    run,
+    doAction,
 )("Wassup").subscribe(); // WAAAASSSUUUUUUP
+```
+
+and a helper called `run` for this very common pattern:
+
+```ts
+run(bot)("Wassup").subscribe(); // WAAAASSSUUUUUUP
 ```
 
 Obviously actions can do much more than `console.log`. This approach of waiting to executing side effects until you're done is a classic functional programming pattern, and makes for much more declarative code.

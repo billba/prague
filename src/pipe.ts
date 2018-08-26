@@ -121,7 +121,19 @@ export const transformNull = <
     transform: () => R,
 ) => from((o: Output) => o || transform());
 
-export const run = tap(transformResult(Action, action => action.action()));
+export const doAction = tap(transformResult(Action, action => action.action()));
+
+export function run <
+    ARGS extends any[],
+    O
+> (
+    transform: (...args: ARGS) => O
+) {
+    return pipe(
+        transform,
+        doAction,
+    );
+}
 
 export function combine (): Transform<[], null>;
 

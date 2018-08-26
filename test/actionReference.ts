@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr } from './common';
-import { ActionReference, ActionReferences, pipe, run, Action } from '../src/prague';
+import { ActionReference, ActionReferences, pipe, doAction, Action } from '../src/prague';
 
 describe("ActionReference", () => {
     it("should create an ActionReference with no args and default options", () => {
@@ -105,7 +105,7 @@ describe("ActionReferences", () => {
         pipe(
             (name: string) => actions.reference.greeting(name),
             actions.toAction(sendToOutput),
-            run,
+            doAction,
         )("bill").subscribe(m => {
             expect(m).instanceof(Action);
             expect(output).deep.equals(["Nice to meet you, bill"]);
@@ -118,7 +118,7 @@ describe("ActionReferences", () => {
         pipe(
             () => actions.reference.farewell(),
             actions.toAction(sendToOutput),
-            run,
+            doAction,
         )().subscribe(m => {
             expect(m).instanceof(Action);
             expect(output).deep.equals(["Goodbye"]);

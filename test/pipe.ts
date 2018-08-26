@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
-import { pipe, run, Value, tap, Action, transformResult, combine, transformNull } from '../src/prague';
+import { pipe, run, Value, tap, Action, transformResult, combine, transformNull, doAction } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("pipe", () => {
@@ -151,25 +151,49 @@ describe("transformNull", () => {
     });
 });
 
-describe("run", () => {
+describe("doAction", () => {
     it("should ignore non-action result", done => {
         pipe(
             (a: string, b: number) => a.repeat(b),
-            run,
+            doAction,
         )("hi", 2).subscribe(m => {
             expect(m).instanceOf(Value);
             expect((m as Value<string>).value).to.equal("hihi");
         }, passErr, done);
     });
 
-    it("should run action of Action", done => {
+    it("should do action of Action", done => {
         let handled = "no";
 
         pipe(
             (a: string) => () => {
                 handled = a;
             },
-            run,
+            doAction,
+        )("hi").subscribe(m => {
+            expect(handled).equals("hi");
+            expect(m).instanceOf(Action);
+        }, passErr, done);
+    });
+});
+
+describe("run", () => {
+    it("should ignore non-action result", done => {
+        run(
+            (a: string, b: number) => a.repeat(b)
+        )("hi", 2).subscribe(m => {
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).to.equal("hihi");
+        }, passErr, done);
+    });
+
+    it("should do action of Action", done => {
+        let handled = "no";
+
+        run(
+            (a: string) => () => {
+                handled = a;
+            }
         )("hi").subscribe(m => {
             expect(handled).equals("hi");
             expect(m).instanceOf(Action);
