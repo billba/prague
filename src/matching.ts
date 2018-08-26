@@ -1,4 +1,4 @@
-import { Value, Norm, combine } from './prague';
+import { Value, Norm, combine, Transform } from './prague';
 
 type ValueType<T> = T extends Value<infer V> ? Value<V> : never;
 
@@ -23,7 +23,7 @@ export function match<
         
             throw "getValue transform should only return Value or null";
         },
-    );
+    ) as Transform<ARGS, Norm<ONVALUE> | Norm<ONNULL>>;
 }
 
 const trueValue = new Value(true);
@@ -31,7 +31,7 @@ const trueValue = new Value(true);
 export function matchIf <
     ARGS extends any[],
     ONTRUTHY,
-    ONFALSEY
+    ONFALSEY = null,
 > (
     predicate: (...args: ARGS) => any,
     onTruthy: () => ONTRUTHY,
@@ -44,5 +44,5 @@ export function matchIf <
         ),
         onTruthy,
         onFalsey
-    );
+    ) as Transform<ARGS, Norm<ONTRUTHY> | Norm<ONFALSEY>>;
 }
