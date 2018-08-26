@@ -29,18 +29,21 @@ const from = (transform) => transform
     : () => null;
 
 const first = (...transforms) => (...args) => {
-    for (let transform of transforms) {
-        if (transform) {
-            const o = from(transform)(...args);
-            if (o !== null)
-                return o;
-        }
+    for (const transform of transforms) {
+        const o = from(transform)(...args);
+        if (o)
+            return o;
     }
     return null;
 }
 
 const pipe = (transform, ...transforms) => (...args) => transforms.reduce(
-    (r, _transform) => r ? from(_transform)(r) : r,
+    (r, _transform) => r || from(_transform)(r),
+    from(transform)(...args)
+);
+
+const combine = (transform, ...transforms) => (...args) => transforms.reduce(
+    (r, _transform) => from(_transform)(r),
     from(transform)(...args)
 );
 
