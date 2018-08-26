@@ -1,12 +1,3 @@
-# Ideas
-
-## Spell out "magic" functions:
-
-arg => first(...)(arg)
-
-## Do "simple" Prague:
-
-
 # *Prague*
 
 A rule system handy for games and conversational user interfaces. I thought of it as I walked around the city of Prague on a sunny Spring day. **This is not an official Microsoft project.**
