@@ -47,14 +47,16 @@ const combine = (transform, ...transforms) => (...args) => transforms.reduce(
     from(transform)(...args)
 );
 
-const match = (getValue, onValue, onNull) => (... args) => {
-    const o = from(getValue)(...args);
-    if (o === null)
-        return onNull ? from(onNull)() : null;
-    if (o instanceof Value)
-        return from(onValue)(o.value);
-    throw "expecting Value or null";
-};
+const match = (getValue, onValue, onNull) => combine(
+    getValue,
+    o => {
+        if (o === null)
+            return onNull ? from(onNull)() : null;
+        if (o instanceof Value)
+            return from(onValue)(o.value);
+        throw "expecting Value or null";
+    }
+);
 
 class Multiple {
     constructor(results) {
