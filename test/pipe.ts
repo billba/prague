@@ -57,6 +57,27 @@ describe("pipe", () => {
             expect((m as Value<string>).value).equals("hihi");
         }, passErr, done)
     });
+
+    it('should pass result of second transform to third transform', done => {
+        pipe(
+            (a: string, b: number) => a.repeat(b),
+            a => a,
+            a => a,
+        )("hi", 2).subscribe(m => {
+            expect(m).instanceOf(Value);
+            expect((m as Value<string>).value).equals("hihi");
+        }, passErr, done)
+    });
+
+    it('should short circuit on second null', done => {
+        pipe(
+            (a: string, b: number) => a.repeat(b),
+            a => null,
+            throwErr,
+        )("hi", 2)
+        .pipe(defaultIfEmpty(13))
+        .subscribe(isNull, passErr, done)
+    });
 });
 
 describe("tap", () => {
@@ -116,7 +137,7 @@ describe("transformNull", () => {
         }, passErr, done);
     });
 
-    it("should transform results of the stated class", done => {
+    it("should transform null", done => {
         const v = new Value("hi");
 
         combine(

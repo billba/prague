@@ -1,6 +1,8 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, NullIfNullable } from "./prague";
+import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, NullIfNullable, transformToNull } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
+
+export function pipe(): Transform<[], null>;
 
 export function pipe <
     ARGS extends any[],
@@ -67,10 +69,16 @@ export function pipe <
 export function pipe (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
+    if (transforms.length === 0)
+        return transformToNull;
+
+    let _transform: Transform<any[], Output>,
+        _transforms: Transform<[Result], Output>[];
+
+    [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
     const __transforms = observableFrom(_transforms);
 
-    return from((...args: any[]) => __transforms.pipe(
+    return ((...args: any[]) => __transforms.pipe(
         reduce<Transform<[Result], Output>, Observable<Result>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
@@ -82,7 +90,7 @@ export function pipe (
         ),
         mergeAll(),
         nullIfEmpty,
-    ));
+    )) as Transform<any[], any>;
 }
 
 export const tap = <
@@ -114,6 +122,8 @@ export const transformNull = <
 ) => from((o: Output) => o || transform());
 
 export const run = tap(transformResult(Action, action => action.action()));
+
+export function combine (): Transform<[], null>;
 
 export function combine <
     ARGS extends any[],
@@ -174,16 +184,22 @@ export function combine <
     ARGS extends any[],
 > (
     transform: (...args: ARGS) => any,
-    ...transforms: ((result: Output) => any)[]
+    ...transforms: ((arg: Output) => any)[]
 ): Transform<ARGS, Output>;
 
 export function combine (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
+    if (transforms.length === 0)
+        return transformToNull;
+
+    let _transform: Transform<any[], Output>,
+        _transforms: Transform<[Output], Output>[];
+
+    [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
     const __transforms = observableFrom(_transforms);
 
-    return from((...args: any[]) => __transforms.pipe(
+    return ((...args: any[]) => __transforms.pipe(
         reduce<Transform<[Output], Output>, Observable<Output>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
@@ -191,5 +207,5 @@ export function combine (
             _transform(...args)
         ),
         mergeAll(),
-    ));
+    )) as Transform<any[], any>;
 }
