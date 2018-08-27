@@ -1,4 +1,4 @@
-import { first, matchIf, match, re, ActionReferences, pipe, doAction } from '../src/prague';
+import { first, matchIf, match, re, ActionReferences, pipe } from '../src/prague';
 import { BotContext, consoleBot } from './consoleBot';
 
 const actions = new ActionReferences((send: (...args: any[]) => void) => ({
