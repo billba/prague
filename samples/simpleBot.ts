@@ -1,10 +1,13 @@
 import { first, matchIf, match, re, ActionReferences, pipe } from '../src/prague';
 import { BotContext, consoleBot } from './consoleBot';
 
-const actions = new ActionReferences((send: (...args: any[]) => void) => ({
+const actions = new ActionReferences((context: BotContext) => ({
     oof: () => console.log(`Sorry, we're closed for the day`),
     greet: (name: string) => console.log(`Nice to meet you, ${name}`),
-    bye: () => console.log(`See you later!`),
+    bye: () => {
+        console.log(`See you later!`);
+        context.exit();
+    },
     default: () => console.log(`I didn't understand that.`),
 }));
 
@@ -20,7 +23,7 @@ const farewell = first(
 
 const isOOF = () => {
     const hours = new Date().getHours();
-    return hours < 9 || hours > 17;
+    return hours < 9 || hours > 22;
 }
 
 const bot = (context: BotContext) => pipe(
@@ -40,7 +43,7 @@ const bot = (context: BotContext) => pipe(
         ),
         () => actions.reference.default()
     ),
-    actions.toAction(context.send),
+    actions.toAction(context),
 )(context.text);
 
 consoleBot(bot);

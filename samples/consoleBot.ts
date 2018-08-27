@@ -6,19 +6,28 @@ const rl = readline.createInterface({
     output: process.stdout
   });
 
+let exit = false;
+
 export interface BotContext {
     send: (text: string) => void;
+    exit: () => void;
     text: string;
 }
+
 export const consoleBot = (
     app: Transform<[BotContext], any>
 ) => {
     rl.question('> ', (text) => {
         run(app)({
+            exit: () => { exit = true; },
             send: rl.write,
             text,
         }).subscribe(o => {
-            consoleBot(app);
+            if (exit) {
+                rl.close();
+            } else {
+                consoleBot(app);
+            }
         });
     });
 }
