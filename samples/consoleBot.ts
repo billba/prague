@@ -1,12 +1,5 @@
 import readline from 'readline';
-import { Transform, run } from '../src/prague';
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-let exit = false;
+import { Transform } from '../src/prague';
 
 export interface BotContext {
     send: (text: string) => void;
@@ -14,20 +7,32 @@ export interface BotContext {
     text: string;
 }
 
-export const consoleBot = (
-    app: Transform<[BotContext], any>
-) => {
-    rl.question('> ', (text) => {
-        run(app)({
-            exit: () => { exit = true; },
-            send: rl.write,
-            text,
-        }).subscribe(o => {
-            if (exit) {
-                rl.close();
-            } else {
-                consoleBot(app);
-            }
-        });
+export type Bot = Transform<[BotContext], any>;
+
+export class ConsoleBot {
+    private exit = false;
+
+    private rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
     });
+
+    constructor(private bot: Bot) {
+    }
+    
+    run() {
+        this.rl.question('> ', (text) => {
+            this.bot({
+                exit: () => { this.exit = true; },
+                send: console.log,
+                text,
+            }).subscribe(o => {
+                if (this.exit) {
+                    this.rl.close();
+                } else {
+                    this.run();
+                }
+            });
+        });
+    }
 }
