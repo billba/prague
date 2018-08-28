@@ -1,5 +1,5 @@
-import { first, matchIf, match, re, ActionReferences, pipe } from '../src/prague';
-import { BotContext } from './consoleBot';
+import { first, matchIf, match, re, ActionReferences, pipe, ActionReference, sorted, Multiple, Value } from '../src/prague';
+import { Bot, BotRequest, BotResponse } from './consoleBot';
 
 interface BotState {
     open: boolean;
@@ -9,22 +9,22 @@ let botState: BotState = {
     open: true,
 }
 
-const actions = new ActionReferences((context: BotContext) => ({
-    oof: () => context.send(`Sorry, we're closed for the day`),
-    greet: (name: string) => context.send(`Nice to meet you, ${name}`),
+const actions = new ActionReferences((res: BotResponse) => ({
+    oof: () => res.send(`Sorry, we're closed for the day`),
+    greet: (name: string) => res.send(`Nice to meet you, ${name}`),
     bye: () => {
-        context.send(`See you later!`);
-        context.exit();
+        res.send(`See you later!`);
+        res.exit();
     },
     open: () => {
-        context.send(`Open for business!`);
+        res.send(`Open for business!`);
         botState.open = true;
     },
     close: () => {
-        context.send(`Closing up.`);
+        res.send(`Closing up.`);
         botState.open = false;
     },
-    default: () => context.send(`I didn't understand that.`),
+    default: () => res.send(`I didn't understand that.`),
 }));
 
 const getNameFromGreeting = pipe(
@@ -61,12 +61,16 @@ const whenClosed = first(
     () => actions.reference.oof(),
 );
 
-export const _bot = (context: BotContext) => first(
+// _bot is the testable logic, returns ActionReferences
+
+export const _bot = (req: BotRequest) => first(
     matchIf(isOpen,
-        () => whenOpen(context.text),
-        () => whenClosed(context.text),
+        () => whenOpen(req.text),
+        () => whenClosed(req.text),
     ),
     () => actions.reference.default(),
 )();
 
-export const bot = (context: BotContext) => actions.run(_bot, context)(context);
+// bot does things
+
+export const bot: Bot = (req, res) => actions.run(_bot, res)(req);
