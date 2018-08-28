@@ -104,7 +104,7 @@ describe("ActionReferences", () => {
 
         pipe(
             (name: string) => actions.reference.greeting(name),
-            actions.toAction(sendToOutput),
+            actions.referenceToAction(sendToOutput),
             doAction,
         )("bill").subscribe(m => {
             expect(m).instanceof(Action);
@@ -117,7 +117,7 @@ describe("ActionReferences", () => {
 
         pipe(
             () => actions.reference.farewell(),
-            actions.toAction(sendToOutput),
+            actions.referenceToAction(sendToOutput),
             doAction,
         )().subscribe(m => {
             expect(m).instanceof(Action);
@@ -128,7 +128,7 @@ describe("ActionReferences", () => {
     it("should throw on unknown name", (done) => {
         pipe(
             () => new ActionReference('dog'),
-            actions.toAction(sendToOutput),
+            actions.referenceToAction(sendToOutput),
         )().subscribe(throwErr, () => done(), throwErr);
     });
 });

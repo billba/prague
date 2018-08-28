@@ -79,13 +79,12 @@ const outro = match(
     () => actions.reference.farewell(),
 )
 
-const namedActionApp = pipe(
+const namedActionApp = actions.run(
     first(
         intro,
         outro,
     ),
-    actions.toAction(console.log),
-    doAction,
+    console.log,
 );
 
 ["My name is Inigo Montoyez, prepare to die", "bye bye"].forEach(t => namedActionApp(t)

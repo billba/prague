@@ -85,7 +85,7 @@ export class ActionReferences <
             });
     }
 
-    toAction (
+    referenceToAction (
         ...contextArgs: CONTEXTARGS
     ) {
         return transformResult(ActionReference, result => {
@@ -107,7 +107,7 @@ export class ActionReferences <
     ) {
         return pipe(
             transform,
-            this.toAction(...contextArgs),
+            this.referenceToAction(...contextArgs),
             doAction,
         );
     }
