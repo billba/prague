@@ -23,7 +23,18 @@ describe("greeting", () => {
             .pipe(d)
             .subscribe(m => {
                 expect(m).instanceof(ActionReference);
-                expect((m as ActionReference).name === 'default')
+                expect((m as ActionReference).name).equals('default');
+            }, passErr, done);
+    });
+
+    it("should let me introduce myself", done => {
+        const c = new TestContext("My name is Bill");
+        _bot(c)
+            .pipe(d)
+            .subscribe(m => {
+                expect(m).instanceof(ActionReference);
+                expect((m as ActionReference).name).equals('greet');
+                expect((m as ActionReference).args).deep.equals(['Bill']);
             }, passErr, done);
     });
 
