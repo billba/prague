@@ -10,16 +10,16 @@ export class Multiple extends Result {
     }
 }
 
-export function sorted(): Transform<[], null>;
+export function multiple(): Transform<[], null>;
 
-export function sorted <
+export function multiple <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => R0
 ]): Transform<ARGS, Norm<R0>>;
 
-export function sorted <
+export function multiple <
     ARGS extends any[],
     R0,
     R1,
@@ -28,7 +28,7 @@ export function sorted <
     (...args: ARGS) => R1
 ]): Transform<ARGS, Norm<R0 | R1> | Multiple>;
 
-export function sorted <
+export function multiple <
     ARGS extends any[],
     R0,
     R1,
@@ -39,7 +39,7 @@ export function sorted <
     (...args: ARGS) => R2
 ]): Transform<ARGS, Norm<R0 | R1 | R2> | Multiple>;
 
-export function sorted <
+export function multiple <
     ARGS extends any[],
     R0,
     R1,
@@ -52,7 +52,7 @@ export function sorted <
     (...args: ARGS) => R3
 ]): Transform<ARGS, Norm<R0 | R1 | R2 | R3> | Multiple>;
 
-export function sorted <
+export function multiple <
     ARGS extends any[],
     R0,
     R1,
@@ -67,13 +67,13 @@ export function sorted <
     (...args: ARGS) => R4
 ]): Transform<ARGS, Norm<R0 | R1 | R2 | R3 | R4> | Multiple>;
 
-export function sorted <
+export function multiple <
     ARGS extends any[],
 > (...args:
     ((...args: ARGS) => any)[]
 ): Transform<ARGS, Output>;
 
-export function sorted (
+export function multiple (
     ...transforms: ((...args: any[]) => any)[]
 ) {
     if (transforms.length === 0)
@@ -89,10 +89,14 @@ export function sorted (
         map<Result[], Output>(results =>
             results.length === 0 ? null : 
             results.length === 1 ? results[0] :
-            new Multiple(results.sort((a, b) => b.score - a.score))
+            new Multiple(results)
         ),
     )) as Transform<any[], any>;
 }
+
+export const sort = (
+    ascending = false,
+) => transformResult(Multiple, r => new Multiple(r.results.sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))));
 
 export interface TopOptions {
     maxResults?: number;
@@ -141,7 +145,8 @@ export function best <
     ...transforms: ((...args: ARGS) => any)[]
 ) {
     return pipe(
-        sorted(...transforms),
+        multiple(...transforms),
+        sort(),
         top({
             maxResults: 1,
         }),
