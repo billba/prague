@@ -1,4 +1,4 @@
-import { first, matchIf, match, re, ActionReferences, pipe, ActionReference, sorted, Multiple, Value } from '../src/prague';
+import { first, matchIf, match, re, ActionReferences, pipe } from '../src/prague';
 import { Bot, BotRequest, BotResponse } from './consoleBot';
 
 interface BotState {
