@@ -206,7 +206,6 @@ describe("best", () => {
             () => matches[1],
         )()
         .subscribe(m => {
-            console.log("BEST", m);
             expect(m).instanceof(Value);
             expect(m).equals(matches[0]);
         }, passErr, done);
