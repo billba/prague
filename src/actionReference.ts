@@ -1,45 +1,14 @@
 import { Result, transformResult, pipe, doAction } from './prague';
 
-interface ActionReferenceOptions {
-    source?: any, 
-    score?: number, 
-}
-
-interface ActionReferenceOptionsWithName <
-    NAME = string,
-> extends ActionReferenceOptions {
-    name: NAME,
-}
-
 export class ActionReference extends Result {
 
-    name: string;
-    source?: any;
     args: any[];
 
     constructor (
-        name: string,
+        public name: string,
         ...args: any[]
-    );
-
-    constructor (
-        options: ActionReferenceOptionsWithName,
-        ...args: any[]
-    );
-    
-    constructor (
-        nameOrOptions: string | ActionReferenceOptionsWithName,
-        ... args: any[]
     ) {
-        super(typeof nameOrOptions === 'string' ? undefined : nameOrOptions.score);
-
-        if (typeof nameOrOptions === 'string') {
-            this.name = nameOrOptions;
-        } else {
-            this.name = nameOrOptions.name;
-            this.source = nameOrOptions.source;
-        }
-
+        super();
         this.args = args;
     }
 }
@@ -56,19 +25,11 @@ type Stubs<ACTIONS extends Actions> = {
     ) => ActionReference
 }
 
-type StubsWithOptions<ACTIONS extends Actions> = {
-    [P in keyof Args<ACTIONS>]: (
-        options: ActionReferenceOptions,
-        ...args: Args<ACTIONS>[P]
-    ) => ActionReference
-}
-
 export class ActionReferences <
     CONTEXTARGS extends any[],
     ACTIONS extends Actions,
 > {
     reference = {} as Stubs<ACTIONS>;
-    referenceWithOptions = {} as StubsWithOptions<ACTIONS>;
 
     constructor (
         private actions: (...contextargs: CONTEXTARGS) => ACTIONS,
@@ -77,11 +38,6 @@ export class ActionReferences <
             .keys(actions(...new Array(actions.length) as CONTEXTARGS))
             .forEach(name => {
                 this.reference[name] = (...args) => new ActionReference(name, ...args);
-                this.referenceWithOptions[name] = (options, ...args) => new ActionReference({
-                    name,
-                    source: options.source,
-                    score: options.score,
-                 }, ...args);
             });
     }
 

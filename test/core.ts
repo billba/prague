@@ -87,14 +87,6 @@ describe('Action', () => {
             }, passErr, done);
     });
 
-    it('should create an Action with score', () => {
-        let handled = false;
-        let action = () => { handled = true; };
-        let r = new Action(action, .5);
-        expect(r).instanceof(Action);
-        expect(r.score).equals(.5);
-    });
-    
     it('should throw on an action with more than zero arguments', (done) => {
         let handled = false;
         let action = (a: boolean) => {
@@ -115,30 +107,6 @@ describe('Value', () => {
         let result = new Value("hello");
         expect(result).instanceof(Value);
         expect(result.value).equals('hello');
-    });
-
-    it('should return a Value with the supplied value and score', () => {
-        let result = new Value("hello", .5);
-        expect(result).instanceof(Value);
-        expect(result.value).equals('hello');
-        expect(result.score).equals(.5);
-    });
-});
-
-describe("Result.cloneWithScore", () => {
-    it("should return itself with the same score", () => {
-        let value = new Value("hello", .5);
-        let m = value.cloneWithScore(.5);
-        expect(m).equals(value);
-        expect(m.score).equals(.5);
-    });
-
-    it("should return a new result with a different score", () => {
-        let value = new Value("hello", .5);
-        let m = value.cloneWithScore(.75);
-        expect(m).instanceof(Value);
-        expect(m.score).equals(.75);
-        expect(m.value).equals("hello");
     });
 });
 
