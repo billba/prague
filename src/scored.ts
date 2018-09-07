@@ -1,20 +1,22 @@
 import { Result, transformResult, Multiple, Transform, pipe, multiple, Value } from './prague';
 import { from as observableFrom } from "rxjs";
 import { takeWhile, toArray, map, tap as rxtap } from 'rxjs/operators';
+import { normalizedResult, filterOutNull, NormalizedOutput, NormalizedResult } from './core';
 
-export class Scored extends Result {
-
-    score: number;
+export class Scored <
+    RESULT extends Result = Result,
+> extends Result {
 
     constructor(
-        public result: Result,
-        score?: number,
+        public result: RESULT,
+        public score = 1,
     ) {
         super();
-        this.score = Scored.normalizedScore(score);
+        if (score === 0 || score > 1)
+            throw `Score is ${score} but must be be > 0 and <= 1 (consider using Scored.from)`;
     }
 
-    static normalizedScore (
+    private static normalizedScore (
         score?: number,
     ) {
         return score != null && score >= 0 && score < 1
@@ -23,36 +25,53 @@ export class Scored extends Result {
     }
 
     static from (
-        result: Result,
+        o: undefined | null,
         score?: number,
+    ): null;
+    
+    static from (
+        o: any,
+        score: 0,
+    ): null;
+    
+    static from <
+        O,
+    >(
+        o: O,
+        score?: number,
+    ): Scored<NormalizedResult<O>>;
+    
+    static from (
+        o: any,
+        score?: number
     ) {
-        if (result instanceof Scored) {
+        if (o == null || score === 0)
+            return null;
+
+        if (o instanceof Scored) {
             if (score === undefined)
-                return result;
+                return o;
 
             score = Scored.normalizedScore(score);
 
-            return score === result.score
-                ? result
-                : new Scored(result.result, score);
+            return score === o.score
+                ? o
+                : new Scored(o.result, score);
         }
 
-        return new Scored(result, score);
+        return new Scored(normalizedResult(o), Scored.normalizedScore(score));
     }
 
-    static unwrap (
-        result: Result,
+    static unwrap <
+        RESULT extends Result = Result,
+    >(
+        result: Scored<RESULT> | RESULT,
     ) {
         return result instanceof Scored
             ? result.result
             : result;
     }
 }
-
-export const scoredValue = <VALUE> (
-    value: VALUE,
-    score?: number
-) => new Scored(new Value(value), score);
 
 export const sort = (
     ascending = false,

@@ -1,17 +1,17 @@
 import { describe, expect, passErr, isNull } from './common';
-import { scoredValue, multiple, Multiple, Scored } from '../src/prague';
+import { multiple, Multiple, Scored } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 export const matches = [
-    scoredValue("hello", .75),
-    scoredValue("hi", .5),
+    Scored.from("hello", .75),
+    Scored.from("hi", .5),
 ];
 
 export const rev = [...matches].reverse();
 
 export const spreadme = [
-    scoredValue("aloha", .65),
-    scoredValue("wassup", .3),
+    Scored.from("aloha", .65),
+    Scored.from("wassup", .3),
 ];
 
 export const spreaded = [
@@ -23,7 +23,7 @@ export const spreaded = [
 
 describe("multiple", () => {
     it("should pass through a single result", (done) => {
-        const m = scoredValue("hello", .5);
+        const m = Scored.from("hello", .5);
 
         multiple(
             () => m,

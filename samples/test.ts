@@ -1,4 +1,4 @@
-import { Value, first, pipe, run, match, matchIf, best, re, ActionReferences, doAction, scoredValue } from '../src/prague';
+import { first, run, match, matchIf, best, re, ActionReferences, Scored } from '../src/prague';
 
 // matchIf looks for a truthy result and doesn't capture any matches
 const askTime = matchIf(
@@ -51,9 +51,9 @@ greetings.map(t =>
 console.log("*** Scoring ***");
 
 best(
-    () => scoredValue("bill", .85),
-    () => scoredValue("fred", .50),
-    () => scoredValue("joe", .85),
+    () => Scored.from("bill", .85),
+    () => Scored.from("fred", .50),
+    () => Scored.from("joe", .85),
 )()
 .subscribe(console.log)
 
