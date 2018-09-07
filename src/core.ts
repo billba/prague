@@ -42,7 +42,7 @@ export class Action extends Result {
     action: () => Observable<any>;
 
     constructor (
-        action: () => any,
+        action: Function,
     ) {
         super();
         
@@ -65,11 +65,25 @@ export class Value <VALUE> extends Result {
     }
 }
 
-type NormalizedOutput <O> =
-    O extends undefined | null ? null :
+export type NormalizedResult <O> =
     O extends Result ? O :
-    O extends () => any ? Action :
+    O extends Function ? Action :
     Value<O>;
+
+export const normalizedResult = <O> (o: O) => (
+    o instanceof Result ? o :
+    typeof o === 'function' ? new Action(o) :
+    new Value(o)
+) as NormalizedResult<O>;
+
+export type NormalizedOutput <O> =
+    O extends undefined | null ? null :
+    NormalizedResult<O>;
+
+export const normalizedOutput = <O> (o: O) => (
+    o == null ? null :
+    normalizedResult(o)
+) as NormalizedOutput<O>;
 
 export type Norm <O> = NormalizedOutput<BaseType<O>>;
 
@@ -97,11 +111,6 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        map(o =>
-            o == null ? null :
-            o instanceof Result ? o :
-            typeof o === 'function' ? new Action(o) :
-            new Value(o)
-        ),
+        map(normalizedOutput),
     );
 }
