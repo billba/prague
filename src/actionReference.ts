@@ -32,20 +32,19 @@ export class ActionReferences <
     reference = {} as Stubs<ACTIONS>;
 
     constructor (
-        private actions: (...contextargs: CONTEXTARGS) => ACTIONS,
+        private getActions: (...contextargs: CONTEXTARGS) => ACTIONS,
     ) {
-        Object
-            .keys(actions(...new Array(actions.length) as CONTEXTARGS))
-            .forEach(name => {
-                this.reference[name] = (...args) => new ActionReference(name, ...args);
-            });
+        for (const name of Object.keys(getActions(...new Array(getActions.length) as CONTEXTARGS))) {
+            this.reference[name] = (...args) => new ActionReference(name, ...args);
+            }
     }
 
     referenceToAction (
         ...contextArgs: CONTEXTARGS
     ) {
         return transformResult(ActionReference, result => {
-            const action = this.actions(...contextArgs)[result.name];
+
+            const action = this.getActions(...contextArgs)[result.name];
 
             if (!action)
                 throw `unknown action ${result.name}`;

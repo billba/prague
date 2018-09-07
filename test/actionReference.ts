@@ -67,10 +67,7 @@ describe("ActionReferences", () => {
         }, passErr, done);
     });
 
-    it("should throw on unknown name", (done) => {
-        pipe(
-            () => new ActionReference('dog'),
-            actions.referenceToAction(sendToOutput),
-        )().subscribe(throwErr, () => done(), throwErr);
+    it("should throw on unknown name", () => {
+        expect(actions.reference.greeting("dog")).throws;
     });
 });
