@@ -1,4 +1,4 @@
-import { Result, transformResult, pipe, doAction } from './prague';
+import { Result, transformResult, pipe, doAction, Scored } from './prague';
 
 export class ActionReference extends Result {
 
@@ -25,17 +25,26 @@ type Stubs<ACTIONS extends Actions> = {
     ) => ActionReference
 }
 
+type ScoredStubs<ACTIONS extends Actions> = {
+    [P in keyof Args<ACTIONS>]: (
+        score: number,
+        ...args: Args<ACTIONS>[P]
+    ) => Scored<ActionReference>
+}
+
 export class ActionReferences <
     CONTEXTARGS extends any[],
     ACTIONS extends Actions,
 > {
     reference = {} as Stubs<ACTIONS>;
+    scoredReference = {} as ScoredStubs<ACTIONS>;
 
     constructor (
         private getActions: (...contextargs: CONTEXTARGS) => ACTIONS,
     ) {
         for (const name of Object.keys(getActions(...new Array(getActions.length) as CONTEXTARGS))) {
             this.reference[name] = (...args) => new ActionReference(name, ...args);
+            this.scoredReference[name] = (score, ...args) => Scored.from(new ActionReference(name, ...args), score);
             }
     }
 

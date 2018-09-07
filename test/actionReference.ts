@@ -32,6 +32,7 @@ describe("ActionReferences", () => {
 
     it("should create reference.greeting stub", () => {
         const greeting = actions.reference.greeting("bill");
+        expect(greeting).instanceof(ActionReference);
         expect(greeting.name).equals("greeting");
         expect(greeting.args).deep.equals(["bill"]);
     });
@@ -70,4 +71,13 @@ describe("ActionReferences", () => {
     it("should throw on unknown name", () => {
         expect(actions.reference.greeting("dog")).throws;
     });
+
+    it("should create scored reference.greeting stub", () => {
+        const greeting = actions.scoredReference.greeting(.5, "bill");
+        expect(greeting.score).equals(.5);
+        expect(greeting.result).instanceof(ActionReference);
+        expect(greeting.result.name).equals("greeting");
+        expect(greeting.result.args).deep.equals(["bill"]);
+    });
+
 });
