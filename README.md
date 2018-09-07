@@ -36,12 +36,12 @@ A `Transform` emits either `null` or a subclass of `Result`.
 
 ### `Result`
 
-`Result` is an abstract base class. The following three subclasses of `Result` are "core" to *Prague*:
+`Result` is an abstract base class. The following subclasses of `Result` are included with *Prague*, and you can define your own.
 * `Value<VALUE>` - contains a value of type VALUE
 * `Action` - contains an action (function) to potentially execute at a future time
-
-*Prague* also includes and makes use of these subclasses of `Result`:
 * `ActionReference` - contains the (serializable) name and arguments of a function to potentially execute at a future time
+* `Scored<RESULT>` - contains a `Result` of type `RESULT` and its numeric score > 0 and <=1
+* `Sourced<RESULT>` - contains a `Result` of type `RESULT` and a source
 * `Multiple` - contains an array of `Result`s
 
 ### `from`
@@ -232,35 +232,96 @@ run(bot)("Wassup").subscribe(); // WAAAASSSUUUUUUP
 
 Obviously actions can do much more than `console.log`. This approach of waiting to executing side effects until you're done is a classic functional programming pattern, and makes for much more declarative code.
 
-#### Scoring: `best`, `multiple`, `sort`, and `top`
+#### Regular Expressions: `re`
 
-Something we have not touched on is that every `Result` has a `score`, a floating point numeric value between 0 and 1, inclusive. By default this score is 1, but you can specify a different score when creating any `Result`:
+A common way to do pattern matching is regular expressions, as in the following:
 
 ```ts
-new Value("Bill", .5); // Value{ value: "Bill", score: .5 }
+const greet = match((text: string) => /My name is (.*)/i.exec(text),
+    ({ value }) => `Nice to meet you, ${value[1]}`
+);
 ```
 
-Scores are useful when the situation is ambiguous. Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others to mean "I am telling you my name". One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where scoring comes in.
+The `exec` method of a `RegExp` happens to be a great fit for *Prague*, because it returns `null` when there are no matches. But this is fairly wordy, especially if your application includes lots of regular expression checks. *Prague* includes a more concise helper `re` that lets you rewrite the above as follows:
 
-In this example we'll first score two different potential responses to a request for a name, then we'll choose the highest scoring one. If there is one, we'll create an action with that score. Finally we'll put that against a differently scored action.
+```ts
+const greet = match(re(/My name is (.*)/i),
+    ({ value }) => `Nice to meet you, ${value[1]}`
+);
+```
+
+If you don't need capture groups you can use `re` with `matchIf`:
+
+```ts
+const greet = matchIf(re(/Hello|Howdy|Aloha|Wassup/i),
+    () => `Yo`
+);
+```
+
+#### Scoring: `Scored`, `best`, `Multiple`, `multiple`, `sort`, and `top`
+
+Pattern matching isn't always black and white. That's where scoring comes in. A `Scored` couples a `Result` with a numeric score between 0 and 1:
+
+```ts
+import { Scored } from 'prague';
+
+const iffyBill = new Scored(new Value("Bill"), .5);         // Scored{ result: Value{ value: "Bill" }, score: .5 }
+const definitelyBill = new Scored(new Value("Bill"), 1);    // Scored{ result: Value{ value: "Bill" }, score: 1 }
+```
+
+`iffyBill` can be interpreted as *a 50% chance that the correct value is 'Bill'*.
+
+Any `Result` can be wrapped in a `Scored`, but typically a `Scored` shouldn't be wrapped in another `Scored`. To make this easier to ensure, we use the `Scored.from` factory method instead of `new Scored`. It wraps or rewraps results as appropriate, is careful not to create new objects unnecessarily, normalizes scoring, allows `Value` and `Action` shorthands, and returns `null` for `null`, `undefined`, and scores of zero.
+
+```ts
+const iffyBill = Scored.from(new Value("Bill"), .5);    // Scored{ result: Value{ value: "Bill" }, score: .5 }
+const iffyBill = Scored.from("Bill", .5);               // Scored{ result: Value{ value: "Bill" }, score: .5 }
+const lessIffyBill = Scored.from(iffyBill, .75);        // Scored{ result: Value{ value: "Bill" }, score: .75 }
+const equallyIffyBill = Scored.from(iffyBill, .5);      // returns iffyBill, i.e. equallyIffyBill === iffyBill
+const equallyIffyBill = Scored.from(iffyBill);          // returns iffyBill, i.e. equallyIffyBill === iffyBill
+const definitelyBill = Scored.from("Bill");             // Scored{ result: Value{ value: "Bill" }, score: 1 }
+const returnsNull = Scored.from(null);                  // null
+const returnsNull = Scored.from("Bill", 0);             // null
+```
+
+Scoring is usually a temporary operation - you wrap `Result`s in scores to determine the highest one(s). To unwrap them call `Scored.unwrap`, which will return the wrapped `Result` for any `Scored` and pass through any other `Result`s.
+
+```ts
+Scored.unwrap(iffyBill);            // Value{ value: "Bill" }
+Scored.unwrap(new Value("Bill"));   // Value{ value: "Bill" }
+```
+
+Let's see scoring in action. Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others to mean "I am telling you my name". One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where scoring comes in.
+
+In this example we'll always assign a score of 1 to a name gleaned from an unambiguously verbose introduction. Otherwise, if there is an outstanding question (the bot asked the user's name) we'll assign a 50% chance that the entire user's response is a name. In either case we transform that `Scored Value` into a `Scored Action` with the same score, greeting the user.
+
+Meanwhile we have a different rule that is looking for the phrase "current time". If there are no outstanding questions we assign its action a score of 1, but even if there is an outstanding question we consider that there's a pretty good chance that this phrase represents a command, so we assign it a score of .75.
+
+We pass both these transforms to `best`, which returns a new transform which calls *all* of the transforms, collects the `Scored<Result>`s thereof, and returns the unwrapped `Result` of the highest scoring one. (If any of the transforms return a non-`Scored` `Result`, `best` will automatically wrap it in a `Scored` with score 1).
 
 ```ts
 import { best } from 'prague';
 
 const bot = best(
     match(
-        best(
-            pipe(
-                (t: string) => /My name is (.*)/i.exec(t),
-                matches => matches.value[1], // gets converted to a Value of score 1
+        first(
+            match(
+                re(/My name is (.*)/i),
+                ({ value }) => Scored.from(value[1]),
             ),
-            t => new Value(t, .5),
+            t => botstate.question === 'name' ? Scored.from(t, .5) : null,
         ),
-        m => new Action(() => console.log(`Nice to meet you, ${m.value}`), m.score)
+        scoredValue => Scored.from(
+            () => console.log(`Nice to meet you, ${scoredValue.result.value}`),
+            scoredValue.score
+        ),
     ),
     matchIf(
-        t => t === "current time",
-        () => new Action(() => console.log(`The time is ${new Date().toLocaleTimeString()}`), .9),
+        re(/current time/),
+        () => Scored.from(
+            () => console.log(`The time is ${new Date().toLocaleTimeString()}`),
+            botstate.question ? .75 : 1
+        )
     ),
 );
 
@@ -268,23 +329,30 @@ const test = (a: string) => run(
     bot,
 )(a).subscribe();
 
-test("Bill"); // Nice to meet you, Bill
-test("My name is Bill"); // Nice to meet you, Bill
-test("current time"); // The time is 6:50:15 AM
-test("My name is current time") // // Nice to meet you, Current Time
+// When botstate.question === 'name'
+test("Bill");                   // Nice to meet you, Bill
+test("My name is Bill");        // Nice to meet you, Bill
+test("current time");           // The time is 6:50:15 AM
+test("My name is current time") // Nice to meet you, Current Time
+
+// When botstate.question is undefined
+test("Bill");                   // 
+test("My name is Bill");        // Nice to meet you, Bill
+test("current time");           // The time is 6:50:15 AM
+test("My name is current time") // Nice to meet you, Current Time
 ```
 
 So far, so good. But consider this case:
 
 ```ts
 const values = [
-    () => new Value("hi", .75),
-    () => new Value("hello", .75),
-    () => new Value("aloha", .70),
-    () => new Value("wassup", .65),
+    Scored.from("hi", .75),
+    Scored.from("hello", .75),
+    Scored.from("aloha", .70),
+    Scored.from("wassup", .65),
 ];
 
-const valueTransforms = values.map(value => () => values);
+const valueTransforms = values.map(value => () => value);
 
 best(
     ...valueTransforms
@@ -299,7 +367,7 @@ The first thing we need is a way to work with more than one `Result`. Enter `Mul
 new Multiple(values);
 ```
 
-Or you can use the `multiple` helper to create a `Transform` which calls each supplied `Transform` with the supplied arguments. If none emits a `Result`, it returns `null`. If one returns a `Result`, it returns that. If two or more return `Result`s, it returns a `Multiple` containing them.
+Or you can use the `multiple` helper to create a `Transform` which calls each supplied `Transform`. If none emits a `Result`, it returns `null`. If one returns a `Result`, it returns that. If two or more return `Result`s, it returns a `Multiple` containing them.
 
 ```ts
 multiple(valueTransforms);
@@ -355,7 +423,7 @@ Increasing `tolerance` includes more items in the "high score". It defaults to `
 
 Decreasing `maxResults` limits of the number of "high score" results retrieved. It defaults to `Number.POSITIVE_INFINITY` and has a minimum value of `1`.
 
-Now that you understand `multiple`, `sort`, and `top`, we can reveal that `best` is just a special case of using them all together:
+Now that you understand `multiple`, `sort`, and `top`, we can reveal that `best` is just a special case of using them all together, with an `unwrap` at the end:
 
 ```ts
 const best = (...transforms) => pipe(
@@ -364,6 +432,7 @@ const best = (...transforms) => pipe(
     top({
         maxResults: 1,
     }),
+    Scored.unrwap,
 );
 ```
 
@@ -376,7 +445,7 @@ tk
 
 ### `Observable`s and `Promise`s
 
-`Observable`s are a powerful and flexible approach to writing asynchronous code, but you don't have to go all the way down that rabbit hole to use *Prague*. All you need to knoe is that an `Observable` emits zero or more values, and then either throws an error or completes. *Prague* `Transforms` never emit more than one value, which will always be a `Result`.
+`Observable`s are a powerful and flexible approach to writing asynchronous code, but you don't have to go all the way down that rabbit hole to use *Prague*. All you need to know is that an `Observable` emits zero or more values, and then either emits an error or completes. *Prague* `Transforms` either emits an error or emits one `Result` and completes.
 
 #### Calling a `Transform`
 
@@ -416,4 +485,3 @@ tk
 ## Samples
 
 tk
-

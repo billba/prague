@@ -116,14 +116,14 @@ describe("Scored.from", () => {
 describe("Scored.unwrap", () => {
     const v = new Value("hi");
     const sv = Scored.from(v);
-
+    
     it("should return result of Scored", () => {
         expect(Scored.unwrap(sv)).equals(v);
     });
 
     it("should return non-Scored result", () => {
         expect(Scored.unwrap(v)).equals(v);
-    })
+    });
 });
 
 describe("sort", () => {

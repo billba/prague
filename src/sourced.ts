@@ -1,16 +1,20 @@
 import { Result } from './prague';
 
-export class Sourced extends Result {
+export class Sourced <
+    RESULT extends Result = Result,
+> extends Result {
 
     constructor(
-        public result: Result,
+        public result: RESULT,
         public source: any,
     ) {
         super();
     }
 
-    static unwrap (
-        result: Result,
+    static unwrap <
+        RESULT extends Result = Result,
+    >(
+        result: Sourced<RESULT> | RESULT,
     ) {
         return result instanceof Sourced
             ? result.result

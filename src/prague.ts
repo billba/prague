@@ -3,6 +3,7 @@ export * from './first';
 export * from './pipe';
 export * from './multiple';
 export * from './scored';
+export * from './sourced';
 export * from './matching';
 export * from './actionReference';
 export * from './util';
