@@ -2,74 +2,16 @@ import { describe, expect, passErr, throwErr } from './common';
 import { ActionReference, ActionReferences, pipe, doAction, Action } from '../src/prague';
 
 describe("ActionReference", () => {
-    it("should create an ActionReference with no args and default options", () => {
+    it("should create an ActionReference with no args", () => {
         const ar = new ActionReference("bill");
         expect(ar.name).equals("bill");
-        expect(ar.score).equals(1);
-        expect(ar.source).is.undefined;
         expect(ar.args).deep.equals([]);
     });
 
-    it("should create an ActionReference with args and default options", () => {
+    it("should create an ActionReference with args", () => {
         const ar = new ActionReference("bill", 13, "cat");
         expect(ar.name).equals("bill");
-        expect(ar.score).equals(1);
-        expect(ar.source).is.undefined;
         expect(ar.args).deep.equals([13, "cat"]);
-    });
-
-    it("should create an ActionReference with no args", () => {
-        const ar = new ActionReference({
-            name: "bill",
-        });
-        expect(ar.name).equals("bill");
-        expect(ar.score).equals(1);
-        expect(ar.source).is.undefined;
-        expect(ar.args).deep.equals([]);
-    });
-
-    it("should create an ActionReference with args and default options", () => {
-        const ar = new ActionReference({
-            name: "bill",
-        }, 13, "cat");
-        expect(ar.name).equals("bill");
-        expect(ar.score).equals(1);
-        expect(ar.source).is.undefined;
-        expect(ar.args).deep.equals([13, "cat"]);
-    });
-
-    it("should create an ActionReference with score and no args", () => {
-        const ar = new ActionReference({
-            name: "bill",
-            score: .5,
-        });
-        expect(ar.name).equals("bill");
-        expect(ar.score).equals(.5);
-        expect(ar.source).is.undefined;
-        expect(ar.args).deep.equals([]);
-    });
-
-    it("should create an ActionReference with source and no args", () => {
-        const ar = new ActionReference({
-            name: "bill",
-            source: "wikipedia",
-        });
-        expect(ar.name).equals("bill");
-        expect(ar.score).equals(1);
-        expect(ar.source).equals("wikipedia");
-        expect(ar.args).deep.equals([]);
-    });
-
-    it("should create an ActionReference with source and score and no args", () => {
-        const ar = new ActionReference({
-            name: "bill",
-            score: .5,
-            source: "wikipedia",
-        });
-        expect(ar.name).equals("bill");
-        expect(ar.score).equals(.5);
-        expect(ar.source).equals("wikipedia");
-        expect(ar.args).deep.equals([]);
     });
 });
 
@@ -104,7 +46,7 @@ describe("ActionReferences", () => {
 
         pipe(
             (name: string) => actions.reference.greeting(name),
-            actions.toAction(sendToOutput),
+            actions.referenceToAction(sendToOutput),
             doAction,
         )("bill").subscribe(m => {
             expect(m).instanceof(Action);
@@ -117,7 +59,7 @@ describe("ActionReferences", () => {
 
         pipe(
             () => actions.reference.farewell(),
-            actions.toAction(sendToOutput),
+            actions.referenceToAction(sendToOutput),
             doAction,
         )().subscribe(m => {
             expect(m).instanceof(Action);
@@ -125,10 +67,7 @@ describe("ActionReferences", () => {
         }, passErr, done);
     });
 
-    it("should throw on unknown name", (done) => {
-        pipe(
-            () => new ActionReference('dog'),
-            actions.toAction(sendToOutput),
-        )().subscribe(throwErr, () => done(), throwErr);
+    it("should throw on unknown name", () => {
+        expect(actions.reference.greeting("dog")).throws;
     });
 });

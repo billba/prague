@@ -1,48 +1,56 @@
-import { Value, Norm, combine } from './prague';
+import { Value, Norm, combine, Transform, Output, from } from './prague';
+import { transformToNull } from './core';
 
 type ValueType<T> = T extends Value<infer V> ? Value<V> : never;
 
-export function match<
-    ARGS extends any[],
-    O,
-    ONVALUE,
+export const branch = <
+    O extends Output,
+    ONRESULT,
     ONNULL = null,
 > (
-    getValue: (...args: ARGS) => O,
-    onValue: (value: ValueType<Norm<O>>) => ONVALUE,
+    onResult: (result: NonNullable<O>) => ONRESULT,
     onNull?: () => ONNULL,
-) {
-    return combine(
-        getValue,
-        o => {
-            if (o === null)
-                return onNull ? onNull() : null;
+) => {
+    const _onResult = from(onResult);
+    const _onNull = onNull ? from(onNull) : transformToNull;
 
-            if (o instanceof Value)
-                return onValue(o as unknown as ValueType<Norm<O>>);
-        
-            throw "getValue transform should only return Value or null";
-        },
-    );
+    return ((o: O) => o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Transform<[O], Norm<ONRESULT> | Norm<ONNULL>>;
 }
+
+export const match = <
+    ARGS extends any[],
+    O,
+    ONRESULT,
+    ONNULL = null,
+> (
+    transform: (...args: ARGS) => O,
+    onResult: (result: NonNullable<Norm<O>>) => ONRESULT,
+    onNull?: () => ONNULL,
+) => combine(
+    transform,
+    branch(onResult, onNull),
+);
 
 const trueValue = new Value(true);
 
-export function matchIf <
+export const isTrue = <
+    ARGS extends any[],
+> (
+    predicate: (...args: ARGS) => any,
+) => combine(
+    predicate,
+    o => o instanceof Value && !o.value || !o ? null : trueValue,
+);
+
+export const matchIf = <
     ARGS extends any[],
     ONTRUTHY,
-    ONFALSEY
+    ONFALSEY = null,
 > (
     predicate: (...args: ARGS) => any,
     onTruthy: () => ONTRUTHY,
     onFalsey?: () => ONFALSEY,
-) {
-    return match(
-        combine(
-            predicate,
-            o => o instanceof Value && !o.value || !o ? null : trueValue,
-        ),
-        onTruthy,
-        onFalsey
-    );
-}
+) => combine(
+    isTrue(predicate),
+    branch(onTruthy, onFalsey),
+);

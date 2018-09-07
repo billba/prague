@@ -232,7 +232,7 @@ run(bot)("Wassup").subscribe(); // WAAAASSSUUUUUUP
 
 Obviously actions can do much more than `console.log`. This approach of waiting to executing side effects until you're done is a classic functional programming pattern, and makes for much more declarative code.
 
-#### Scoring: `best`, `sorted`, and `top`
+#### Scoring: `best`, `multiple`, `sort`, and `top`
 
 Something we have not touched on is that every `Result` has a `score`, a floating point numeric value between 0 and 1, inclusive. By default this score is 1, but you can specify a different score when creating any `Result`:
 
@@ -264,9 +264,8 @@ const bot = best(
     ),
 );
 
-const test = (a: string) => pipe(
+const test = (a: string) => run(
     bot,
-    run
 )(a).subscribe();
 
 test("Bill"); // Nice to meet you, Bill
@@ -278,29 +277,44 @@ test("My name is current time") // // Nice to meet you, Current Time
 So far, so good. But consider this case:
 
 ```ts
-const transforms = [
+const values = [
     () => new Value("hi", .75),
     () => new Value("hello", .75),
     () => new Value("aloha", .70),
     () => new Value("wassup", .65),
 ];
 
+const valueTransforms = values.map(value => () => values);
+
 best(
-    ...transforms
+    ...valueTransforms
 )().subscribe(console.log) // Value{ value: "hi", score: .75 }
 ```
 
 Calling `best` can be unsatisfactory when there is a tie at the top. Things get even more challenging if you want to program in some wiggle room, say 5%, so that "aloha" becomes a third valid result.
 
-It turns out that `best` is a special case of a helper called `sorted`, which returns a `Transform` which calls each supplied `Transform` with the supplied arguments. If none emit, neither does it. If one returns a `Result`, it returns that. If two or more return a `Result`, it returns a `Multiple`, which is a `Result` containing an array of all the `Result`s.
+The first thing we need is a way to work with more than one `Result`. Enter `Multiple`, a `Result` containing an array of `Result`s. You can either create one directly:
 
 ```ts
-const sortme = sorted(
-    ...transforms
-);
-
-sortme().subscribe(console.log); // Multiple{ results:[ /* all the results */ ] }
+new Multiple(values);
 ```
+
+Or you can use the `multiple` helper to create a `Transform` which calls each supplied `Transform` with the supplied arguments. If none emits a `Result`, it returns `null`. If one returns a `Result`, it returns that. If two or more return `Result`s, it returns a `Multiple` containing them.
+
+```ts
+multiple(valueTransforms);
+```
+
+Frequently the thing you want to do with multiple results is to sort them:
+
+```ts
+const sortme = pipe(
+    multiple(valueTransforms),
+    sort(),
+)
+```
+
+The result of all this is a `Transform` which returns a `Multiple` which contains a sorted array of `Value`s.
 
 We can narrow down this result using a helper called `top`.
 
@@ -341,18 +355,19 @@ Increasing `tolerance` includes more items in the "high score". It defaults to `
 
 Decreasing `maxResults` limits of the number of "high score" results retrieved. It defaults to `Number.POSITIVE_INFINITY` and has a minimum value of `1`.
 
-In fact, `best` is just a special case of piping the results of `sorted` into `top`:
+Now that you understand `multiple`, `sort`, and `top`, we can reveal that `best` is just a special case of using them all together:
 
 ```ts
 const best = (...transforms) => pipe(
-    sorted(...transforms),
+    multiple(...transforms),
+    sort(),
     top({
         maxResults: 1,
     }),
 );
 ```
 
-`top` is just one way to narrow down multiple results. There are others. You may apply multiple heuristics. You may even ask for human intervention. For instance, in a chatbot you may wish to ask the user to do the disambiguation ("Are you asking the time, or telling me your name?"). Of course their reply to that may also be ambiguous...
+**Note**: `top` is just one way to narrow down multiple results. There are many heuristics you may choose to apply. You may even ask for human intervention. For instance, in a chatbot you may wish to ask the user to do the disambiguation ("Are you asking the time, or telling me your name?"). Of course their reply to that may also be ambiguous...
 
 #### `ActionReference` and `ActionReferences`
 

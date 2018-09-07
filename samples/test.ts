@@ -1,4 +1,4 @@
-import { Value, first, pipe, run, match, matchIf, best, re, ActionReferences, doAction } from '../src/prague';
+import { Value, first, pipe, run, match, matchIf, best, re, ActionReferences, doAction, scoredValue } from '../src/prague';
 
 // matchIf looks for a truthy result and doesn't capture any matches
 const askTime = matchIf(
@@ -51,9 +51,9 @@ greetings.map(t =>
 console.log("*** Scoring ***");
 
 best(
-    () => new Value("bill", .85),
-    () => new Value("fred", .50),
-    () => new Value("joe", .85),
+    () => scoredValue("bill", .85),
+    () => scoredValue("fred", .50),
+    () => scoredValue("joe", .85),
 )()
 .subscribe(console.log)
 
@@ -79,13 +79,12 @@ const outro = match(
     () => actions.reference.farewell(),
 )
 
-const namedActionApp = pipe(
+const namedActionApp = actions.run(
     first(
         intro,
         outro,
     ),
-    actions.toAction(console.log),
-    doAction,
+    console.log,
 );
 
 ["My name is Inigo Montoyez, prepare to die", "bye bye"].forEach(t => namedActionApp(t)

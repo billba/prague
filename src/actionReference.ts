@@ -1,45 +1,14 @@
-import { Result, transformResult } from './prague';
-
-interface ActionReferenceOptions {
-    source?: any, 
-    score?: number, 
-}
-
-interface ActionReferenceOptionsWithName <
-    NAME = string,
-> extends ActionReferenceOptions {
-    name: NAME,
-}
+import { Result, transformResult, pipe, doAction } from './prague';
 
 export class ActionReference extends Result {
 
-    name: string;
-    source?: any;
     args: any[];
 
     constructor (
-        name: string,
+        public name: string,
         ...args: any[]
-    );
-
-    constructor (
-        options: ActionReferenceOptionsWithName,
-        ...args: any[]
-    );
-    
-    constructor (
-        nameOrOptions: string | ActionReferenceOptionsWithName,
-        ... args: any[]
     ) {
-        super(typeof nameOrOptions === 'string' ? undefined : nameOrOptions.score);
-
-        if (typeof nameOrOptions === 'string') {
-            this.name = nameOrOptions;
-        } else {
-            this.name = nameOrOptions.name;
-            this.source = nameOrOptions.source;
-        }
-
+        super();
         this.args = args;
     }
 }
@@ -56,45 +25,45 @@ type Stubs<ACTIONS extends Actions> = {
     ) => ActionReference
 }
 
-type StubsWithOptions<ACTIONS extends Actions> = {
-    [P in keyof Args<ACTIONS>]: (
-        options: ActionReferenceOptions,
-        ...args: Args<ACTIONS>[P]
-    ) => ActionReference
-}
-
 export class ActionReferences <
     CONTEXTARGS extends any[],
     ACTIONS extends Actions,
 > {
     reference = {} as Stubs<ACTIONS>;
-    referenceWithOptions = {} as StubsWithOptions<ACTIONS>;
 
     constructor (
-        private actions: (...contextargs: CONTEXTARGS) => ACTIONS,
+        private getActions: (...contextargs: CONTEXTARGS) => ACTIONS,
     ) {
-        Object
-            .keys(actions(...new Array(actions.length) as CONTEXTARGS))
-            .forEach(name => {
-                this.reference[name] = (...args) => new ActionReference(name, ...args);
-                this.referenceWithOptions[name] = (options, ...args) => new ActionReference({
-                    name,
-                    source: options.source,
-                    score: options.score,
-                 }, ...args);
-            });
+        for (const name of Object.keys(getActions(...new Array(getActions.length) as CONTEXTARGS))) {
+            this.reference[name] = (...args) => new ActionReference(name, ...args);
+            }
     }
 
-    toAction (
-        ...contextargs: CONTEXTARGS
+    referenceToAction (
+        ...contextArgs: CONTEXTARGS
     ) {
         return transformResult(ActionReference, result => {
-            const action = this.actions(...contextargs)[result.name];
+
+            const action = this.getActions(...contextArgs)[result.name];
 
             if (!action)
                 throw `unknown action ${result.name}`;
 
             return () => action(...result.args);
         });
+    }
+
+    run <
+        ARGS extends any[],
+        O
+    > (
+        transform: (...args: ARGS) => O,
+        ...contextArgs: CONTEXTARGS
+    ) {
+        return pipe(
+            transform,
+            this.referenceToAction(...contextArgs),
+            doAction,
+        );
     }
 }

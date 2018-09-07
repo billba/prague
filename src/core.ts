@@ -14,31 +14,7 @@ export const toObservable = <T> (
     observableOf(t);
 
 export abstract class Result {
-
-    score: number;
-
-    constructor(score?: number) {
-        this.score = Result.normalizedScore(score);
-    }
-
-    static normalizedScore (
-        score?: number,
-    ) {
-        return score != null && score >= 0 && score < 1
-            ? score
-            : 1;
-    }
-
-    cloneWithScore (
-        score?: number,
-    ): this {
-
-        score = Result.normalizedScore(score);
-
-        return score === this.score
-            ? this
-            : Object.assign(Object.create(this.constructor.prototype), this, { score });
-    }
+    private __result = "@@result";
 }
 
 // null is the "No Result"
@@ -67,9 +43,8 @@ export class Action extends Result {
 
     constructor (
         action: () => any,
-        score?: number,
     ) {
-        super(score);
+        super();
         
         if (action.length > 0)
             throw new Error("Actions must have zero arguments.");
@@ -85,9 +60,8 @@ export class Value <VALUE> extends Result {
 
     constructor (
         public value: VALUE,
-        score?: number,
     ) {
-        super(score);
+        super();
     }
 }
 
