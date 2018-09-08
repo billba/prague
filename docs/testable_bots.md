@@ -79,7 +79,6 @@ bot
     ✓ should respond "No" when I say "is my beef cured"
     ✓ should respond "No" when I say "is my dermatitis cured"
 
-
   3 passing (11ms)
 ```
 
@@ -133,27 +132,24 @@ export class ActionReference {
 Now we can recode `bot`:
 
 ```ts
-const botResult = async (req) => {
+const botLogic = async (req) => {
 
     let r = /delete (.*)/i.exec(req.text);
 
-    if (r) {
+    if (r)
         return getFile(r[1])
             ? new ActionReference('delete', r[1])
             : new ActionReference('delete_fail', r[1]);
-    }
 
     r = /cured/i.exec(req.text);
 
     if (r)
         return new ActionReference('jerky');
-    }
 
     r = /is my (.*) cured/i.exec(req.text);
 
     if (r)
         return new ActionReference('healthStatus', r[1]);
-    }
 
     // etc.
 
@@ -161,12 +157,24 @@ const botResult = async (req) => {
 }
 ```
 
-Note that `botResult` only takes `req` as a parameter - that's because it only makes decisions about what action to take, it doesn't take it. 
+You may wonder why we created an `ActionReference` class when `botLogic` could just an anonymous object literal:
+
+```ts
+if (r)
+    return {
+        name: 'healthStatus',
+        args: [r[1]];
+    }
+```
+
+Spoiler: later on we will create functions that return other values and it's helpful to have a way to positively distinguish an `ActionReference` (by testing `instanceof ActionReference`) from objects that might happen to include the same properties.
+
+Note that `botLogic` only takes `req` as a parameter - that's because it only makes decisions about which action to take. 
 
 We'll recode our tests accordingly:
 
 ```ts
-describe("botResult", () => {
+describe("botLogic", () => {
 
     const tests = [
         ['delete thisrepo', 'delete', 'thisrepo'],
@@ -176,7 +184,7 @@ describe("botResult", () => {
 
     for (const [text, name, ...args] of tests) {
         it(`should call ${name}(${args.join(',')}) when I say "${text}"`, done => {
-            botResult({ text }).then(result => {
+            botLogic({ text }).then(result => {
                 expect(result).deep.equals(new ActionReference(name, ...args));
                 done();
             });
@@ -185,7 +193,27 @@ describe("botResult", () => {
 })
 ```
 
-Now we have `botResult` returning which action to take in a way we can test. All we need now is the final step - take the action. One way would be a simple `switch`:
+Our new test results look like this:
+
+```
+botLogic
+    ✓ should call delete(thisrepo) when I say "I deleted "thisrepo"
+    ✓ should call jerky() when I say "is my beef cured"
+    1) should call healthStatus(dermatitis) when I say "is my dermatitis cured"
+
+  2 passing (11ms)
+  1 failing
+
+  1) should call healthStatus(dermatitis) when I say "is my dermatitis cured"
+
+  AssertionError: expected {} to be false
+      + expected - actual
+
+      -true
+      +false
+```
+
+All we need now is the final step - take the action. Here's one approach:
 
 ```ts
 const botAction = async (res, result) => {
@@ -246,12 +274,23 @@ describe("actionss", () => {
 });
 ```
 
-As promised, we have split `bot` into two functinos - one which returns a result indicating which action to take, independent of how that action is coded, and one which takes that action, independent of the decision making process which selected it.
+These tests look like this:
+
+```
+botLogic
+    ✓ should respond 'I deleted "thisrepo"' on delete(thisrepo)
+    ✓ should respond 'No' on jerky()
+    ✓ should respond 'No' on healthStatus(dermatitis)
+
+  3 passing (11ms)
+```
+
+As promised, we have split `bot` into two functions -- one which returns a result indicating which action to take, independent of how that action is coded, and one which takes that action, independent of the decision making process which selected it.
 
 We come full circle by combining the two:
 
 ```ts
-const bot = (req, res) => botResult(req).then(result => botAction(res, result));
+const bot = (req, res) => botLogic(req).then(result => botAction(res, result));
 ```
 
 This new `bot` is functionally equivalent to the original `bot`, but its concerns have been cleanly separated.
@@ -262,11 +301,11 @@ This new `bot` is functionally equivalent to the original `bot`, but its concern
 
 This is progress, but there are new problems:
 * Putting every action into a giant `switch` statement is a little awkward.
-* `botResult` can create `ActionReference`s whose names do not exist -- we'll only find out when we call `botAction`
+* `botLogic` can create `ActionReference`s whose names do not exist -- we'll only find out when we call `botAction`
 
 Comprehensive tests will help, but defense in depth tell us not to rely on our tests.
 
-It would be nice if `botResult` could only create `ActionReference`s with specific names, with arguments of specific types. We can do that by using an abstraction that creates `ActionReference`s for us, checking against a predefined list of functions. This also fixes the `switch` problem.
+It would be nice if `botLogic` could only create `ActionReference`s with specific names, with arguments of specific types. We can do that by using an abstraction that creates `ActionReference`s for us, checking against a predefined list of functions. This also fixes the `switch` problem.
 
 ```ts
 class ActionReferences {
@@ -317,7 +356,7 @@ const actions = new ActionReferences(res => ({
 }));
 ```
 
-Now when `botResult` wants to create an `ActionReference` it does so using `actions.reference`, e.g.
+Now when `botLogic` wants to create an `ActionReference` it does so using `actions.reference`, e.g.
 
 ```ts
 return actions.reference.healthStatus(r[1]);
@@ -331,10 +370,10 @@ Any attempt to reference a nonexistant action will immediately throw an error:
 return actions.reference.goodDog(); // throws because actions.reference doesn't include a "goodDog" property
 ```
 
-Our revised `botResult` looks like this:
+Our revised `botLogic` looks like this:
 
 ```ts
-const botResult = async (req) => {
+const botLogic = async (req) => {
 
     let r = /delete (.*)/i.exec(req.text);
 
@@ -364,10 +403,10 @@ const botResult = async (req) => {
 Our revised `bot` looks like this:
 
 ```ts
-const bot = (req, res) => botResult(req).then(result => actions.doAction(res, result));
+const bot = (req, res) => botLogic(req).then(result => actions.doAction(res, result));
 ```
 
-Our test for `botResult` stays exactly the same, because `botResult` is still just returning `ActionReference`s, it's just creating them a little differently.
+Our test for `botLogic` stays exactly the same, because `botLogic` is still just returning `ActionReference`s, it's just creating them a little differently.
 
 We could reuse our actions test by replacing `botAction` with `actions.doAction`. Or we could individually test each action by calling e.g. `actions.getActions(res).healthStatus('dermatitis)`.
 
@@ -377,4 +416,4 @@ In this section we saw how it's possible to increase the testability of bots via
 
 ## Next
 
-In the next section ("[Introducing Prague](./introducing_prague.md") we'll see other advantages to structuring your application to return a result instead of taking an action directly.
+In the next chapter ("[Observables in Prague](./observables.md) we'll quickly learn how to work with `Observable`s, a different way of dealing with async.
