@@ -1,4 +1,4 @@
-import { describe, expect, passErr, isNull } from './common';
+import { expect, passErr, isNull } from './common';
 import { multiple, Multiple, Scored } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
@@ -23,7 +23,7 @@ export const spreaded = [
 
 describe("multiple", () => {
     it("should pass through a single result", (done) => {
-        const m = Scored.from("hello", .5);
+        const m = "hi";
 
         multiple(
             () => m,
@@ -45,7 +45,7 @@ describe("multiple", () => {
             ...matches.map(m => () => m)
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
-            expect((_m as Multiple).results).deep.equals(matches)
+            expect(_m.results).deep.equals(matches)
         }, passErr, done);
     });
 

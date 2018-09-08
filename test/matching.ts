@@ -1,35 +1,42 @@
-import { describe, expect, passErr, throwErr, isNull } from './common';
-import { match, Value, matchIf, branch, combine, isTrue } from '../src/prague';
+import { expect, passErr, throwErr, isNull } from './common';
+import { match, matchIf, branch, combine, isTrue } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("branch", () => {
     it("should return first transform on Result", done => {
-        branch(
-            a => a,
-            () => "no",
-        )(new Value("yes"))
+        combine(
+            (a: string | null) => a,
+            branch(
+                a => a,
+                () => "no",
+            )
+        )("yes")
         .pipe(defaultIfEmpty(13))
         .subscribe(o => {
-            expect(o).instanceof(Value);
-            expect((o as Value<string>).value).equals("yes");
+            expect(o).equals("yes");
         }, passErr, done);
     });
 
     it("should return second transform on null", done => {
-        branch(
-            a => a,
-            () => "no",
+        combine(
+            (a: string | null) => a,
+            branch(
+                a => a,
+                () => "no",
+            )
         )(null)
         .pipe(defaultIfEmpty(13))
         .subscribe(o => {
-            expect(o).instanceof(Value);
-            expect((o as Value<string>).value).equals("no");
+            expect(o).equals("no");
         }, passErr, done);
     });
 
     it("should return null on null when second transform is missing", done => {
-        branch(
-            a => a,
+        combine(
+            (a: string | null) => a,
+            branch(
+                a => a,
+            )
         )(null)
         .pipe(defaultIfEmpty(13))
         .subscribe(isNull, passErr, done);
@@ -37,7 +44,7 @@ describe("branch", () => {
 })
 
 describe("match", () => {
-    it("should emit null on no value and no onNoValue handler", done => {
+    it("should emit null on null and no onNull handler", done => {
         match(
             () => undefined,
             throwErr,
@@ -46,14 +53,13 @@ describe("match", () => {
         .subscribe(isNull, passErr, done);
     });
 
-    it("should call onNoValue handler on no value", done => {
+    it("should call onNull handler on null", done => {
         match(
             () => undefined,
             throwErr,
             () => "hi",
         )().subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done);
     });
 
@@ -63,8 +69,7 @@ describe("match", () => {
             a => a,
             throwErr,
         )().subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done);
     });
 
@@ -74,12 +79,11 @@ describe("match", () => {
             a => a,
             throwErr,
         )("hi", 2).subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done);
     });
 
-    it("should emit null and not call onNull on Value when onValue emits null", done => {
+    it("should emit null and not call onNull on Value when onResult emits null", done => {
         match(
             () => "hi",
             () => undefined,
@@ -108,8 +112,7 @@ describe("isTrue", () => {
         isTrue(
             (a: number, b: number) => a > b,
         )(5, 2).subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<boolean>).value).is.true;
+            expect(m).is.true;
         }, passErr, done);
     });
 
@@ -118,8 +121,7 @@ describe("isTrue", () => {
             isTrue(
                 a => a,
             )(value).subscribe(m => {
-                expect(m).instanceof(Value);
-                expect((m as Value<boolean>).value).is.true;
+                expect(m).is.true;
             }, passErr, done);
         });
     });
@@ -142,8 +144,7 @@ describe("matchIf", () => {
                 throwErr,
                 () => "hi",
             )().subscribe(m => {
-                expect(m).instanceof(Value);
-                expect((m as Value<string>).value).equals("hi");
+                expect(m).equals("hi");
             }, passErr, done);
         });
     });
@@ -154,8 +155,7 @@ describe("matchIf", () => {
             () => "hi",
             throwErr,
         )(5, 2).subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done);
     });
 
@@ -165,8 +165,7 @@ describe("matchIf", () => {
                 () => value,
                 () => "hi",
             )().subscribe(m => {
-                expect(m).instanceof(Value);
-                expect((m as Value<string>).value).equals("hi");
+                expect(m).equals("hi");
             }, passErr, done);
         });
     });

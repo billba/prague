@@ -44,5 +44,6 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
+        map(o => o == null ? null : o),
     );
 }

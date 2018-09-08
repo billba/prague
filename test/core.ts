@@ -53,26 +53,28 @@ describe("from", () => {
         }
     });
 
-    it("should emit null on undefined", (done) => {
-        from(undefined)
-        ()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done);
-    });
-
-    it("should emit null on null", (done) => {
-        from(null)
-        ()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
-
     it("should emit null on no args", (done) => {
         from()
         ()
         .pipe(defaultIfEmpty(13))
         .subscribe(isNull, passErr, done)
     });
+
+    [null, undefined].forEach(value => {
+        it(`should emit null on ${value}`, (done) => {
+            from(value)
+            ()
+            .pipe(defaultIfEmpty(13))
+            .subscribe(isNull, passErr, done)
+        });
+    
+        it(`should emit null on () => ${value}`, (done) => {
+            from(() => value)
+            ()
+            .pipe(defaultIfEmpty(13))
+            .subscribe(isNull, passErr, done)
+        });
+    })
 
     values.forEach(value => {
         it(`should return () => Observable.of(value) for () => ${value}`, (done) => {
@@ -99,18 +101,16 @@ describe("from", () => {
     });
 
     it("should pass through an argument", (done) => {
-        let handled = false;
-
-        from((a: boolean) => () => {
-            handled = a;
-        })
+        from((a: boolean) => a)
         (true).subscribe(r => {
-            expect(typeof r).is("function");
-            (r as Action)
-                .action()
-                .subscribe(() => {
-                    expect(handled).to.be.true;
-                })
+            expect(r).is.true;
+        }, passErr, done)
+    });
+
+    it("should pass through multiple arguments", (done) => {
+        from((a: string, b: number) => a.repeat(b))
+        ("hi", 2).subscribe(r => {
+            expect(r).equals("hihi");
         }, passErr, done)
     });
 });

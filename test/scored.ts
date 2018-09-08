@@ -1,9 +1,9 @@
-import { describe, expect, passErr } from './common';
-import { Value, multiple, sort, Multiple, pipe, top, best, Scored, Action } from '../src/prague';
+import { expect, passErr } from './common';
+import { multiple, sort, Multiple, pipe, top, best, Scored } from '../src/prague';
 import { matches, rev, spreadme, spreaded } from './multiple';
 
 describe("new Scored", () => {
-    const v = new Value("hi");
+    const v = "hi";
 
     it("should default score to 1", () => {
         const s = new Scored(v);
@@ -28,8 +28,8 @@ describe("new Scored", () => {
 
 describe("Scored.from", () => {
 
-    const v = new Value("hi");
-    const a = new Action(() => {});
+    const v = "hi";
+    const a = () => {};
 
     it("should return null on null", () => {
         expect(Scored.from(null)).is.null;
@@ -51,8 +51,7 @@ describe("Scored.from", () => {
 
     it("should wrap string as Value<string>", () => {
         const s = Scored.from("Hi");
-        expect(s.result).instanceof(Value);
-        expect(s.result.value).equals("Hi");
+        expect(s.result).equals("Hi");
         expect(s.score).equals(1);
     });
 
@@ -62,18 +61,11 @@ describe("Scored.from", () => {
         expect(s.score).equals(1);
     });
 
-    it("should wrap function as Action", done => {
-        let handled = false;
-        const s = Scored.from(() => {
-            handled = true;
-        });
+    it("should wrap function", () => {
+        const s = Scored.from(() => {});
 
-        expect(s.result).instanceof(Action);
+        expect(typeof s.result).equals("function");
         expect(s.score).equals(1);
-
-        s.result.action().subscribe(() => {
-            expect(handled).is.true;
-        }, passErr, done);
     });
 
     it("should return supplied Scored when score is undefined", () => {
@@ -114,7 +106,7 @@ describe("Scored.from", () => {
 });
 
 describe("Scored.unwrap", () => {
-    const v = new Value("hi");
+    const v = "hi";
     const sv = Scored.from(v);
     
     it("should return result of Scored", () => {
@@ -133,7 +125,7 @@ describe("sort", () => {
             sort(),
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
-            expect((_m as Multiple).results).deep.equals(matches)
+            expect(_m.results).deep.equals(matches)
         }, passErr, done);
     });
 
@@ -143,7 +135,7 @@ describe("sort", () => {
             sort(),
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
-            expect((_m as Multiple).results).deep.equals(matches);
+            expect(_m.results).deep.equals(matches);
         }, passErr, done);
     });
 
@@ -153,7 +145,7 @@ describe("sort", () => {
             sort(true),
         )().subscribe(_m => {
             expect(_m).instanceof(Multiple);
-            expect((_m as Multiple).results).deep.equals(rev);
+            expect(_m.results).deep.equals(rev);
         }, passErr, done);
     });
 });
@@ -210,7 +202,7 @@ describe("top", () => {
             top(),
         )().subscribe(m => {
             expect(m).instanceof(Multiple);
-            expect((m as Multiple).results.length).equals(3);
+            expect(m.results.length).equals(3);
         }, passErr, done);
     });
 
@@ -237,9 +229,9 @@ describe("top", () => {
             }),
         )().subscribe(m => {
             expect(m).instanceof(Multiple);
-            expect((m as Multiple).results.length).equals(2);
-            expect((m as Multiple).results[0]).equals(spreaded[0]);
-            expect((m as Multiple).results[1]).equals(spreaded[1]);
+            expect(m.results.length).equals(2);
+            expect(m.results[0]).equals(spreaded[0]);
+            expect(m.results[1]).equals(spreaded[1]);
         }, passErr, done);
     });
 
@@ -252,8 +244,8 @@ describe("top", () => {
             }),
         )().subscribe(m => {
             expect(m).instanceof(Multiple);
-            expect((m as Multiple).results.length).equals(4);
-            expect((m as Multiple).results).deep.equals(spreaded);
+            expect(m.results.length).equals(4);
+            expect(m.results).deep.equals(spreaded);
         }, passErr, done);
     });
 });
@@ -266,7 +258,6 @@ describe("best", () => {
             () => matches[1],
         )()
         .subscribe(m => {
-            expect(m).instanceof(Value);
             expect(m).equals(matches[0].result);
         }, passErr, done);
     })

@@ -1,4 +1,4 @@
-import { describe, expect, passErr, throwErr } from './common';
+import { expect, passErr, throwErr } from './common';
 import { _bot } from '../samples/simpleBot';
 import { defaultIfEmpty } from 'rxjs/operators';
 import { ActionReference } from '../src/prague';

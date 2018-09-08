@@ -1,5 +1,5 @@
-import { describe, expect, passErr, throwErr, isNull } from './common';
-import { first, Value } from '../src/prague';
+import { expect, passErr, throwErr, isNull } from './common';
+import { first } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("first", () => {
@@ -22,8 +22,7 @@ describe("first", () => {
         first(
             () => "hi"
         )().subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done)
     });
 
@@ -32,8 +31,7 @@ describe("first", () => {
             () => undefined,
             () => "hi",
         )().subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done)
     });
 
@@ -42,8 +40,7 @@ describe("first", () => {
             () => "hi",
             throwErr,
         )().subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done)
     });
 
@@ -52,8 +49,7 @@ describe("first", () => {
             (a: string, b: number) => undefined,
             (a, b) => a.repeat(b),
         )("hi", 2).subscribe(m => {
-            expect(m).instanceof(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done)
     });
 });

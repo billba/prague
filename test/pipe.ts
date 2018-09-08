@@ -1,10 +1,10 @@
-import { describe, expect, passErr, throwErr, isNull } from './common';
-import { pipe, run, Value, tap, Action, transformInstance, combine, transformNull, doAction } from '../src/prague';
+import { expect, passErr, throwErr, isNull } from './common';
+import { pipe, run, tap, transformInstance, combine, transformNull, doAction, Scored } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("pipe", () => {
 
-    it('should emit null when first transform returns null', done => {
+    it('should emit null when first transform emits null', done => {
         pipe(
             () => undefined,
         )()
@@ -12,7 +12,7 @@ describe("pipe", () => {
         .subscribe(isNull, passErr, done)
     });
 
-    it('should emit null and not call second transform when first transform returns null', done => {
+    it('should emit null and not call second transform when first transform emits null', done => {
         pipe(
             () => undefined,
             throwErr,
@@ -21,7 +21,7 @@ describe("pipe", () => {
         .subscribe(isNull, passErr, done)
     });
 
-    it('should emit null when second transform returns null', done => {
+    it('should emit null when second transform emits null', done => {
         pipe(
             () => "hi",
             () => undefined,
@@ -34,8 +34,7 @@ describe("pipe", () => {
         pipe(
             (a: string) => a,
         )("hi").subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done)
     });
 
@@ -43,8 +42,7 @@ describe("pipe", () => {
         pipe(
             (a: string, b: number) => a.repeat(b),
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done)
     });
 
@@ -53,8 +51,7 @@ describe("pipe", () => {
             (a: string, b: number) => a.repeat(b),
             a => a,
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done)
     });
 
@@ -64,8 +61,7 @@ describe("pipe", () => {
             a => a,
             a => a,
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done)
     });
 
@@ -87,82 +83,71 @@ describe("tap", () => {
         pipe(
             (a: string, b: number) => a.repeat(b),
             tap(a => {
-                handled = a.value;
+                handled = a;
             }),
             a => a,
         )("hi", 2).subscribe(m => {
             expect(handled).to.equal("hihi");
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).to.equal("hihi");
+            expect(m).to.equal("hihi");
         }, passErr, done);
     });
 });
 
-describe("transformResult", () => {
+describe("transformInstance", () => {
     it("should pass through results of other than the stated class", done => {
-        const v = new Value("hi");
-
         pipe(
-            () => v,
-            transformInstance(Action, throwErr),
+            () => "hi",
+            transformInstance(Scored, throwErr),
         )().subscribe(m => {
-            expect(m).equals(v);
+            expect(m).equals("hi");
         }, passErr, done);
     });
 
     it("should transform results of the stated class", done => {
-        const v = new Value("hi");
-        const v2 = new Value("bye");
-
         pipe(
-            () => v,
-            transformInstance(Value, () => v2),
+            () => Scored.from("hi"),
+            transformInstance(Scored, () => "bye"),
         )().subscribe(m => {
-            expect(m).equals(v2);
+            expect(m).equals("bye");
         }, passErr, done);
     });
 });
 
 describe("transformNull", () => {
     it("should pass through non-null values", done => {
-        const v = new Value("hi");
-
         combine(
-            () => v,
+            () => "hi",
             transformNull(throwErr),
         )()
         .pipe(defaultIfEmpty(13))
         .subscribe(m => {
-            expect(m).equals(v);
+            expect(m).equals("hi");
         }, passErr, done);
     });
 
     it("should transform null", done => {
-        const v = new Value("hi");
-
         combine(
             () => null,
-            transformNull(() => v),
+            transformNull(() => "hi"),
         )()
         .pipe(defaultIfEmpty(13))
         .subscribe(m => {
-            expect(m).equals(v);
+            expect(m).equals("hi");
         }, passErr, done);
     });
 });
 
 describe("doAction", () => {
-    it("should ignore non-action result", done => {
+    it("should ignore non-function result", done => {
         pipe(
             (a: string, b: number) => a.repeat(b),
             doAction,
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).to.equal("hihi");
+            expect(m).to.equal("hihi");
         }, passErr, done);
     });
 
-    it("should do action of Action", done => {
+    it("should do function", done => {
         let handled = "no";
 
         pipe(
@@ -172,7 +157,7 @@ describe("doAction", () => {
             doAction,
         )("hi").subscribe(m => {
             expect(handled).equals("hi");
-            expect(m).instanceOf(Action);
+            expect(typeof m).equals("function");
         }, passErr, done);
     });
 });
@@ -182,12 +167,11 @@ describe("run", () => {
         run(
             (a: string, b: number) => a.repeat(b)
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).to.equal("hihi");
+            expect(m).to.equal("hihi");
         }, passErr, done);
     });
 
-    it("should do action of Action", done => {
+    it("should do function", done => {
         let handled = "no";
 
         run(
@@ -196,14 +180,14 @@ describe("run", () => {
             }
         )("hi").subscribe(m => {
             expect(handled).equals("hi");
-            expect(m).instanceOf(Action);
+            expect(typeof m).equals("function");
         }, passErr, done);
     });
 });
 
 describe("combine", () => {
 
-    it('should emit null when first transform returns null', done => {
+    it('should emit null when first transform emits null', done => {
         combine(
             () => undefined,
         )()
@@ -211,7 +195,7 @@ describe("combine", () => {
         .subscribe(isNull, passErr, done)
     });
 
-    it('should emit null when second transform returns null', done => {
+    it('should emit null when second transform emits null', done => {
         combine(
             () => "hi",
             () => undefined,
@@ -224,8 +208,7 @@ describe("combine", () => {
         combine(
             (a: string) => a,
         )("hi").subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hi");
+            expect(m).equals("hi");
         }, passErr, done)
     });
 
@@ -233,8 +216,7 @@ describe("combine", () => {
         combine(
             (a: string, b: number) => a.repeat(b),
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done)
     });
 
@@ -243,8 +225,7 @@ describe("combine", () => {
             (a: string, b: number) => a.repeat(b),
             a => a,
         )("hi", 2).subscribe(m => {
-            expect(m).instanceOf(Value);
-            expect((m as Value<string>).value).equals("hihi");
+            expect(m).equals("hihi");
         }, passErr, done)
     });
 });

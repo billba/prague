@@ -50,7 +50,7 @@ describe("ActionReferences", () => {
             actions.referenceToAction(sendToOutput),
             doAction,
         )("bill").subscribe(m => {
-            expect(m).instanceof(Action);
+            expect(typeof m).equals("function");
             expect(output).deep.equals(["Nice to meet you, bill"]);
         }, passErr, done);
     });
@@ -63,7 +63,7 @@ describe("ActionReferences", () => {
             actions.referenceToAction(sendToOutput),
             doAction,
         )().subscribe(m => {
-            expect(m).instanceof(Action);
+            expect(typeof m).equals("function");
             expect(output).deep.equals(["Goodbye"]);
         }, passErr, done);
     });
