@@ -41,12 +41,13 @@ const writeFullNameOnMoonAndUpdateProfile = async alias => {
 }
 ```
 
-*Prague* streamlines this common 
+*Prague* streamlines this common pattern as follows:
 
 ```ts
-const writeFullNameOnMoonAndUpdateProfile = alias => pipe(
+const writeFullNameOnMoonAndUpdateProfile = pipe(
     getFullName,
-    ({ value }) => writeNameOnMoon(value),
+    writeNameOnMoon,
     () => updateProfile('alias', 'nameOnMoon', true)
-)(alias);
+);
+```
 
