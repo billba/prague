@@ -377,4 +377,4 @@ In this section we saw how it's possible to increase the testability of bots via
 
 ## Next
 
-In the next section ("[Introducing Prague](./introducing_prague.md") we'll see other advantages to structuring your application to return a result instead of taking an action directly.
+In the next chapter ("[Observables in Prague](./observables.md) we'll quickly learn how to work with `Observable`s, a different way of dealing with async.
