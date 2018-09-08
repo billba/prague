@@ -1,4 +1,4 @@
-import { Transform, BaseType, from, toObservable, filterOutNull, nullIfEmpty, NullIfNullable, transformToNull } from "./prague";
+import { Transform, Returns, from, toObservable, filterOutNull, nullIfEmpty, NullIfNullable, transformToNull } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
 
@@ -8,17 +8,17 @@ export function pipe <
     ARGS extends any[],
     R0,
 > (...args: [
-    (...args: ARGS) => R0
-]): Transform<ARGS, BaseType<R0>>;
+    (...args: ARGS) => Returns<R0>
+]): Transform<ARGS, R0>;
 
 export function pipe <
     ARGS extends any[],
     R0,
     R1,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: NonNullable<BaseType<R0>>) => R1
-]): Transform<ARGS, NullIfNullable<BaseType<R0>> | BaseType<R1>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: NonNullable<R0>) => Returns<R1>
+]): Transform<ARGS, NullIfNullable<R0> | R1>;
 
 export function pipe <
     ARGS extends any[],
@@ -26,10 +26,10 @@ export function pipe <
     R1,
     R2,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: NonNullable<BaseType<R0>>) => R1,
-    (arg: NonNullable<BaseType<R1>>) => R2
-]): Transform<ARGS, NullIfNullable<BaseType<R0 | R1>> | BaseType<R2>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: NonNullable<R0>) => Returns<R1>,
+    (arg: NonNullable<R1>) => Returns<R2>
+]): Transform<ARGS, NullIfNullable<R0 | R1> | R2>;
 
 export function pipe <
     ARGS extends any[],
@@ -38,11 +38,11 @@ export function pipe <
     R2,
     R3,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: NonNullable<BaseType<R0>>) => R1,
-    (arg: NonNullable<BaseType<R1>>) => R2,
-    (arg: NonNullable<BaseType<R2>>) => R3
-]): Transform<ARGS, NullIfNullable<BaseType<R0 | R1 | R2>> | BaseType<R3>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: NonNullable<R0>) => Returns<R1>,
+    (arg: NonNullable<R1>) => Returns<R2>,
+    (arg: NonNullable<R2>) => Returns<R3>
+]): Transform<ARGS, NullIfNullable<R0 | R1 | R2> | R3>;
 
 export function pipe <
     ARGS extends any[],
@@ -52,12 +52,12 @@ export function pipe <
     R3,
     R4,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: NonNullable<BaseType<R0>>) => R1,
-    (arg: NonNullable<BaseType<R1>>) => R2,
-    (arg: NonNullable<BaseType<R2>>) => R3,
-    (arg: NonNullable<BaseType<R2>>) => R4
-]): Transform<ARGS, NullIfNullable<BaseType<R0 | R1 | R2 | R3>> | BaseType<R4>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: NonNullable<R0>) => Returns<R1>,
+    (arg: NonNullable<R1>) => Returns<R2>,
+    (arg: NonNullable<R2>) => Returns<R3>,
+    (arg: NonNullable<R3>) => Returns<R4>
+]): Transform<ARGS, NullIfNullable<R0 | R1 | R2 | R3> | R4>;
 
 export function pipe <
     ARGS extends any[],
@@ -148,17 +148,17 @@ export function combine <
     ARGS extends any[],
     R0,
 > (...args: [
-    (...args: ARGS) => R0
-]): Transform<ARGS, BaseType<R0>>;
+    (...args: ARGS) => Returns<R0>
+]): Transform<ARGS, R0>;
 
 export function combine <
     ARGS extends any[],
     R0,
     R1,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: BaseType<R0>) => R1
-]): Transform<ARGS, BaseType<R1>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: R0) => Returns<R1>
+]): Transform<ARGS, R1>;
 
 export function combine <
     ARGS extends any[],
@@ -166,10 +166,10 @@ export function combine <
     R1,
     R2,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: BaseType<R0>) => R1,
-    (arg: BaseType<R1>) => R2
-]): Transform<ARGS, BaseType<R2>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: R0) => Returns<R1>,
+    (arg: R1) => Returns<R2>
+]): Transform<ARGS, R2>;
 
 export function combine <
     ARGS extends any[],
@@ -178,11 +178,11 @@ export function combine <
     R2,
     R3,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: BaseType<R0>) => R1,
-    (arg: BaseType<R1>) => R2,
-    (arg: BaseType<R2>) => R3
-]): Transform<ARGS, BaseType<R3>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: R0) => Returns<R1>,
+    (arg: R1) => Returns<R2>,
+    (arg: R2) => Returns<R3>
+]): Transform<ARGS, R3>;
 
 export function combine <
     ARGS extends any[],
@@ -192,12 +192,12 @@ export function combine <
     R3,
     R4,
 > (...args: [
-    (...args: ARGS) => R0,
-    (arg: BaseType<R0>) => R1,
-    (arg: BaseType<R1>) => R2,
-    (arg: BaseType<R2>) => R3,
-    (arg: BaseType<R2>) => R4
-]): Transform<ARGS, BaseType<R4>>;
+    (...args: ARGS) => Returns<R0>,
+    (arg: R0) => Returns<R1>,
+    (arg: R1) => Returns<R2>,
+    (arg: R2) => Returns<R3>,
+    (arg: R3) => Returns<R4>
+]): Transform<ARGS, R4>;
 
 export function combine <
     ARGS extends any[],

@@ -1,13 +1,10 @@
 import { Observable, from as observableFrom, of as observableOf } from 'rxjs';
 import { take, map, flatMap, filter, defaultIfEmpty } from 'rxjs/operators';
 
-export type BaseType <T> =
-    T extends Observable<infer BASETYPE> ? BASETYPE :
-    T extends Promise<infer BASETYPE> ? BASETYPE :
-    T;
+export type Returns<T> = Observable<T> | Promise<T> | T;
 
 export const toObservable = <T> (
-    t: Observable<T> | Promise<T> | T,
+    t: Returns<T>,
 ) =>
     t instanceof Observable ? t.pipe(take(1)) :
     t instanceof Promise ? observableFrom(t) :
@@ -32,8 +29,8 @@ export function from <
     ARGS extends any[] = [],
     O = null,
 > (
-    transform?: null | ((...args: ARGS) => O),
-): Transform<ARGS, BaseType<O>>
+    transform?: null | ((...args: ARGS) => Returns<O>),
+): Transform<ARGS, O>
 
 export function from (
     transform?: null | ((...args: any[]) => any),

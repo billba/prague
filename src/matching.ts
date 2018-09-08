@@ -1,4 +1,4 @@
-import { Norm, combine, Transform, from } from './prague';
+import { Returns, combine, Transform, from } from './prague';
 import { transformToNull } from './core';
 
 export const branch = <
@@ -6,13 +6,13 @@ export const branch = <
     ONRESULT,
     ONNULL = null,
 > (
-    onResult: (result: NonNullable<O>) => ONRESULT,
-    onNull?: () => ONNULL,
+    onResult: (result: NonNullable<O>) => Returns<ONRESULT>,
+    onNull?: () => Returns<ONNULL>,
 ) => {
     const _onResult = from(onResult);
     const _onNull = onNull ? from(onNull) : transformToNull;
 
-    return ((o: O) => o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Transform<[O], Norm<ONRESULT> | Norm<ONNULL>>;
+    return ((o: O) => o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Transform<[O], ONRESULT | ONNULL>;
 }
 
 export const match = <
@@ -21,9 +21,9 @@ export const match = <
     ONRESULT,
     ONNULL = null,
 > (
-    transform: (...args: ARGS) => O,
-    onResult: (result: NonNullable<Norm<O>>) => ONRESULT,
-    onNull?: () => ONNULL,
+    transform: (...args: ARGS) => Returns<O>,
+    onResult: (result: NonNullable<O>) => Returns<ONRESULT>,
+    onNull?: () => Returns<ONNULL>,
 ) => combine(
     transform,
     branch(onResult, onNull),

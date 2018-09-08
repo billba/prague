@@ -17,7 +17,7 @@ const giveName = match(
         re(/My name is (.*)/),
         re(/Je m'appelle (.*)/),
     ),
-    ([name]) => name,
+    matches => matches[1],
 ); 
 
 const sayGoodbye = first(
