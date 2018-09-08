@@ -1,17 +1,17 @@
-import { Result, transformResult, Multiple, Transform, pipe, multiple, Value } from './prague';
+import { transformInstance, Multiple, Transform, pipe, multiple } from './prague';
 import { from as observableFrom } from "rxjs";
 import { takeWhile, toArray, map, tap as rxtap } from 'rxjs/operators';
-import { normalizedResult, filterOutNull, NormalizedOutput, NormalizedResult } from './core';
 
 export class Scored <
-    RESULT extends Result = Result,
-> extends Result {
-
+    RESULT,
+> {
     constructor(
         public result: RESULT,
         public score = 1,
     ) {
-        super();
+        if (result == null)
+            throw "Result cannot be null";
+
         if (score === 0 || score > 1)
             throw `Score is ${score} but must be be > 0 and <= 1 (consider using Scored.from)`;
     }
@@ -37,10 +37,10 @@ export class Scored <
     static from <
         O,
     >(
-        o: O,
+        o: Scored<O> | O,
         score?: number,
-    ): Scored<NormalizedResult<O>>;
-    
+    ): Scored<O>;
+
     static from (
         o: any,
         score?: number
@@ -59,11 +59,11 @@ export class Scored <
                 : new Scored(o.result, score);
         }
 
-        return new Scored(normalizedResult(o), Scored.normalizedScore(score));
+        return new Scored(o, Scored.normalizedScore(score));
     }
 
     static unwrap <
-        RESULT extends Result = Result,
+        RESULT,
     >(
         result: Scored<RESULT> | RESULT,
     ) {
@@ -75,7 +75,7 @@ export class Scored <
 
 export const sort = (
     ascending = false,
-) => transformResult(Multiple, r => new Multiple(r
+) => transformInstance(Multiple, r => new Multiple(r
     .results
     .map(result => Scored.from(result))
     .sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))
@@ -87,10 +87,10 @@ export interface TopOptions {
 }
 
 export function top <
-    RESULT extends Result,
+    RESULT,
 > (
     options?: TopOptions,
-): Transform<[RESULT], Result> {
+): Transform<[RESULT], any> {
 
     let maxResults = Number.POSITIVE_INFINITY;
     let tolerance  = 0;
@@ -111,14 +111,14 @@ export function top <
         }
     }
 
-    return transformResult(Multiple, multiple => {
+    return transformInstance(Multiple, multiple => {
         const result = multiple.results[0];
         if (!(result instanceof Scored))
             throw "top must only be called on Multiple of Scored";
 
         const highScore = result.score;
 
-        return observableFrom(multiple.results as Scored[]).pipe(
+        return observableFrom(multiple.results as Scored<any>[]).pipe(
             rxtap(result => {
                 if (!(result instanceof Scored))
                     throw "top must only be called on Multiple of Scored";

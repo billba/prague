@@ -17,7 +17,7 @@ const giveName = match(
         re(/My name is (.*)/),
         re(/Je m'appelle (.*)/),
     ),
-    ({value}) => value[1],
+    ([name]) => name,
 ); 
 
 const sayGoodbye = first(
@@ -28,7 +28,7 @@ const sayGoodbye = first(
 
 const introduction = match(
     giveName,
-    r => () => console.log(`Nice to meet you, ${r.value}`),
+    name => () => console.log(`Nice to meet you, ${name}`),
 );
 
 const app = first(
@@ -71,10 +71,10 @@ const actions = new ActionReferences((send: (...args: any[]) => void) => ({
 
 const intro = match(
     giveName,
-    ({value}) => actions.reference.greeting(value),
+    name => actions.reference.greeting(name),
 );
 
-const outro = match(
+const outro = matchIf(
     sayGoodbye,
     () => actions.reference.farewell(),
 )

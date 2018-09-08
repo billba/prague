@@ -1,6 +1,6 @@
-import { Result, transformResult, pipe, doAction, Scored } from './prague';
+import { transformInstance, pipe, doAction, Scored } from './prague';
 
-export class ActionReference extends Result {
+export class ActionReference {
 
     args: any[];
 
@@ -8,7 +8,6 @@ export class ActionReference extends Result {
         public name: string,
         ...args: any[]
     ) {
-        super();
         this.args = args;
     }
 }
@@ -51,7 +50,7 @@ export class ActionReferences <
     referenceToAction (
         ...contextArgs: CONTEXTARGS
     ) {
-        return transformResult(ActionReference, result => {
+        return transformInstance(ActionReference, result => {
 
             const action = this.getActions(...contextArgs)[result.name];
 

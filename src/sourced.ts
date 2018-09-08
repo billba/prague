@@ -1,18 +1,14 @@
-import { Result } from './prague';
-
 export class Sourced <
-    RESULT extends Result = Result,
-> extends Result {
-
+    RESULT,
+> {
     constructor(
         public result: RESULT,
         public source: any,
     ) {
-        super();
     }
 
     static unwrap <
-        RESULT extends Result = Result,
+        RESULT,
     >(
         result: Sourced<RESULT> | RESULT,
     ) {

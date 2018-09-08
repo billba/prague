@@ -1,4 +1,4 @@
-import { Result, Transform, Norm, from, toObservable, Action, ResultClass, Output, filterOutNull, nullIfEmpty, NullIfNullable, transformToNull } from "./prague";
+import { Transform, BaseType, from, toObservable, filterOutNull, nullIfEmpty, NullIfNullable, transformToNull } from "./prague";
 import { from as observableFrom, of as observableOf, Observable} from "rxjs";
 import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
 
@@ -9,7 +9,7 @@ export function pipe <
     R0,
 > (...args: [
     (...args: ARGS) => R0
-]): Transform<ARGS, Norm<R0>>;
+]): Transform<ARGS, BaseType<R0>>;
 
 export function pipe <
     ARGS extends any[],
@@ -17,8 +17,8 @@ export function pipe <
     R1,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: NonNullable<Norm<R0>>) => R1
-]): Transform<ARGS, NullIfNullable<Norm<R0>> | Norm<R1>>;
+    (arg: NonNullable<BaseType<R0>>) => R1
+]): Transform<ARGS, NullIfNullable<BaseType<R0>> | BaseType<R1>>;
 
 export function pipe <
     ARGS extends any[],
@@ -27,9 +27,9 @@ export function pipe <
     R2,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: NonNullable<Norm<R0>>) => R1,
-    (arg: NonNullable<Norm<R1>>) => R2
-]): Transform<ARGS, NullIfNullable<Norm<R0 | R1>> | Norm<R2>>;
+    (arg: NonNullable<BaseType<R0>>) => R1,
+    (arg: NonNullable<BaseType<R1>>) => R2
+]): Transform<ARGS, NullIfNullable<BaseType<R0 | R1>> | BaseType<R2>>;
 
 export function pipe <
     ARGS extends any[],
@@ -39,10 +39,10 @@ export function pipe <
     R3,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: NonNullable<Norm<R0>>) => R1,
-    (arg: NonNullable<Norm<R1>>) => R2,
-    (arg: NonNullable<Norm<R2>>) => R3
-]): Transform<ARGS, NullIfNullable<Norm<R0 | R1 | R2>> | Norm<R3>>;
+    (arg: NonNullable<BaseType<R0>>) => R1,
+    (arg: NonNullable<BaseType<R1>>) => R2,
+    (arg: NonNullable<BaseType<R2>>) => R3
+]): Transform<ARGS, NullIfNullable<BaseType<R0 | R1 | R2>> | BaseType<R3>>;
 
 export function pipe <
     ARGS extends any[],
@@ -53,18 +53,18 @@ export function pipe <
     R4,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: NonNullable<Norm<R0>>) => R1,
-    (arg: NonNullable<Norm<R1>>) => R2,
-    (arg: NonNullable<Norm<R2>>) => R3,
-    (arg: NonNullable<Norm<R2>>) => R4
-]): Transform<ARGS, NullIfNullable<Norm<R0 | R1 | R2 | R3>> | Norm<R4>>;
+    (arg: NonNullable<BaseType<R0>>) => R1,
+    (arg: NonNullable<BaseType<R1>>) => R2,
+    (arg: NonNullable<BaseType<R2>>) => R3,
+    (arg: NonNullable<BaseType<R2>>) => R4
+]): Transform<ARGS, NullIfNullable<BaseType<R0 | R1 | R2 | R3>> | BaseType<R4>>;
 
 export function pipe <
     ARGS extends any[],
 > (
     transform: (...args: ARGS) => any,
-    ...transforms: ((result: Result) => any)[]
-): Transform<ARGS, Output>;
+    ...transforms: ((result: any) => any)[]
+): Transform<ARGS, any>;
 
 export function pipe (
     ...transforms: ((...args: any[]) => any)[]
@@ -72,14 +72,11 @@ export function pipe (
     if (transforms.length === 0)
         return transformToNull;
 
-    let _transform: Transform<any[], Output>,
-        _transforms: Transform<[Result], Output>[];
-
-    [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
+    let [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
     const __transforms = observableFrom(_transforms);
 
     return ((...args: any[]) => __transforms.pipe(
-        reduce<Transform<[Result], Output>, Observable<Result>>(
+        reduce<Transform<[any], any>, Observable<any>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
                 filterOutNull,
@@ -94,7 +91,7 @@ export function pipe (
 }
 
 export const tap = <
-    RESULT extends Result,
+    RESULT,
 > (
     fn: (result: RESULT) => any,
 ): Transform<[RESULT], RESULT> =>
@@ -107,21 +104,31 @@ export const tap = <
 
 export const log = tap(console.log);
 
-export const transformResult = <
-    T extends Result,
+type Ctor<T> = {
+    new(...args: any[]): T
+}
+
+export const transformInstance = <
+    T,
     R,
 > (
-    TargetResult: ResultClass<T>,
+    Target: Ctor<T>,
     transform: (r: T) => R,
-) => from((r: Result) => r instanceof TargetResult ? transform(r as T) : r);
+) => from((r: any) => r instanceof Target ? transform(r as T) : r);
 
 export const transformNull = <
     R,
 > (
     transform: () => R,
-) => from((o: Output) => o || transform());
+) => from((o: any) => o || transform());
 
-export const doAction = tap(transformResult(Action, action => action.action()));
+export const doAction = tap(o => {
+    if (typeof o === 'function')
+        return observableOf(o).pipe(
+            map(action => action()),
+            flatMap(toObservable),
+        );
+});
 
 export function run <
     ARGS extends any[],
@@ -142,7 +149,7 @@ export function combine <
     R0,
 > (...args: [
     (...args: ARGS) => R0
-]): Transform<ARGS, Norm<R0>>;
+]): Transform<ARGS, BaseType<R0>>;
 
 export function combine <
     ARGS extends any[],
@@ -150,8 +157,8 @@ export function combine <
     R1,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1
-]): Transform<ARGS, Norm<R1>>;
+    (arg: BaseType<R0>) => R1
+]): Transform<ARGS, BaseType<R1>>;
 
 export function combine <
     ARGS extends any[],
@@ -160,9 +167,9 @@ export function combine <
     R2,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2
-]): Transform<ARGS, Norm<R2>>;
+    (arg: BaseType<R0>) => R1,
+    (arg: BaseType<R1>) => R2
+]): Transform<ARGS, BaseType<R2>>;
 
 export function combine <
     ARGS extends any[],
@@ -172,10 +179,10 @@ export function combine <
     R3,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2,
-    (arg: Norm<R2>) => R3
-]): Transform<ARGS, Norm<R3>>;
+    (arg: BaseType<R0>) => R1,
+    (arg: BaseType<R1>) => R2,
+    (arg: BaseType<R2>) => R3
+]): Transform<ARGS, BaseType<R3>>;
 
 export function combine <
     ARGS extends any[],
@@ -186,18 +193,18 @@ export function combine <
     R4,
 > (...args: [
     (...args: ARGS) => R0,
-    (arg: Norm<R0>) => R1,
-    (arg: Norm<R1>) => R2,
-    (arg: Norm<R2>) => R3,
-    (arg: Norm<R2>) => R4
-]): Transform<ARGS, Norm<R4>>;
+    (arg: BaseType<R0>) => R1,
+    (arg: BaseType<R1>) => R2,
+    (arg: BaseType<R2>) => R3,
+    (arg: BaseType<R2>) => R4
+]): Transform<ARGS, BaseType<R4>>;
 
 export function combine <
     ARGS extends any[],
 > (
     transform: (...args: ARGS) => any,
-    ...transforms: ((arg: Output) => any)[]
-): Transform<ARGS, Output>;
+    ...transforms: ((arg: any) => any)[]
+): Transform<ARGS, any>;
 
 export function combine (
     ...transforms: ((...args: any[]) => any)[]
@@ -205,14 +212,11 @@ export function combine (
     if (transforms.length === 0)
         return transformToNull;
 
-    let _transform: Transform<any[], Output>,
-        _transforms: Transform<[Output], Output>[];
-
-    [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
+    let [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
     const __transforms = observableFrom(_transforms);
 
     return ((...args: any[]) => __transforms.pipe(
-        reduce<Transform<[Output], Output>, Observable<Output>>(
+        reduce<Transform<[any], any>, Observable<any>>(
             (result$, _transform) => result$.pipe(
                 flatMap(result => _transform(result)),
             ),

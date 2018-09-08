@@ -1,12 +1,11 @@
-import { Output, Transform, Norm, from, Result, filterOutNull, transformToNull } from "./prague";
+import { Transform, BaseType, from, filterOutNull, transformToNull } from "./prague";
 import { from as observableFrom, of as observableOf } from "rxjs";
 import { flatMap, toArray, map } from "rxjs/operators";
 
-export class Multiple extends Result {
+export class Multiple {
     constructor (
-        public results: Result[],
+        public results: any[],
     ) {
-        super();
     }
 }
 
@@ -17,7 +16,7 @@ export function multiple <
     R0,
 > (...transforms: [
     (...args: ARGS) => R0
-]): Transform<ARGS, Norm<R0>>;
+]): Transform<ARGS, BaseType<R0>>;
 
 export function multiple <
     ARGS extends any[],
@@ -26,7 +25,7 @@ export function multiple <
 > (...transforms: [
     (...args: ARGS) => R0,
     (...args: ARGS) => R1
-]): Transform<ARGS, Norm<R0 | R1> | Multiple>;
+]): Transform<ARGS, BaseType<R0 | R1> | Multiple>;
 
 export function multiple <
     ARGS extends any[],
@@ -37,7 +36,7 @@ export function multiple <
     (...args: ARGS) => R0,
     (...args: ARGS) => R1,
     (...args: ARGS) => R2
-]): Transform<ARGS, Norm<R0 | R1 | R2> | Multiple>;
+]): Transform<ARGS, BaseType<R0 | R1 | R2> | Multiple>;
 
 export function multiple <
     ARGS extends any[],
@@ -50,7 +49,7 @@ export function multiple <
     (...args: ARGS) => R1,
     (...args: ARGS) => R2,
     (...args: ARGS) => R3
-]): Transform<ARGS, Norm<R0 | R1 | R2 | R3> | Multiple>;
+]): Transform<ARGS, BaseType<R0 | R1 | R2 | R3> | Multiple>;
 
 export function multiple <
     ARGS extends any[],
@@ -65,13 +64,13 @@ export function multiple <
     (...args: ARGS) => R2,
     (...args: ARGS) => R3,
     (...args: ARGS) => R4
-]): Transform<ARGS, Norm<R0 | R1 | R2 | R3 | R4> | Multiple>;
+]): Transform<ARGS, BaseType<R0 | R1 | R2 | R3 | R4> | Multiple>;
 
 export function multiple <
     ARGS extends any[],
 > (...args:
     ((...args: ARGS) => any)[]
-): Transform<ARGS, Output>;
+): Transform<ARGS, any>;
 
 export function multiple (
     ...transforms: ((...args: any[]) => any)[]
@@ -79,14 +78,14 @@ export function multiple (
     if (transforms.length === 0)
         return transformToNull;
 
-    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], Output>));
+    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], any>));
 
     return ((...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
         filterOutNull,
         flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
         toArray(),
-        map<Result[], Output>(results =>
+        map(results =>
             results.length === 0 ? null : 
             results.length === 1 ? results[0] :
             new Multiple(results)

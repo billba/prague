@@ -33,7 +33,7 @@ const getNameFromGreeting = pipe(
         re(/Je m'appelle (.*)/i),
         re(/Howdy y'all, I'm (.*)/i),
     ),
-    ({ value }) => value[1],
+    matches => matches[1],
 )
 
 const isFarewell = first(
@@ -51,7 +51,7 @@ const isCloseUp = first(
 const isOpen = () => botState.open;
 
 const whenOpen = first(
-    match(getNameFromGreeting, ({ value }) => actions.reference.greet(value)),
+    match(getNameFromGreeting, name => actions.reference.greet(name)),
     matchIf(isFarewell, () => actions.reference.bye()),
     matchIf(isCloseUp, () => actions.reference.close()),
 );

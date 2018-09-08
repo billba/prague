@@ -1,6 +1,6 @@
-import { describe, expect, passErr, throwErr, nullablevalues, values, isNull } from './common';
-import { of, empty, from as observableFrom } from 'rxjs';
-import { toObservable, Action, Value, from } from '../src/prague';
+import { expect, passErr, throwErr, nullablevalues, values, isNull } from './common';
+import { of, empty, from as observableFrom, of as observableOf } from 'rxjs';
+import { toObservable, from } from '../src/prague';
 import { toArray, defaultIfEmpty } from 'rxjs/operators';
 
 describe("toObservable", () => {
@@ -44,72 +44,6 @@ describe("toObservable", () => {
     });
 });
 
-describe('Action', () => {
-    it('should create an Action with supplied synchronous action', (done) => {
-        let handled = false;
-        let action = () => { handled = true; };
-        let r = new Action(action);
-        expect(r).instanceof(Action);
-        r
-            .action()
-            .subscribe(() => {
-                expect(handled).to.be.true;
-            }, passErr, done);
-    });
-
-    it('should create an Action with supplied Promise action', (done) => {
-        let handled = false;
-        let action = () => {
-            handled = true;
-            return Promise.resolve();
-        };
-        let r = new Action(action);
-        expect(r).instanceof(Action);
-        r
-            .action()
-            .subscribe(() => {
-                expect(handled).to.be.true;
-            }, passErr, done);
-    });
-
-    it('should create an Action with supplied Observable action', (done) => {
-        let handled = false;
-        let action = () => {
-            handled = true;
-            return of();
-        };
-        let r = new Action(action);
-        expect(r).instanceof(Action);
-        r
-            .action()
-            .subscribe(() => {
-                expect(handled).to.be.true;
-            }, passErr, done);
-    });
-
-    it('should throw on an action with more than zero arguments', (done) => {
-        let handled = false;
-        let action = (a: boolean) => {
-            handled = a;
-            return of();
-        };
-        try {
-            let r = new Action(action as any);
-            throwErr();
-        } catch (err) {
-            done();
-        }
-    });
-});
-
-describe('Value', () => {
-    it('should return a Value with the supplied value', () => {
-        let result = new Value("hello");
-        expect(result).instanceof(Value);
-        expect(result.value).equals('hello');
-    });
-});
-
 describe("from", () => {
     it("should throw on non-functions", (done) => {
         try {
@@ -141,58 +75,27 @@ describe("from", () => {
     });
 
     values.forEach(value => {
-        it(`should return () => Observable.of(Value) for () => ${typeof value}`, (done) => {
+        it(`should return () => Observable.of(value) for () => ${value}`, (done) => {
             from(() => value)
             ().subscribe(r => {
-                expect(r).instanceof(Value);
-                expect((r as Value<any>).value).equals(value);
+                expect(r).equals(value);
             }, passErr, done)
         });
 
-        it(`should pass through () => Observable.of(Value<${typeof value}>) for () => Value<${typeof value}>`, (done) => {
-            const m = new Value(value);
-
-            from(() => m)
+        it(`should return () => Observable.of(value) for () => Promise.resolve(${value})`, (done) => {
+            from(() => Promise.resolve(value))
             ().subscribe(r => {
-                expect(r).instanceof(Value);
-                expect(r).equals(m);
+                expect(r).equals(value);
             }, passErr, done)
         });
 
-    });
-
-    it("should return () => Observable.of(Action) for () => () =>  ...", (done) => {
-        let handled = false;
-
-        from(() => () => {
-            handled = true;
-        })
-        ().subscribe(r => {
-            expect(r).instanceof(Action);
-            (r as Action)
-                .action()
-                .subscribe(() => {
-                    expect(handled).to.be.true;
-                })
-        }, passErr, done)
-    });
-
-    it("should pass through () => Observable.of(Action) for () => Action ", (done) => {
-        let handled = false;
-        const action = new Action(() => {
-            handled = true;
+        it(`should return () => Observable.of(value) for () => Observable.of(${value})`, (done) => {
+            from(() => observableOf(value))
+            ().subscribe(r => {
+                expect(r).equals(value);
+            }, passErr, done)
         });
 
-        from(() => action)
-        ().subscribe(r => {
-            expect(r).instanceof(Action);
-            expect(r).to.equal(action);
-            (r as Action)
-                .action()
-                .subscribe(() => {
-                    expect(handled).to.be.true;
-                })
-        }, passErr, done);
     });
 
     it("should pass through an argument", (done) => {
@@ -202,7 +105,7 @@ describe("from", () => {
             handled = a;
         })
         (true).subscribe(r => {
-            expect(r).instanceof(Action);
+            expect(typeof r).is("function");
             (r as Action)
                 .action()
                 .subscribe(() => {

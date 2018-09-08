@@ -1,10 +1,8 @@
-import { Value, Norm, combine, Transform, Output, from } from './prague';
+import { Norm, combine, Transform, from } from './prague';
 import { transformToNull } from './core';
 
-type ValueType<T> = T extends Value<infer V> ? Value<V> : never;
-
 export const branch = <
-    O extends Output,
+    O,
     ONRESULT,
     ONNULL = null,
 > (
@@ -31,15 +29,13 @@ export const match = <
     branch(onResult, onNull),
 );
 
-const trueValue = new Value(true);
-
 export const isTrue = <
     ARGS extends any[],
 > (
     predicate: (...args: ARGS) => any,
 ) => combine(
     predicate,
-    o => o instanceof Value && !o.value || !o ? null : trueValue,
+    o => o ? true : null,
 );
 
 export const matchIf = <

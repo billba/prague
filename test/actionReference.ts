@@ -1,5 +1,5 @@
-import { describe, expect, passErr, throwErr } from './common';
-import { ActionReference, ActionReferences, pipe, doAction, Action } from '../src/prague';
+import { expect, passErr, throwErr } from './common';
+import { ActionReference, ActionReferences, pipe, doAction } from '../src/prague';
 
 describe("ActionReference", () => {
     it("should create an ActionReference with no args", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, passErr, throwErr, isNull } from './common';
-import { pipe, run, Value, tap, Action, transformResult, combine, transformNull, doAction } from '../src/prague';
+import { pipe, run, Value, tap, Action, transformInstance, combine, transformNull, doAction } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("pipe", () => {
@@ -104,7 +104,7 @@ describe("transformResult", () => {
 
         pipe(
             () => v,
-            transformResult(Action, throwErr),
+            transformInstance(Action, throwErr),
         )().subscribe(m => {
             expect(m).equals(v);
         }, passErr, done);
@@ -116,7 +116,7 @@ describe("transformResult", () => {
 
         pipe(
             () => v,
-            transformResult(Value, () => v2),
+            transformInstance(Value, () => v2),
         )().subscribe(m => {
             expect(m).equals(v2);
         }, passErr, done);

@@ -7,100 +7,36 @@ export type BaseType <T> =
     T;
 
 export const toObservable = <T> (
-    t: T,
+    t: Observable<T> | Promise<T> | T,
 ) =>
     t instanceof Observable ? t.pipe(take(1)) :
     t instanceof Promise ? observableFrom(t) :
     observableOf(t);
 
-export abstract class Result {
-    private __result = "@@result";
-}
-
-// null is the "No Result"
+// null means "No Result"
 
 export const transformToNull = () => observableOf(null);
 
-export const filterOutNull = filter<Result>((o: Output) => o !== null);
+export const filterOutNull = filter(o => o !== null);
 
 export const nullIfEmpty = defaultIfEmpty(null);
 
-export type Output = Result | null;
-
 export type NullIfNullable<T> = T extends null ? null : never;
-
-export interface ResultClass <
-    T extends Result,
-> {
-    new (
-        ...args: any[]
-    ): T;
-}
-
-export class Action extends Result {
-     
-    action: () => Observable<any>;
-
-    constructor (
-        action: Function,
-    ) {
-        super();
-        
-        if (action.length > 0)
-            throw new Error("Actions must have zero arguments.");
-
-        this.action = () => observableOf(action).pipe(
-            map(action => action()),
-            flatMap(toObservable),
-        );
-    }
-}
-
-export class Value <VALUE> extends Result {
-
-    constructor (
-        public value: VALUE,
-    ) {
-        super();
-    }
-}
-
-export type NormalizedResult <O> =
-    O extends Result ? O :
-    O extends Function ? Action :
-    Value<O>;
-
-export const normalizedResult = <O> (o: O) => (
-    o instanceof Result ? o :
-    typeof o === 'function' ? new Action(o) :
-    new Value(o)
-) as NormalizedResult<O>;
-
-export type NormalizedOutput <O> =
-    O extends undefined | null ? null :
-    NormalizedResult<O>;
-
-export const normalizedOutput = <O> (o: O) => (
-    o == null ? null :
-    normalizedResult(o)
-) as NormalizedOutput<O>;
-
-export type Norm <O> = NormalizedOutput<BaseType<O>>;
 
 export type Transform <
     ARGS extends any[],
-    OUTPUT extends Output,
-> = (...args: ARGS) => Observable<OUTPUT>;
+    O,
+> = (...args: ARGS) => Observable<O>;
 
 export function from <
     ARGS extends any[] = [],
     O = null,
 > (
     transform?: null | ((...args: ARGS) => O),
-): Transform<ARGS, Norm<O>>
+): Transform<ARGS, BaseType<O>>
 
 export function from (
-    transform?: any,
+    transform?: null | ((...args: any[]) => any),
 ) {
     if (!transform)
         return transformToNull;
@@ -111,6 +47,5 @@ export function from (
     return (...args: any[]) => observableOf(transform).pipe(
         map(transform => transform(...args)),
         flatMap(toObservable),
-        map(normalizedOutput),
     );
 }
