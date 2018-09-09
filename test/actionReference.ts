@@ -46,10 +46,8 @@ describe("ActionReferences", () => {
 
         pipe(
             (name: string) => actions.reference.greeting(name),
-            actions.referenceToAction(sendToOutput),
-            doAction,
+            actions.doAction(sendToOutput),
         )("bill").subscribe(m => {
-            expect(typeof m).equals("function");
             expect(output).deep.equals(["Nice to meet you, bill"]);
         }, passErr, done);
     });
@@ -59,10 +57,8 @@ describe("ActionReferences", () => {
 
         pipe(
             () => actions.reference.farewell(),
-            actions.referenceToAction(sendToOutput),
-            doAction,
+            actions.doAction(sendToOutput),
         )().subscribe(m => {
-            expect(typeof m).equals("function");
             expect(output).deep.equals(["Goodbye"]);
         }, passErr, done);
     });

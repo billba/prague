@@ -1,4 +1,4 @@
-import { transformInstance, pipe, doAction, Scored } from './prague';
+import { transformInstance, pipe, doAction, Scored, tap } from './prague';
 
 export class ActionReference {
 
@@ -50,7 +50,7 @@ export class ActionReferences <
             }
     }
 
-    referenceToAction (
+    doAction (
         ...contextArgs: CONTEXTARGS
     ) {
         return transformInstance(ActionReference, result => {
@@ -60,7 +60,7 @@ export class ActionReferences <
             if (!action)
                 throw `unknown action ${result.name}`;
 
-            return () => action(...result.args);
+            return action(...result.args);
         });
     }
 
@@ -73,8 +73,7 @@ export class ActionReferences <
     ) {
         return pipe(
             transform,
-            this.referenceToAction(...contextArgs),
-            doAction,
+            tap(this.doAction(...contextArgs)),
         );
     }
 }
