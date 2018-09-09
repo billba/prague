@@ -45,4 +45,4 @@ In this section we learned how *Prague* uses `Observable`s to return results, an
 
 ## Next
 
-In the next chapter ("[Results and Transforms](./results_and_transforms.md") we'll see other advantages to structuring your application to return a result instead of taking an action directly.
+In the next chapter ("[Combining Functions with Prague](./combining.md") we'll see other advantages to structuring your application to return a result instead of taking an action directly.

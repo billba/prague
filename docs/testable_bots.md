@@ -132,7 +132,7 @@ export class ActionReference {
 Now we can recode `bot`:
 
 ```ts
-const botLogic = async (req) => {
+const botLogic = async req => {
 
     let r = /delete (.*)/i.exec(req.text);
 
@@ -206,12 +206,20 @@ botLogic
 
   1) should call healthStatus(dermatitis) when I say "is my dermatitis cured"
 
-  AssertionError: expected {} to be false
+    AssertionError: expected { name: 'jerky', args: [] } to deeply equal { Object (name, args) }
       + expected - actual
 
-      -true
-      +false
+       {
+      -  "args": []
+      -  "name": "jerky"
+      +  "args": [
+      +    "dermatitis"
+      +  ]
+      +  "name": "healthStatus"
+       }
 ```
+
+Now our test correctly spots the issue. Someone should really fix that thing.
 
 All we need now is the final step - take the action. Here's one approach:
 
@@ -285,6 +293,8 @@ botLogic
   3 passing (11ms)
 ```
 
+This shows (correctly) that our issue was with the logic determining which action to take, and not with the implementation of the action itself.
+
 As promised, we have split `bot` into two functions -- one which returns a result indicating which action to take, independent of how that action is coded, and one which takes that action, independent of the decision making process which selected it.
 
 We come full circle by combining the two:
@@ -293,42 +303,44 @@ We come full circle by combining the two:
 const bot = (req, res) => botLogic(req).then(result => botAction(res, result));
 ```
 
-This new `bot` is functionally equivalent to the original `bot`, but its concerns have been cleanly separated.
+This new `bot` is functionally equivalent to the original `bot`, but its concerns have been cleanly separated. Of course, there's nothing stopping us from integration testing `bot` using our original tests. The fact that these tests pass is a great example of the value of unit testing.
 
 *Note*: some chatbot systems may not use cleanly separated `req` and `res` arguments -- that's too bad because it makes it harder to enforce this desirable separation of concerns.
 
 ## Improving our code
 
-This is progress, but there are new problems:
+This is progress, but we've introduced some new potential problems:
 * Putting every action into a giant `switch` statement is a little awkward.
 * `botLogic` can create `ActionReference`s whose names do not exist -- we'll only find out when we call `botAction`
 
 Comprehensive tests will help, but defense in depth tell us not to rely on our tests.
 
-It would be nice if `botLogic` could only create `ActionReference`s with specific names, with arguments of specific types. We can do that by using an abstraction that creates `ActionReference`s for us, checking against a predefined list of functions. This also fixes the `switch` problem.
+It would be nice if `botLogic` could only create `ActionReference`s with specific names. We can do that by using an abstraction that creates `ActionReference`s for us, checking against a predefined list of functions. This also fixes the `switch` problem.
 
 ```ts
 class ActionReferences {
+
     constructor(getActions) {
         this.getActions = getActions;
         this.reference = {};
 
-        for (const name of Object.keys(getActions())) {
+        for (const name of Object.keys(getActions()))
             this.reference[name] = (...args) => new ActionReference(name, ...args);
-            }
         };
     }
 
-    doAction(req, result) {
-        if (!result instanceof ActionReference)
-            return;
+    doAction(...args) {
+        return (result) => {
+            if (!result instanceof ActionReference)
+                return;
 
-        const action = this.getActions(req)[result.name];
+            const action = this.getActions(...args)[result.name];
 
-        if (!action)
-            throw `unknown action ${result.name}`;
+            if (!action)
+                throw `unknown action ${result.name}`;
 
-        return action(...result.args);
+            return action(...result.args);
+        }
     }
 }
 ```
@@ -362,7 +374,7 @@ Now when `botLogic` wants to create an `ActionReference` it does so using `actio
 return actions.reference.healthStatus(r[1]);
 ```
 
-What's nice about this is that it resembles a normal function call, but instead of executing `healthStatus`, it returns a reference to it. **If you use TypeScript you can even type check the arguments to `healthStatus`!**
+What's nice about this is that it resembles a normal function call, but instead of executing `healthStatus`, it returns a reference to it.
 
 Any attempt to reference a nonexistant action will immediately throw an error:
 
@@ -370,50 +382,56 @@ Any attempt to reference a nonexistant action will immediately throw an error:
 return actions.reference.goodDog(); // throws because actions.reference doesn't include a "goodDog" property
 ```
 
+**Note** TypeScript will catch incorrect method names and argument types at compile time.
+
 Our revised `botLogic` looks like this:
 
 ```ts
-const botLogic = async (req) => {
+const botLogic = async req => {
 
     let r = /delete (.*)/i.exec(req.text);
 
-    if (r) {
+    if (r)
         return getFile(r[1])
             ? actions.reference.delete(r[1])
             : actions.reference.delete_fail(r[1]);
-    }
 
     r = /cured/i.exec(req.text);
 
     if (r)
         return actions.reference.jerky();
-    }
 
     r = /is my (.*) cured/i.exec(req.text);
 
     if (r)
         return actions.reference.healthStatus(r[1]);
-    }
 
     // etc.
 
     return null;
 }
 ```
+
 Our revised `bot` looks like this:
 
 ```ts
-const bot = (req, res) => botLogic(req).then(result => actions.doAction(res, result));
+const bot = (req, res) => botLogic(req).then(result => actions.doAction(res)(result));
+```
+
+Which we can simplify to:
+
+```ts
+const bot = (req, res) => botLogic(req).then(actions.doAction(res));
 ```
 
 Our test for `botLogic` stays exactly the same, because `botLogic` is still just returning `ActionReference`s, it's just creating them a little differently.
 
-We could reuse our actions test by replacing `botAction` with `actions.doAction`. Or we could individually test each action by calling e.g. `actions.getActions(res).healthStatus('dermatitis)`.
+We could reuse our actions test by replacing `botAction` with `actions.doAction` and/or we could individually test each action by calling e.g. `actions.getActions(res).healthStatus('dermatitis)`.
 
 ## Conclusion
 
-In this section we saw how it's possible to increase the testability of bots via a clean separation of concerns. We created helper classes called `ActionReference` and `ActionReferences` which make our code highly readable.
+In this section we saw how it's possible to increase the testability of bots via a clean separation of concerns. We created helper classes called `ActionReference` and `ActionReferences` which also makes our code more readable.
 
 ## Next
 
-In the next chapter ("[Observables in Prague](./observables.md) we'll quickly learn how to work with `Observable`s, a different way of dealing with async.
+In the next chapter ("[Observables in Prague](./observables.md) we'll briefly learn how to work with (or ignore) `Observable`s, a different way of dealing with async.
