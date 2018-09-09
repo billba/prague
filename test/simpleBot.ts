@@ -21,7 +21,7 @@ describe("greeting", () => {
         const c = new TestContext("hello");
         _bot(c)
             .pipe(d)
-            .subscribe(m => {
+            .subscribe((m: any) => {
                 expect(m).instanceof(ActionReference);
                 expect((m as ActionReference).name).equals('default');
             }, passErr, done);
@@ -31,7 +31,7 @@ describe("greeting", () => {
         const c = new TestContext("My name is Bill");
         _bot(c)
             .pipe(d)
-            .subscribe(m => {
+            .subscribe((m: any) => {
                 expect(m).instanceof(ActionReference);
                 expect((m as ActionReference).name).equals('greet');
                 expect((m as ActionReference).args).deep.equals(['Bill']);
