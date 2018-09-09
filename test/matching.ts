@@ -1,5 +1,5 @@
 import { expect, passErr, throwErr, isNull } from './common';
-import { match, matchIf, branch, combine, isTrue } from '../src/prague';
+import { match, matchIf, branch, combine, onlyContinueIf, pipe } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("branch", () => {
@@ -97,38 +97,8 @@ describe("match", () => {
 const falseyValues = [false, undefined, null, 0];
 const truthyValues = [true, 13, "hi", () => "hi", { dog: "dog" }];
 
-describe("isTrue", () => {
-    falseyValues.map(value => {
-        it("should emit null on ${value}", done => {
-            isTrue(
-                () => value,
-            )()
-            .pipe(defaultIfEmpty(13))
-            .subscribe(isNull, passErr, done);
-        });
-    });
-
-    it("should pass through arguments", done => {
-        isTrue(
-            (a: number, b: number) => a > b,
-        )(5, 2).subscribe(m => {
-            expect(m).is.true;
-        }, passErr, done);
-    });
-
-    truthyValues.map(value => {
-        it("should emit Value<true> on ${value}", done => {
-            isTrue(
-                a => a,
-            )(value).subscribe(m => {
-                expect(m).is.true;
-            }, passErr, done);
-        });
-    });
-})
-
 describe("matchIf", () => {
-    falseyValues.map(value => {
+    falseyValues.forEach(value => {
         it("should emit null on ${value} and no onFalsey handler", done => {
             matchIf(
                 () => value,
@@ -159,7 +129,7 @@ describe("matchIf", () => {
         }, passErr, done);
     });
 
-    truthyValues.map(value => {
+    truthyValues.forEach(value => {
         it("should call onTruthy handler on ${value}", done => {
             matchIf(
                 () => value,
@@ -167,6 +137,32 @@ describe("matchIf", () => {
             )().subscribe(m => {
                 expect(m).equals("hi");
             }, passErr, done);
+        });
+    });
+});
+
+describe("onlyContinueIf", () => {
+
+    truthyValues.forEach(value => {
+        it(`should continue on ${value}`, done => {
+            pipe(
+                onlyContinueIf(() => value),
+                () => value,
+            )()
+            .subscribe(m => {
+                expect(m).equals(m);
+            }, passErr, done);
+        });
+    });
+
+    falseyValues.forEach(value => {
+        it(`should not continue on ${value}`, done => {
+            pipe(
+                onlyContinueIf(() => value),
+                () => value,
+            )()
+            .pipe(defaultIfEmpty(13))
+            .subscribe(isNull, passErr, done);
         });
     });
 });
