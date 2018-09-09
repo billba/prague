@@ -15,7 +15,10 @@ export class ActionReference {
 export type Actions = Record<string, Function>;
 
 type Args <F extends Actions> = {
-    [P in keyof F]: F[P] extends (...args: infer ARGS) => any ? ARGS : never;
+    [P in keyof F]:
+        F[P] extends (...args: infer ARGS) => any ? ARGS :
+        F[P] extends { (...args: infer ARGS): any } ? ARGS :
+        never;
 }
 
 type Stubs<ACTIONS extends Actions> = {

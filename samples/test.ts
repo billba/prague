@@ -60,11 +60,10 @@ best(
 console.log("*** Named Actions ***");
 
 const actions = new ActionReferences((send: (...args: any[]) => void) => ({
-    greeting: (name: string) => {
+    async greeting(name: string) {
         send(`Nice to meet you, ${name}`);
-        return Promise.resolve();
     },
-    farewell: () => {
+    farewell() {
         send(`Goodbye`);
     },
 }));

@@ -10,21 +10,27 @@ let botState: BotState = {
 }
 
 const actions = new ActionReferences((res: BotResponse) => ({
-    oof: () => res.send(`Sorry, we're closed for the day`),
-    greet: (name: string) => res.send(`Nice to meet you, ${name}`),
-    bye: () => {
+    oof() {
+        res.send(`Sorry, we're closed for the day`);
+    },
+    greet(name: string) {
+        res.send(`Nice to meet you, ${name}`);
+    },
+    bye() {
         res.send(`See you later!`);
         res.exit();
     },
-    open: () => {
+    open() {
         res.send(`Open for business!`);
         botState.open = true;
     },
-    close: () => {
+    close() {
         res.send(`Closing up.`);
         botState.open = false;
     },
-    default: () => res.send(`I didn't understand that.`),
+    default() {
+        res.send(`I didn't understand that.`);
+    },
 }));
 
 const getNameFromGreeting = pipe(

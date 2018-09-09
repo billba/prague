@@ -17,11 +17,10 @@ describe("ActionReference", () => {
 
 describe("ActionReferences", () => {
     const actions = new ActionReferences((send: (...args: any[]) => void) => ({
-        greeting: (name: string) => {
+        greeting: async (name: string) => {
             send(`Nice to meet you, ${name}`);
-            return Promise.resolve();
         },
-        farewell: () => {
+        farewell() {
             send(`Goodbye`);
         },
     }));
