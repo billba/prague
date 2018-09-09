@@ -29,15 +29,6 @@ export const match = <
     branch(onResult, onNull),
 );
 
-export const isTrue = <
-    ARGS extends any[],
-> (
-    predicate: (...args: ARGS) => any,
-) => combine(
-    predicate,
-    o => o ? true : null,
-);
-
 export const matchIf = <
     ARGS extends any[],
     ONTRUTHY,
@@ -47,6 +38,17 @@ export const matchIf = <
     onTruthy: () => ONTRUTHY,
     onFalsey?: () => ONFALSEY,
 ) => combine(
-    isTrue(predicate),
+    predicate,
+    o => o ? true : null,
     branch(onTruthy, onFalsey),
+);
+
+export const onlyContinueIf = <
+    ARGS extends any[],
+    O
+> (
+    predicate: (...args: ARGS) => Returns<O>,
+) => combine(
+    predicate,
+    o => o || null,
 );
