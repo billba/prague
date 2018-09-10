@@ -1,5 +1,5 @@
 import { expect, passErr } from './common';
-import { multiple, sort, Multiple, pipe, top, best, Scored } from '../src/prague';
+import { multiple, sort, pipe, top, best, Scored } from '../src/prague';
 import { matches, rev, spreadme, spreaded } from './multiple';
 
 describe("new Scored", () => {
@@ -119,33 +119,33 @@ describe("Scored.unwrap", () => {
 });
 
 describe("sort", () => {
-    it("should return Multiple in sorted order for sorted results", (done) => {
+    it("should return Array in sorted order for sorted results", (done) => {
         pipe(
             multiple(...matches.map(m => () => m)),
             sort(),
         )().subscribe(_m => {
-            expect(_m).instanceof(Multiple);
-            expect(_m.results).deep.equals(matches)
+            expect(Array.isArray(_m)).is.true;
+            expect(_m).deep.equals(matches)
         }, passErr, done);
     });
 
-    it("should return Multiple in sorted order for unsorted results", (done) => {
+    it("should return Array in sorted order for unsorted results", (done) => {
         pipe(
             multiple(...rev.map(m => () => m)),
             sort(),
         )().subscribe(_m => {
-            expect(_m).instanceof(Multiple);
-            expect(_m.results).deep.equals(matches);
+            expect(Array.isArray(_m)).is.true;
+            expect(_m).deep.equals(matches);
         }, passErr, done);
     });
 
-    it("should return Multiple in reverse sorted order for unsorted results", (done) => {
+    it("should return Array in reverse sorted order for unsorted results", (done) => {
         pipe(
             multiple(...rev.map(m => () => m)),
             sort(true),
         )().subscribe(_m => {
-            expect(_m).instanceof(Multiple);
-            expect(_m.results).deep.equals(rev);
+            expect(Array.isArray(_m)).is.true;
+            expect(_m).deep.equals(rev);
         }, passErr, done);
     });
 });
@@ -193,59 +193,59 @@ describe("top", () => {
 
     it("should default to quantity infinity, tolerance 0", done => {
         pipe(
-            () => new Multiple([
+            () => [
                 Scored.from("hi", .5),
                 Scored.from("hello", .5),
                 Scored.from("aloha", .5),
                 Scored.from("wassup", .3),
-            ]),
+            ],
             top(),
         )().subscribe(m => {
-            expect(m).instanceof(Multiple);
-            expect(m.results.length).equals(3);
+            expect(Array.isArray(m)).is.true;
+            expect(m.length).equals(3);
         }, passErr, done);
     });
 
     it("should return one item when maxLength == 2 but tolerance is zero", done => {
         pipe(
-            () => new Multiple(spreaded),
+            () => spreaded,
             sort(),
             top({
                 maxResults: 2,
             }),
         )().subscribe(m => {
-            expect(m).not.instanceof(Multiple);
+            expect(Array.isArray(m)).is.false;
             expect(m).equals(matches[0]);
         }, passErr, done);
     });
 
     it("should return two items when maxLength == 2 but tolerance is .1", done => {
         pipe(
-            () => new Multiple(spreaded),
+            () => spreaded,
             sort(),
             top({
                 maxResults: 2,
                 tolerance: .1,
             }),
         )().subscribe(m => {
-            expect(m).instanceof(Multiple);
-            expect(m.results.length).equals(2);
-            expect(m.results[0]).equals(spreaded[0]);
-            expect(m.results[1]).equals(spreaded[1]);
+            expect(Array.isArray(m)).is.true;
+            expect(m.length).equals(2);
+            expect(m[0]).equals(spreaded[0]);
+            expect(m[1]).equals(spreaded[1]);
         }, passErr, done);
     });
 
     it("should return all items when tolerance is 1", done => {
         pipe(
-            () => new Multiple(spreaded),
+            () => spreaded,
             sort(),
             top({
                 tolerance: 1,
             }),
         )().subscribe(m => {
-            expect(m).instanceof(Multiple);
-            expect(m.results.length).equals(4);
-            expect(m.results).deep.equals(spreaded);
+            expect(Array.isArray(m)).is.true;
+            expect(m.length).equals(4);
+            expect(m).deep.equals(spreaded);
         }, passErr, done);
     });
 });
@@ -254,7 +254,7 @@ describe("best", () => {
     it("should return the top 1 item", done => {
         best(
             () => matches[0],
-            () => new Multiple(spreadme),
+            () => spreadme,
             () => matches[1],
         )()
         .subscribe(m => {

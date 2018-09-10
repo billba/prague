@@ -1,5 +1,5 @@
 import { expect, passErr, isNull } from './common';
-import { multiple, Multiple, Scored } from '../src/prague';
+import { multiple, Scored } from '../src/prague';
 import { defaultIfEmpty } from 'rxjs/operators';
 
 export const matches = [
@@ -40,23 +40,23 @@ describe("multiple", () => {
         .subscribe(isNull, passErr, done);
     });
 
-    it("should return Multiple for multiple results", (done) => {
+    it("should return Array for multiple results", (done) => {
         multiple(
             ...matches.map(m => () => m)
         )().subscribe(_m => {
-            expect(_m).instanceof(Multiple);
-            expect(_m.results).deep.equals(matches)
+            expect(Array.isArray(_m)).is.true;
+            expect(_m).deep.equals(matches)
         }, passErr, done);
     });
 
     it("should spread Multiples", (done) => {
         multiple(
             () => matches[0],
-            () => new Multiple(spreadme),
+            () => spreadme,
             () => matches[1],
         )().subscribe(_m => {
-            expect(_m).instanceof(Multiple);
-            expect((_m as Multiple).results).deep.equals([
+            expect(Array.isArray(_m)).is.true;
+            expect(_m).deep.equals([
                 matches[0],
                 spreadme[0],
                 spreadme[1],

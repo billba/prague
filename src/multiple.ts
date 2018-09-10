@@ -2,13 +2,6 @@ import { Transform, Returns, from, filterOutNull, transformToNull } from "./prag
 import { from as observableFrom, of as observableOf } from "rxjs";
 import { flatMap, toArray, map } from "rxjs/operators";
 
-export class Multiple {
-    constructor (
-        public results: any[],
-    ) {
-    }
-}
-
 export function multiple(): Transform<[], null>;
 
 export function multiple <
@@ -25,7 +18,7 @@ export function multiple <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
-]): Transform<ARGS, R0 | R1 | Multiple>;
+]): Transform<ARGS, R0 | R1 | [any]>;
 
 export function multiple <
     ARGS extends any[],
@@ -36,7 +29,7 @@ export function multiple <
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
-]): Transform<ARGS, R0 | R1 | R2 | Multiple>;
+]): Transform<ARGS, R0 | R1 | R2 | [any]>;
 
 export function multiple <
     ARGS extends any[],
@@ -49,7 +42,7 @@ export function multiple <
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>
-]): Transform<ARGS, R0 | R1 | R2 | R3 | Multiple>;
+]): Transform<ARGS, R0 | R1 | R2 | R3 | [any]>;
 
 export function multiple <
     ARGS extends any[],
@@ -64,7 +57,7 @@ export function multiple <
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>
-]): Transform<ARGS, R0 | R1 | R2 | R3 | R4 | Multiple>;
+]): Transform<ARGS, R0 | R1 | R2 | R3 | R4 | [any]>;
 
 export function multiple <
     ARGS extends any[],
@@ -83,12 +76,12 @@ export function multiple (
     return ((...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
         filterOutNull,
-        flatMap(result => result instanceof Multiple ? observableFrom(result.results) : observableOf(result)),
+        flatMap(result => Array.isArray(result) ? observableFrom(result) : observableOf(result)),
         toArray(),
         map(results =>
             results.length === 0 ? null : 
             results.length === 1 ? results[0] :
-            new Multiple(results)
+            results
         ),
     )) as Transform<any[], any>;
 }

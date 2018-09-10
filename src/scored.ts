@@ -1,5 +1,5 @@
-import { transformInstance, Multiple, Transform, pipe, multiple } from './prague';
-import { from as observableFrom } from "rxjs";
+import { Transform, pipe, multiple } from './prague';
+import { from as observableFrom, of as observableOf } from "rxjs";
 import { takeWhile, toArray, map, tap as rxtap } from 'rxjs/operators';
 
 export class Scored <
@@ -73,13 +73,13 @@ export class Scored <
     }
 }
 
-export const sort = (
+export const sort = <O> (
     ascending = false,
-) => transformInstance(Multiple, r => new Multiple(r
-    .results
-    .map(result => Scored.from(result))
-    .sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))
-));
+) => (o: O) => Array.isArray(o)
+    ? o
+        .map(result => Scored.from(result))
+        .sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))
+    : o;
 
 export interface TopOptions {
     maxResults?: number;
@@ -111,23 +111,25 @@ export function top <
         }
     }
 
-    return transformInstance(Multiple, multiple => {
-        const result = multiple.results[0];
-        if (!(result instanceof Scored))
-            throw "top must only be called on Multiple of Scored";
+    return (result: RESULT) => {
+        if (!Array.isArray(result))
+            return observableOf(result);
 
-        const highScore = result.score;
+        let highScore: number;
 
-        return observableFrom(multiple.results as Scored<any>[]).pipe(
-            rxtap(result => {
-                if (!(result instanceof Scored))
-                    throw "top must only be called on Multiple of Scored";
+        return observableFrom(result as Scored<any>[]).pipe(
+            rxtap(_result => {
+                if (!(_result instanceof Scored))
+                    throw "top must only be called on Array of Scored";
+
+                if (!highScore)
+                    highScore = _result.score;
             }),
             takeWhile((m, i) => i < maxResults && m.score + tolerance >= highScore),
             toArray(),
-            map(results => results.length === 1 ? results[0] : new Multiple(results)),
-        )
-    });
+            map(results => results.length === 1 ? results[0] : results),
+        );
+    }
 }
 
 export function best <
