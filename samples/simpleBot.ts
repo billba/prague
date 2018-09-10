@@ -33,13 +33,10 @@ const actions = new ActionReferences((res: BotResponse) => ({
     },
 }));
 
-const getNameFromGreeting = pipe(
-    first(
-        re(/My name is (.*)/i),
-        re(/Je m'appelle (.*)/i),
-        re(/Howdy y'all, I'm (.*)/i),
-    ),
-    matches => matches[1],
+const getNameFromGreeting = first(
+    re(/My name is (.*)/i, 1),
+    re(/Je m'appelle (.*)/i, 1),
+    re(/Howdy y'all, I'm (.*)/i, 1),
 )
 
 const isFarewell = first(

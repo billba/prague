@@ -12,12 +12,9 @@ const askTime = matchIf(
 //   }
   
 
-const giveName = match(
-    first(
-        re(/My name is (.*)/),
-        re(/Je m'appelle (.*)/),
-    ),
-    matches => matches[1],
+const giveName = first(
+    re(/My name is (.*)/, 1),
+    re(/Je m'appelle (.*)/, 1),
 ); 
 
 const sayGoodbye = first(

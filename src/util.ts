@@ -1,5 +1,23 @@
-export const re = (regexp: RegExp) => (text: string) => regexp.exec(text);
+import { match, Transform } from "./prague";
 
+export function re (
+    regexp: RegExp,    
+): Transform<[string], RegExpExecArray | null>;
+
+export function re (
+    regexp: RegExp,
+    group: number,
+): Transform<[string], string | null>;
+
+export function re (
+    regexp: RegExp,
+    group?: number,
+) {
+    return match(
+        (text: string) => regexp.exec(text),
+        groups => group ? groups[group] : groups
+    );
+}
 export const getFetchJson = (
     error: string | ((body: string) => string)
 ) => (r: Response) => {
