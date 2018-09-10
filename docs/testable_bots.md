@@ -87,18 +87,21 @@ bot
 But these successful test results hide a problem. The test for `jerkyService` status is matching an important health question. This is actually pretty obvious from looking at the code, but imagine if, instead of writing our own pattern matching, we instead relied on NLP models, perhaps even supplied by the services themselves. It might look something like:
 
 ```ts
-    r = await jerkyService.matchIntent('status', req.text);
+    r = await jerkyService.nlp(req.text); // returns arrays of intents and entities
 
-    if (r) {
+    if (r.intents.find(intent => intent.name === 'status')) {
         res.send((await jerkyService.isCured()) ? `Yes` : `No`);
         return;
     }
 
-    r = await healthService.matchIntent('status', req.text);
+    r = await healthService.nlp(req.text); // returns arrays of intents and entities
+    if (r.intents.find(intent => intent.name === 'status')) {
+        let condition = r.entities.find(entity => entity.name === 'condition');
 
-    if (r) {
-        res.send((await healthService.getStatus(r)).isCured ? `Yes` : `No`);
-        return;
+        if (condition) {
+            res.send((await healthService.getStatus(condition)).isCured ? `Yes` : `No`);
+            return;
+        }
     }
 ```
 
@@ -434,4 +437,4 @@ In this section we saw how it's possible to increase the testability of bots via
 
 ## Next
 
-In the next chapter ("[Observables in Prague](./observables.md) we'll briefly learn how to work with (or ignore) `Observable`s, a different way of dealing with async.
+In the [next chapter](./observables.md) we'll briefly learn how to work with (or ignore) `Observable`s, a different way of dealing with async.

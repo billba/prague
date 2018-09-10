@@ -41,8 +41,8 @@ The typical *Prague* app is composed of a lot of smaller functions. You can mix 
 
 ## Conclusion
 
-In this section we learned how *Prague* uses `Observable`s to return results, and that it allows a mix of synchronous and asynchronous functions.
+In this chapter we learned how *Prague* uses `Observable`s to return results, and that it allows a mix of synchronous and asynchronous functions.
 
 ## Next
 
-In the next chapter ("[Combining Functions with Prague](./combining.md") we'll see other advantages to structuring your application to return a result instead of taking an action directly.
+In the [next chapter](./combining.md) we'll see other advantages to structuring your application to return a result instead of taking an action directly.

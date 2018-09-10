@@ -1,4 +1,10 @@
-# Combining functions with *Prague*
+# Combining Functions with *Prague*
+
+In our previous chapters we refactored a chatbot into logic that returns which action to run, and the actual actions. We also learned that *Prague* functions can return either a result, a `Promise` of a result, or an `Observable` of a result.
+
+In this chapter we'll add a new scenario to our chatbot, and learn how to use *Prague* to elimininate up a lot of repetitive code, making our remaining code more expressive and future-proof.
+
+## A recipe... for success!
 
 Let's consider a new scenario for our chatbot:
 
@@ -21,12 +27,12 @@ GET `https://nlpService/${modelId}?q=${text}` => {
     intents: {
         name: string,
         score: number
-    }[],
+    }[], // sorted by score descending. Always exists, may be empty array.
     entities: {
         name: string,
         value: string,
         score: number
-    }[]
+    }[] // sorted by score descending. Always exists, may be empty array.
 } (always returns OK unless model is invalid or there is a server error)
 
 GET `https://recipeService?q=${name}` => {
@@ -34,24 +40,23 @@ GET `https://recipeService?q=${name}` => {
         name: string;
         ingredients: string[],
         instructions: string[]
-    }[]
+    }[] // Always exists, may be empty array.
 } (always returns OK unless there is a server error)
 ```
 
-We'll add three new actions, a model ID, and a function that returns either `null` an `ActionReference`.
+We'll add three new actions, a model ID, and a function that returns either `null` or an `ActionReference`.
 
 ```ts
 const actions = new ActionReferences({
-    ...
+    // all the existing functions plus:
     showRecipe(recipe) { ... },
     noSuchRecipe(name) { ... },
     missingReceipeName() { ... },
-    ...
  });
 
 const modelId = "XXXX_YYYY_ZZZZ";
 
-const recipe = text => {
+const recipe = async text => {
     let response = await fetch(`https://nlpService/${modelId}?q=${text}`);
     if (!response.ok)
         throw `NLP error with model ${modelId}`);
@@ -77,7 +82,7 @@ const recipe = text => {
 }
 ```
 
-*Prague* includes a helper called `getFetchJson` which can clean up the `fetch` logic:
+*Prague* includes a helper called `getFetchJson` which cleans up the `fetch` logic:
 
 ```ts
 const recipe = text => {
@@ -169,7 +174,7 @@ const botLogic = req => first(
 )(req.text);
 ```
 
-`first` is a *higher-order function*, which is to say that it takes functions as arguments and returns a new function. This new function takes its own set of arguments and calls each function argument in order, with those arguments. If that function retuns a result other than `null` (or `undefined`, which is what a JavaScript function returns if you don't call `return`), it returns that result. Otherwise it tries the next function. If all of the functions return `null`, it does too.
+`first` is a *higher-order function*, which is to say that it takes functions as arguments and returns a new function. This new function takes its own set of arguments and calls each function argument in order, with those arguments. If that function retuns a result other than `null` (or `undefined`), it returns that result. Otherwise it tries the next function. If all of the functions return `null`, it does too.
 
 Like all *Prague* functions, the functions that `first` takes as arguments can return either a result, a `Promise` of a result, or an `Observable` or a result, which is why that last argument can be an `async` function.
 
@@ -235,7 +240,7 @@ We can further simplified this to:
     ),
 ```
 
-Unfortunately we can't simplify `text => /foo/.exec(text)` because JavaScript, so *Prague* supplies a helper called `re` to eliminate just that last bit of duplication:
+Unfortunately we can't simplify `text => /foo/.exec(text)` to `/foo/.exec` because JavaScript, so *Prague* supplies a helper called `re` to eliminate just that last bit of duplication:
 
 ```ts
     match(
@@ -271,18 +276,7 @@ const botLogic = req => first(
 )(req.text);
 ```
 
-Aside from being shorter, eliminating all the repetitive code makes `botLogic` more expressive. *Prague* code looks almost like a markup language.
-
-By the way, remember when we said that `jerkyService` and/or `healthService` might provide their own pattern matching API calls? It would be super easy to drop those into this code without changing anything else, e.g.:
-
-```ts
-    match(
-        text => jerkyService.matchIntent('status', text),
-        matches => actions.reference.healthStatus(matches[1])
-    },
-```
-
-This is a great example of where *Prague*'s agnosticism about whether functions return result/`Promise`/`Observable` really pays off.
+Eliminating all the repetitive code makes `botLogic` shorter. More importantly, it's also more expressive. ***Prague* code looks almost like a declarative markup language.**
 
 ## When not to use *Prague*
 
@@ -312,7 +306,7 @@ const recipe = pipe(
 )
 ```
 
-In this case even an experienced *Prague*rammer might conclude that the original was clearer. Use the right tool for the job -- *Prague* is not meant to replace all your JavaScript logic -- you will quickly gain a sense for when *Prague* makes your code clearer, and when it makes it more opaque. A good rule of thumb is that *Prague* is helpful when your code seems unecessarily repetitive.
+In this case even an experienced *Prague*rammer might conclude that the original was clearer. Use the right tool for the job. *Prague* is not meant to replace all your JavaScript logic. You will quickly gain a sense for when *Prague* makes your code clearer, and when it makes it more opaque. A good rule of thumb is that *Prague* is helpful when your code seems unecessarily verbose and repetitive.
 
 But since we went to the effort, let's at least see how this code works.
 
@@ -344,17 +338,103 @@ But it would be more *Prague*matic to see `doAction` as a final transformation:
 ```ts
 const bot = (req, res) => pipe(
     botLogic(req),
-    result => actions.doAction(res)
+    actions.doAction(res)
 ).subscribe()
 ```
 
-Most *Prague* apps will look like this, so it provides a helper:
+Finally, most *Prague* apps will look like this, so `ActionReferences` provides a helper:
 
 ```ts
 const bot = (req, res) => actions.run(
     botLogic(req),
     res
 ).subscribe()
+```
+
+## Coding for the future
+
+As it stands, `botLogic` is a little confining in how it handles pattern matching.
+
+Remember when we said "[`jerkyService` and/or `healthService` might provide their own pattern matching API calls](./testable_bots.md#the-problem-with-testing-bot-output)?" Intuitively we *want* to replace:
+
+```ts
+    match(
+        re(/is my (.*) cured/i),
+        matches => actions.reference.healthStatus(matches[1])
+    },
+```
+
+with:
+
+```ts
+    match(
+        jerkyService.nlp,
+        matches => actions.reference.healthStatus(matches[1])
+    },
+```
+
+... but we can't.
+
+The problem is not that `jerkyService.nlp` is an async service -- *Prague* handles that beautifully.
+
+The problem is that `re(...)` returns a very different result than `jerkyService.nlp`. But ultimately what we want to extract from both of them is either `null` or the name of the condition.
+
+If we get a little more verbose in the first place, we can isolate the implementation of the pattern matching:
+
+```ts
+    match(
+        pipe(
+            re(/is my (.*) cured/i),
+            matches => matches[1]
+        ),
+        condition => actions.reference.healthStatus(condition)
+    },
+```
+
+Now if we want to drop in the service version only the `getResult` part changes:
+
+```ts
+    match(
+        pipe(
+            jerkyService.nlp,
+            nlpResponse => r.intents.find(intent => intent.name === 'status') && r.entities.find(entity => entity.name === 'condition')
+        ),
+        condition => actions.reference.healthStatus(condition)
+    },
+```
+
+With this in mind, let's use `pipe` to whip up a couple of helpers to make our code more future-proof:
+
+```ts
+const reGroup = (regexp, group) => pipe(
+    re(regexp),
+    matches => matches[group]
+);
+
+const nlp = (service, intentName, entityName) => text => pipe(
+    service.nlp(text),
+    r.intents.find(intent => intent.name === intentName) && (!entityName || r.entities.find(entity => entity.name === entityName))
+);
+
+const botLogic = req => first(
+    match(
+        reGroup(/delete (.*)/i, 1),
+        matches => actions.reference.delete(matches[1]),
+        () => actions.reference.delete_fail(r[1])
+    },
+    match(
+        re(/cured/i), // or replace with nlp(jerkyService, 'status')
+        () => actions.reference.jerky()
+    },
+    match(
+        reGroup(/is my (.*) cured/i, 1), // or replace with nlp(healthService, 'status', 'condition')
+        condition => actions.reference.healthStatus(condition)
+    },
+    recipe,
+
+    // etc.
+
+)(req.text);
 ```
 
 ## Errors and Prague
@@ -379,4 +459,12 @@ const bot = (req, res) => actions.run(
 )
 ```
 
-However thinking about `recipe`, a more user-friendly approach would probably be to return an action letting the user know that there was an unexpected error.
+(Thinking about `recipe`, a more user-friendly approach would probably be to return an action letting the user know that there was an unexpected error. This exercise is left for the reader).
+
+## Conclusion
+
+In this chapter we added a new scenario to our chatbot, and learned how to use *Prague* to elimininate up a lot of repetitive code, making our remaining code more expressive and future-proof.
+
+## Next
+
+In the [next chapter](./scoring.md) we'll learn about dealing with multiple ambiguous matches with scoring.

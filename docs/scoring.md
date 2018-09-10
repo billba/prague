@@ -1,0 +1,191 @@
+# Scoring
+
+Pattern matching isn't always black and white. That's where *scoring* comes in. A `Scored` is an object that wraps a result with a numeric score between 0 and 1:
+
+```ts
+import { Scored } from 'prague';
+
+const iffyBill = new Scored("Bill", .5);                    // Scored{ result: "Bill", score: .5 }
+const definitelyBill = new Scored("Bill", 1);    // Scored{ result: "Bill", score: 1 }
+```
+
+`iffyBill` can be interpreted as *a 50% chance that the correct value is 'Bill'*.
+
+Any result can be wrapped in a `Scored`, but typically a `Scored` shouldn't be wrapped in another `Scored`.
+
+To make this easier to ensure, we use the `Scored.from` factory method instead of `new Scored`. It wraps or rewraps results as appropriate, is careful not to create new objects unnecessarily, normalizes scoring, and returns `null` for results of `null` or `undefined`, or scores of zero.
+
+```ts
+const iffyBill = Scored.from(new Value("Bill"), .5);    // Scored{ result: Value{ value: "Bill" }, score: .5 }
+const iffyBill = Scored.from("Bill", .5);               // Scored{ result: Value{ value: "Bill" }, score: .5 }
+const lessIffyBill = Scored.from(iffyBill, .75);        // Scored{ result: Value{ value: "Bill" }, score: .75 }
+const equallyIffyBill = Scored.from(iffyBill, .5);      // returns iffyBill, i.e. equallyIffyBill === iffyBill
+const equallyIffyBill = Scored.from(iffyBill);          // returns iffyBill, i.e. equallyIffyBill === iffyBill
+const definitelyBill = Scored.from("Bill");             // Scored{ result: Value{ value: "Bill" }, score: 1 }
+const returnsNull = Scored.from(null);                  // null
+const returnsNull = Scored.from("Bill", 0);             // null
+```
+
+Scoring is usually a temporary operation - you wrap results with scores to determine the highest one(s). To unwrap them call `Scored.unwrap`, which will return the wrapped result for any `Scored` and pass through any other results.
+
+```ts
+Scored.unwrap(iffyBill);            // "Bill"
+Scored.unwrap("Bill");   // "Bill"
+```
+
+## Scoring in action
+
+Say our chatbot asks the user for their name. The user's response might be their name, or they might be ignoring your question and giving a command. How can you know for sure? Certain responses are more likely than others to mean "I am telling you my name". One strategy is to assign a score to each outcome, and choose the highest-scoring outcome. That's where scoring comes in.
+
+In this example we are maintaining `botstate` which will track 
+
+have a `Transform` which always assigns a score of 1 to a name gleaned from an unambiguously verbose introduction. Otherwise, if there is an outstanding question (the bot previously asked the user's name) it assigns a 50% chance that the entire user's response is a name. In either case we transform that `Scored string` into a `Scored ActionReference` with the same score, greeting the user.
+
+Meanwhile we have a different `Transform` that is looking for the phrase "current time". If there are no outstanding questions it returns its action with a score of 1, but even if there is an outstanding question we consider that there's a pretty good chance that this phrase represents a command, so it assigns a score of .75.
+
+We pass both these transforms to another *Prague* function, `best`, which returns a new transform which calls *all* of the transforms, collects the `Scored`s thereof, and returns the unwrapped result of the highest scoring one.
+
+```ts
+import { best } from 'prague';
+
+const actions = new ActionReferences({
+    // all the existing actions plus:
+    greet(name) { ... },
+    time() { ... },
+ });
+
+const botLogic = req => first(
+    // all the existing transforms plus:
+    match(
+        first(
+            match(
+                reGroup(/My name is (.*)/i, 1),
+                name => Scored.from(name),
+            ),
+            t => botstate.question === 'name' ? Scored.from(t, .5) : null,
+        ),
+        scoredName => Scored.from(
+            actions.reference.greet(scoredName.result),
+            scoredName.score
+        ),
+    ),
+    match(
+        re(/current time/),
+        () => Scored.from(
+            actions.reference.time(),
+            botstate.question ? .75 : 1
+        )
+    ),
+);
+
+// When botstate.question === 'name'
+"Bill"                      // Nice to meet you, Bill
+"My name is Bill"           // Nice to meet you, Bill
+"current time"              // The time is 6:50:15 AM
+"My name is current time"   // Nice to meet you, Current Time
+
+// When botstate.question is undefined
+"Bill"                      //
+"My name is Bill"           // Nice to meet you, Bill
+"current time"              // The time is 6:50:15 AM
+"My name is current time"   // Nice to meet you, Current Time
+```
+
+So far, so good. But consider this case:
+
+```ts
+const values = [
+    Scored.from("hi", .75),
+    Scored.from("hello", .75),
+    Scored.from("aloha", .70),
+    Scored.from("wassup", .65),
+];
+
+const valueTransforms = values.map(value => () => value);
+
+best(
+    ...valueTransforms
+) // "hi"
+```
+
+Calling `best` can be unsatisfactory in cases like this when there are multiple results with the same high score. Things get even more challenging if you want to program in some wiggle room, say 5%, so that "aloha" becomes a third valid result.
+
+The first thing we need is a way to work with more than one result. Enter `Multiple`, which wraps an array of results. You can either create one directly:
+
+```ts
+new Multiple(values);
+```
+
+Or you can use the `multiple` helper to create a `Transform` which calls each supplied `Transform`. If all return `null`, it returns `null`. If one returns a result, it returns that. If two or more return results, it returns a `Multiple` containing them.
+
+```ts
+multiple(valueTransforms);
+```
+
+Frequently the thing you want to do with multiple results is to sort them:
+
+```ts
+const sortme = pipe(
+    multiple(valueTransforms),
+    sort(), // sort(true) for ascending, sort(false) for descending (this is the default)
+)
+```
+
+Thus `sortme()` returns a `Multiple` which contains a sorted array of strings.
+
+We can narrow down this result using yet another helper called `top`.
+
+To retrieve just the high scoring result(s):
+
+```ts
+pipe(
+    sortme,
+    top(),
+)() // Multiple{ results:[ Scored{ result: "hi", score: .75 }, Scored{ result: "hello", score: .75 } ] }
+```
+
+To include "aloha" we can add a `tolerance` of 5%:
+
+```ts
+pipe(
+    sortme,
+    top({
+        tolerance: .05,
+    }),
+)() // Multiple{ results:[ Scored{ result: "hi", score: .75 }, Scored{ result: "hello", score: .75 }, Scored{ result: "aloha", score: .70 } ] }
+```
+
+We can set a `tolerance` of 1 (include all the results) but set the maximum results to 3. This will have the same effect as the above:
+
+```ts
+pipe(
+    sortme,
+    top({
+        maxResults: 3,
+        tolerance: 1,
+    }),
+)() // Multiple{ results:[ Scored{ result: "hi", score: .75 }, Scored{ result: "hello", score: .75 }, Scored{ result: "aloha", score: .70 }, ] }
+```
+
+Increasing `tolerance` includes more items in the "high score". It defaults to `0` and has a maximum value of `1`.
+
+Decreasing `maxResults` limits of the number of "high score" results retrieved. It defaults to `Number.POSITIVE_INFINITY` and has a minimum value of `1`.
+
+Now that you understand `multiple`, `sort`, and `top`, it can be revealed that `best` is just a special case of using them all together, with an `unwrap` at the end:
+
+```ts
+const best = (...transforms) => pipe(
+    multiple(...transforms),
+    sort(),
+    top({
+        maxResults: 1,
+    }),
+    Scored.unwrap,
+);
+```
+
+**Note**: `top` is just one way to narrow down multiple results. There are many heuristics you may choose to apply. You may even ask for human intervention. For instance, in a chatbot you may wish to ask the user to do the disambiguation ("Are you asking the time, or telling me your name?"). Of course their reply to that may also be ambiguous...
+
+## Conclusion
+
+In this chapter we introduced the idea of *scoring* results, and the tools necessary to reason about them: the classes `Scored` (with its methods `from` and `unwrap`) and `Multiple`, and the helper functions `multiple`, `sort`, and `top`.
