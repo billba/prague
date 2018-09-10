@@ -18,7 +18,7 @@ Major features of Prague:
 
 ## Tutorial
 
-The *Prague* tutorial starts [here](./docs/1.tutorial.md).
+The *Prague* tutorial starts [here](./docs/1.testable_bots.md).
 
 ## Samples
 
