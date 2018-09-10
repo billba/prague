@@ -35,6 +35,10 @@ describe("Scored.from", () => {
         expect(Scored.from(null)).is.null;
     });
 
+    it("should return null on null with score", () => {
+        expect(Scored.from(null, .5)).is.null;
+    });
+
     it("should return null on undefined", () => {
         expect(Scored.from(null)).is.null;
     });

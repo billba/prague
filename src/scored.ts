@@ -122,7 +122,7 @@ export function top <
                 if (!(_result instanceof Scored))
                     throw "top must only be called on Array of Scored";
 
-                if (!highScore)
+                if (highScore === undefined)
                     highScore = _result.score;
             }),
             takeWhile((m, i) => i < maxResults && m.score + tolerance >= highScore),

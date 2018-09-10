@@ -1,6 +1,14 @@
-import { Transform, Returns, from, filterOutNull, transformToNull } from "./prague";
+import { Transform, Returns, from, filterOutNull, transformToNull, NullIfNullable } from "./prague";
 import { from as observableFrom, of as observableOf } from "rxjs";
 import { flatMap, toArray, map } from "rxjs/operators";
+
+type MaybeArray<T> = [T] extends [never] ? never : T | Array<T>;
+
+type NullIfNull<T> = NonNullable<T> extends never ? null : never;
+
+type F<T> = NonNullable<T> extends never ? never : T;
+
+type Flatten<T> = T extends Array<infer U> ? U : T;
 
 export function multiple(): Transform<[], null>;
 
@@ -18,7 +26,7 @@ export function multiple <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
-]): Transform<ARGS, R0 | R1 | [any]>;
+]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1>>> | NullIfNull<F<R0> | F<R1>>>;
 
 export function multiple <
     ARGS extends any[],
@@ -29,7 +37,7 @@ export function multiple <
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
-]): Transform<ARGS, R0 | R1 | R2 | [any]>;
+]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1> | Flatten<R2>>> | NullIfNull<F<R0> | F<R1> | F<R2>>>;
 
 export function multiple <
     ARGS extends any[],
@@ -42,7 +50,7 @@ export function multiple <
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>
-]): Transform<ARGS, R0 | R1 | R2 | R3 | [any]>;
+]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1> | Flatten<R2> | Flatten<R3>>> | NullIfNull<F<R0> | F<R1> | F<R2> | F<R3>>>;
 
 export function multiple <
     ARGS extends any[],
@@ -57,7 +65,14 @@ export function multiple <
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>
-]): Transform<ARGS, R0 | R1 | R2 | R3 | R4 | [any]>;
+]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1> | Flatten<R2> | Flatten<R3> | Flatten<R4>>> | NullIfNull<F<R0> | F<R1> | F<R3> | F<R4>>>;
+
+export function multiple <
+    ARGS extends any[],
+    O
+> (...args:
+    ((...args: ARGS) => Returns<O>)[]
+): Transform<ARGS, NonNullable<O> | NullIfNull<O>>;
 
 export function multiple <
     ARGS extends any[],
@@ -73,7 +88,7 @@ export function multiple (
 
     const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], any>));
 
-    return ((...args: any[]) => _transforms.pipe(
+    return (...args: any[]) => _transforms.pipe(
         flatMap(transform => transform(...args)),
         filterOutNull,
         flatMap(result => Array.isArray(result) ? observableFrom(result) : observableOf(result)),
@@ -83,5 +98,5 @@ export function multiple (
             results.length === 1 ? results[0] :
             results
         ),
-    )) as Transform<any[], any>;
+    );
 }
