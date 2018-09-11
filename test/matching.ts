@@ -1,9 +1,8 @@
-import { expect, passErr, throwErr, isNull } from './common';
+import { expect, throwErr, isNull } from './common';
 import { match, matchIf, branch, combine, onlyContinueIf, pipe } from '../src/prague';
-import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("branch", () => {
-    it("should return first transform on Result", done => {
+    it("should return first transform on Result", () =>
         combine(
             (a: string | null) => a,
             branch(
@@ -11,13 +10,12 @@ describe("branch", () => {
                 () => "no",
             )
         )("yes")
-        .pipe(defaultIfEmpty(13))
-        .subscribe(o => {
+        .then(o => {
             expect(o).equals("yes");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return second transform on null", done => {
+    it("should return second transform on null", () =>
         combine(
             (a: string | null) => a,
             branch(
@@ -25,73 +23,72 @@ describe("branch", () => {
                 () => "no",
             )
         )(null)
-        .pipe(defaultIfEmpty(13))
-        .subscribe(o => {
+        .then(o => {
             expect(o).equals("no");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return null on null when second transform is missing", done => {
+    it("should return null on null when second transform is missing", () =>
         combine(
             (a: string | null) => a,
             branch(
                 a => a,
             )
         )(null)
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done);
-    });
+        .then(isNull)
+    );
 })
 
 describe("match", () => {
-    it("should emit null on null and no onNull handler", done => {
+    it("should emit null on null and no onNull handler", () =>
         match(
             () => undefined,
             throwErr,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done);
-    });
+        .then(isNull)
+    );
 
-    it("should call onNull handler on null", done => {
+    it("should call onNull handler on null", () =>
         match(
             () => undefined,
             throwErr,
             () => "hi",
-        )().subscribe(m => {
+        )()
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should call onValue handler on value", done => {
+    it("should call onValue handler on value", () =>
         match(
             () => "hi",
             a => a,
             throwErr,
-        )().subscribe(m => {
+        )()
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should pass through args", done => {
+    it("should pass through args", () =>
         match(
             (a: string, b: number) => a.repeat(b),
             a => a,
             throwErr,
-        )("hi", 2).subscribe(m => {
+        )("hi", 2)
+        .then(m => {
             expect(m).equals("hihi");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should emit null and not call onNull on Value when onResult emits null", done => {
+    it("should emit null and not call onNull on Value when onResult emits null", () =>
         match(
             () => "hi",
             () => undefined,
             throwErr,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done);
-    });
+        .then(isNull)
+    );
 });
 
 const falseyValues = [false, undefined, null, 0];
@@ -99,70 +96,71 @@ const truthyValues = [true, 13, "hi", () => "hi", { dog: "dog" }];
 
 describe("matchIf", () => {
     falseyValues.forEach(value => {
-        it("should emit null on ${value} and no onFalsey handler", done => {
+        it("should emit null on ${value} and no onFalsey handler", () =>
             matchIf(
                 () => value,
                 throwErr,
             )()
-            .pipe(defaultIfEmpty(13))
-            .subscribe(isNull, passErr, done);
-        });
+            .then(isNull)
+        );
 
-        it("should call onFalse on ${value}", done => {
+        it("should call onFalse on ${value}", () =>
             matchIf(
                 () => value,
                 throwErr,
                 () => "hi",
-            )().subscribe(m => {
+            )()
+            .then(m => {
                 expect(m).equals("hi");
-            }, passErr, done);
-        });
+            })
+        );
     });
 
-    it("should pass through arguments", done => {
+    it("should pass through arguments", () =>
         matchIf(
             (a: number, b: number) => a > b,
             () => "hi",
             throwErr,
-        )(5, 2).subscribe(m => {
+        )(5, 2)
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done);
-    });
+        })
+    );
 
     truthyValues.forEach(value => {
-        it("should call onTruthy handler on ${value}", done => {
+        it("should call onTruthy handler on ${value}", () =>
             matchIf(
                 () => value,
                 () => "hi",
-            )().subscribe(m => {
+            )()
+            .then(m => {
                 expect(m).equals("hi");
-            }, passErr, done);
-        });
+            })
+        );
     });
 });
 
 describe("onlyContinueIf", () => {
 
     truthyValues.forEach(value => {
-        it(`should continue on ${value}`, done => {
+        it(`should continue on ${value}`, () =>
             pipe(
                 onlyContinueIf(() => value),
                 () => value,
             )()
-            .subscribe(m => {
+            .then(m => {
                 expect(m).equals(m);
-            }, passErr, done);
-        });
+            })
+        );
     });
 
     falseyValues.forEach(value => {
-        it(`should not continue on ${value}`, done => {
+        it(`should not continue on ${value}`, () =>
             pipe(
                 onlyContinueIf(() => value),
                 () => value,
             )()
-            .pipe(defaultIfEmpty(13))
-            .subscribe(isNull, passErr, done);
-        });
+            .then(isNull)
+        );
     });
 });

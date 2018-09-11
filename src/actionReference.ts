@@ -1,4 +1,4 @@
-import { transformInstance, pipe, doAction, Scored, tap } from './prague';
+import { pipe, Scored, tap, toPromise, Transform } from './prague';
 
 export class ActionReference {
 
@@ -50,18 +50,22 @@ export class ActionReferences <
             }
     }
 
-    doAction (
+    doAction <
+        RESULT
+    > (
         ...contextArgs: CONTEXTARGS
     ) {
-        return transformInstance(ActionReference, result => {
+        return ((result: RESULT) => {
+            if (!(result instanceof ActionReference))
+                return;
 
             const action = this.getActions(...contextArgs)[result.name];
 
             if (!action)
                 throw `unknown action ${result.name}`;
 
-            return action(...result.args);
-        });
+            return toPromise(action(...result.args));
+        }) as Transform<[RESULT], any>;
     }
 
     run <

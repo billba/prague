@@ -1,6 +1,4 @@
-import { Transform, Returns, from, toObservable, filterOutNull, nullIfEmpty, NullIfNullable, transformToNull } from "./prague";
-import { from as observableFrom, of as observableOf, Observable} from "rxjs";
-import { reduce, flatMap, map, mergeAll, mapTo } from "rxjs/operators";
+import { Transform, Returns, from, toPromise, NullIfNullable, transformToNull } from "./prague";
 
 export function pipe(): Transform<[], null>;
 
@@ -72,22 +70,21 @@ export function pipe (
     if (transforms.length === 0)
         return transformToNull;
 
-    let [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
-    const __transforms = observableFrom(_transforms);
+    const _transforms = transforms.map(from);
 
-    return ((...args: any[]) => __transforms.pipe(
-        reduce<Transform<[any], any>, Observable<any>>(
-            (result$, _transform) => result$.pipe(
-                flatMap(result => _transform(result)),
-                filterOutNull,
-            ),
-            _transform(...args).pipe(
-                filterOutNull,
-            )
-        ),
-        mergeAll(),
-        nullIfEmpty,
-    )) as Transform<any[], any>;
+    return (async (...args: any[]) => {
+        let o = null;
+
+        for (const transform of _transforms) {
+            o = await transform(...args);
+            if (o === null)
+                return null;
+            
+            args = [o];
+        }
+
+        return o;
+    }) as Transform<any[], any>;
 }
 
 export const tap = <
@@ -95,39 +92,14 @@ export const tap = <
 > (
     fn: (result: RESULT) => any,
 ): Transform<[RESULT], RESULT> =>
-    (result: RESULT) => observableOf(result).pipe(
-        map(result => fn(result)),
-        flatMap(toObservable),
-        nullIfEmpty,
-        mapTo(result),
-    );
+    (result: RESULT) => toPromise(fn(result))
+        .then(() => result);
 
 export const log = tap(console.log);
 
-type Ctor<T> = {
-    new(...args: any[]): T
-}
-
-export const transformInstance = <
-    T,
-    R,
-> (
-    Target: Ctor<T>,
-    transform: (r: T) => R,
-) => from((r: any) => r instanceof Target ? transform(r as T) : r);
-
-export const transformNull = <
-    R,
-> (
-    transform: () => R,
-) => from((o: any) => o || transform());
-
 export const doAction = tap(o => {
     if (typeof o === 'function')
-        return observableOf(o).pipe(
-            map(action => action()),
-            flatMap(toObservable),
-        );
+        return o();
 });
 
 export function run <
@@ -212,16 +184,13 @@ export function combine (
     if (transforms.length === 0)
         return transformToNull;
 
-    let [_transform, ..._transforms] = transforms.map(_transform => from(_transform));
-    const __transforms = observableFrom(_transforms);
+    const _transforms = transforms.map(from);
 
-    return ((...args: any[]) => __transforms.pipe(
-        reduce<Transform<[any], any>, Observable<any>>(
-            (result$, _transform) => result$.pipe(
-                flatMap(result => _transform(result)),
-            ),
-            _transform(...args)
-        ),
-        mergeAll(),
-    )) as Transform<any[], any>;
+    return (async (...args: any[]) => {
+        for (const transform of _transforms) {
+            args = [await transform(...args)];
+        }
+
+        return args[0];
+    }) as Transform<any[], any>;
 }

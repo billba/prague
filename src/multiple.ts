@@ -1,6 +1,5 @@
-import { Transform, Returns, from, filterOutNull, transformToNull, NullIfNullable } from "./prague";
-import { from as observableFrom, of as observableOf } from "rxjs";
-import { flatMap, toArray, map } from "rxjs/operators";
+import { Transform, Returns, transformToNull, from } from "./prague";
+const flat = require('array.prototype.flat');
 
 type MaybeArray<T> = [T] extends [never] ? never : T | Array<T>;
 
@@ -85,18 +84,17 @@ export function multiple (
 ) {
     if (transforms.length === 0)
         return transformToNull;
+    
+    const _transforms = transforms.map(from);
 
-    const _transforms = observableFrom(transforms.map(transform => from(transform) as Transform<any[], any>));
+    return async (...args: any[]) => { 
+        const results = flat(
+            (await Promise.all(_transforms.map(transform => transform(...args))))
+                .filter(o => o !== null)
+        ) as any[];
 
-    return (...args: any[]) => _transforms.pipe(
-        flatMap(transform => transform(...args)),
-        filterOutNull,
-        flatMap(result => Array.isArray(result) ? observableFrom(result) : observableOf(result)),
-        toArray(),
-        map(results =>
-            results.length === 0 ? null : 
+        return results.length === 0 ? null : 
             results.length === 1 ? results[0] :
-            results
-        ),
-    );
+            results;
+    };
 }
