@@ -1,231 +1,185 @@
-import { expect, passErr, throwErr, isNull } from './common';
-import { pipe, run, tap, transformInstance, combine, transformNull, doAction, Scored } from '../src/prague';
-import { defaultIfEmpty } from 'rxjs/operators';
+import { expect, throwErr, isNull } from './common';
+import { pipe, run, tap, combine, doAction } from '../src/prague';
 
 describe("pipe", () => {
 
-    it('should emit null when first transform emits null', done => {
+    it('should emit null when first transform emits null', () =>
         pipe(
             () => undefined,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 
-    it('should emit null and not call second transform when first transform emits null', done => {
+    it('should emit null and not call second transform when first transform emits null', () =>
         pipe(
             () => undefined,
             throwErr,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 
-    it('should emit null when second transform emits null', done => {
+    it('should emit null when second transform emits null', () =>
         pipe(
             () => "hi",
             () => undefined,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 
-    it('should pass through argument to first transform', done => {
+    it('should pass through argument to first transform', () =>
         pipe(
             (a: string) => a,
-        )("hi").subscribe(m => {
+        )("hi")
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it('should pass through multiple arguments to first transform', done => {
+    it('should pass through multiple arguments to first transform', () =>
         pipe(
             (a: string, b: number) => a.repeat(b),
-        )("hi", 2).subscribe(m => {
+        )("hi", 2)
+        .then(m => {
             expect(m).equals("hihi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it('should pass result of first transform to second transform', done => {
-        pipe(
-            (a: string, b: number) => a.repeat(b),
-            a => a,
-        )("hi", 2).subscribe(m => {
-            expect(m).equals("hihi");
-        }, passErr, done)
-    });
-
-    it('should pass result of second transform to third transform', done => {
+    it('should pass result of first transform to second transform', () =>
         pipe(
             (a: string, b: number) => a.repeat(b),
             a => a,
-            a => a,
-        )("hi", 2).subscribe(m => {
+        )("hi", 2)
+        .then(m => {
             expect(m).equals("hihi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it('should short circuit on second null', done => {
+    it('should pass result of second transform to third transform', () =>
+        pipe(
+            (a: string, b: number) => a.repeat(b),
+            a => a,
+            a => a,
+        )("hi", 2)
+        .then(m => {
+            expect(m).equals("hihi");
+        })
+    );
+
+    it('should short circuit on second null', () =>
         pipe(
             (a: string, b: number) => a.repeat(b),
             a => null,
             throwErr,
         )("hi", 2)
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 });
 
 describe("tap", () => {
-    it("should get the result of the previous function, and pass through to following function", done => {
+    it("should get the result of the previous function, and pass through to following function", () => {
         let handled = "no";
 
-        pipe(
+        return pipe(
             (a: string, b: number) => a.repeat(b),
             tap(a => {
                 handled = a;
             }),
             a => a,
-        )("hi", 2).subscribe(m => {
+        )("hi", 2)
+        .then(m => {
             expect(handled).to.equal("hihi");
             expect(m).to.equal("hihi");
-        }, passErr, done);
-    });
-});
-
-describe("transformInstance", () => {
-    it("should pass through results of other than the stated class", done => {
-        pipe(
-            () => "hi",
-            transformInstance(Scored, throwErr),
-        )().subscribe(m => {
-            expect(m).equals("hi");
-        }, passErr, done);
-    });
-
-    it("should transform results of the stated class", done => {
-        pipe(
-            () => Scored.from("hi"),
-            transformInstance(Scored, () => "bye"),
-        )().subscribe(m => {
-            expect(m).equals("bye");
-        }, passErr, done);
-    });
-});
-
-describe("transformNull", () => {
-    it("should pass through non-null values", done => {
-        combine(
-            () => "hi",
-            transformNull(throwErr),
-        )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(m => {
-            expect(m).equals("hi");
-        }, passErr, done);
-    });
-
-    it("should transform null", done => {
-        combine(
-            () => null,
-            transformNull(() => "hi"),
-        )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(m => {
-            expect(m).equals("hi");
-        }, passErr, done);
+        });
     });
 });
 
 describe("doAction", () => {
-    it("should ignore non-function result", done => {
+    it("should ignore non-function result", () =>
         pipe(
             (a: string, b: number) => a.repeat(b),
             doAction,
-        )("hi", 2).subscribe(m => {
+        )("hi", 2).then(m => {
             expect(m).to.equal("hihi");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should do function", done => {
+    it("should do function", () => {
         let handled = "no";
 
-        pipe(
+        return pipe(
             (a: string) => () => {
                 handled = a;
             },
             doAction,
-        )("hi").subscribe(m => {
+        )("hi").then(m => {
             expect(handled).equals("hi");
             expect(typeof m).equals("function");
-        }, passErr, done);
+        });
     });
 });
 
 describe("run", () => {
-    it("should ignore non-action result", done => {
+    it("should ignore non-action result", () =>
         run(
             (a: string, b: number) => a.repeat(b)
-        )("hi", 2).subscribe(m => {
+        )("hi", 2).then(m => {
             expect(m).to.equal("hihi");
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should do function", done => {
+    it("should do function", () => {
         let handled = "no";
 
-        run(
+        return run(
             (a: string) => () => {
                 handled = a;
             }
-        )("hi").subscribe(m => {
+        )("hi").then(m => {
             expect(handled).equals("hi");
             expect(typeof m).equals("function");
-        }, passErr, done);
+        });
     });
 });
 
 describe("combine", () => {
 
-    it('should emit null when first transform emits null', done => {
+    it('should emit null when first transform emits null', () =>
         combine(
             () => undefined,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 
-    it('should emit null when second transform emits null', done => {
+    it('should emit null when second transform emits null', () =>
         combine(
             () => "hi",
             () => undefined,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 
-    it('should pass through argument to first transform', done => {
+    it('should pass through argument to first transform', () =>
         combine(
             (a: string) => a,
-        )("hi").subscribe(m => {
+        )("hi").then(m => {
             expect(m).equals("hi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it('should pass through multiple arguments to first transform', done => {
+    it('should pass through multiple arguments to first transform', () =>
         combine(
             (a: string, b: number) => a.repeat(b),
-        )("hi", 2).subscribe(m => {
+        )("hi", 2).then(m => {
             expect(m).equals("hihi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it('should pass result of first transform to second transform', done => {
+    it('should pass result of first transform to second transform', () =>
         combine(
             (a: string, b: number) => a.repeat(b),
             a => a,
-        )("hi", 2).subscribe(m => {
+        )("hi", 2).then(m => {
             expect(m).equals("hihi");
-        }, passErr, done)
-    });
+        })
+    );
 });

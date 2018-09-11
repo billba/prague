@@ -1,11 +1,9 @@
 import { Transform, pipe, multiple } from './prague';
-import { from as observableFrom, of as observableOf } from "rxjs";
-import { takeWhile, toArray, map, tap as rxtap } from 'rxjs/operators';
 
 export class Scored <
     RESULT,
 > {
-    constructor(
+    private constructor(
         public result: RESULT,
         public score = 1,
     ) {
@@ -111,24 +109,23 @@ export function top <
         }
     }
 
-    return (result: RESULT) => {
+    return async (result: RESULT) => {
         if (!Array.isArray(result))
-            return observableOf(result);
+            return result;
 
-        let highScore: number;
+        let top: Scored<any>[] = [];
 
-        return observableFrom(result as Scored<any>[]).pipe(
-            rxtap(_result => {
-                if (!(_result instanceof Scored))
-                    throw "top must only be called on Array of Scored";
+        for (const _result of result) {
+            if (!(_result instanceof Scored))
+                throw "top must only be called on Array of Scored";
 
-                if (highScore === undefined)
-                    highScore = _result.score;
-            }),
-            takeWhile((m, i) => i < maxResults && m.score + tolerance >= highScore),
-            toArray(),
-            map(results => results.length === 1 ? results[0] : results),
-        );
+            if (top.length >= maxResults || _result.score + tolerance < result[0].score)
+                break;
+            
+            top.push(_result);
+        }
+
+        return top.length === 1 ? top[0] : top;
     }
 }
 

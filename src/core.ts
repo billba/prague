@@ -1,49 +1,30 @@
-import { Observable, from as observableFrom, of as observableOf } from 'rxjs';
-import { take, map, flatMap, filter, defaultIfEmpty } from 'rxjs/operators';
+export type Returns<T> = Promise<T> | T;
 
-export type Returns<T> = Observable<T> | Promise<T> | T;
-
-export const toObservable = <T> (
+export const toPromise = <T> (
     t: Returns<T>,
-) =>
-    t instanceof Observable ? t :
-    t instanceof Promise ? observableFrom(t) :
-    observableOf(t);
+) => t instanceof Promise ? t : Promise.resolve(t);
 
 // null means "No Result"
 
-export const transformToNull = () => observableOf(null);
-
-export const filterOutNull = filter(o => o !== null);
-
-export const nullIfEmpty = defaultIfEmpty(null);
+export const transformToNull = () => Promise.resolve(null);
 
 export type NullIfNullable<T> = T extends null ? null : never;
 
 export type Transform <
     ARGS extends any[],
     O,
-> = (...args: ARGS) => Observable<O>;
+> = (...args: ARGS) => Promise<O>;
 
-export function from <
-    ARGS extends any[] = [],
-    O = null,
+export const from = <
+    ARGS extends any[],
+    O,
 > (
-    transform?: null | ((...args: ARGS) => Returns<O>),
-): Transform<ARGS, O>
-
-export function from (
-    transform?: null | ((...args: any[]) => any),
-) {
-    if (!transform)
-        return transformToNull;
-
+    transform: (...args: ARGS) => Returns<O>,
+) => {
     if (typeof transform !== 'function')
         throw new Error("I can't transform that.");
 
-    return (...args: any[]) => observableOf(transform).pipe(
-        map(transform => transform(...args)),
-        flatMap(toObservable),
-        map(o => o == null ? null : o),
-    );
+    return ((...args: ARGS) => toPromise(transform(...args))
+        .then(r => r == null ? null : r)
+    ) as Transform<ARGS, O>;
 }

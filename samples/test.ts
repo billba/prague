@@ -42,7 +42,7 @@ const greetings = [
 ];
 
 greetings.map(t =>
-    run(app)(t).subscribe()
+    run(app)(t).then()
 )
 
 console.log("*** Scoring ***");
@@ -52,7 +52,7 @@ best(
     () => Scored.from("fred", .50),
     () => Scored.from("joe", .85),
 )()
-.subscribe(console.log)
+.then(console.log)
 
 console.log("*** Named Actions ***");
 
@@ -84,5 +84,5 @@ const namedActionApp = actions.run(
 );
 
 ["My name is Inigo Montoyez, prepare to die", "bye bye"].forEach(t => namedActionApp(t)
-    .subscribe()
+    .then()
 );

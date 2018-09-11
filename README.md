@@ -4,7 +4,7 @@ A library for using function programming concepts to more concisely and expressi
 
 Major features of Prague:
 * strongly-typed when using [TypeScript](https://www.typescriptlang.org) (but you don't have to use TypeScript)
-* deeply asynchronous via [RxJS](https://github.com/reactivex/rxjs) (but you don't have to use RxJS)
+* flexibly asynchronous - mix functions that return Promises with functions that don't
 * utilizes and promotes functional programming (you do actually have to use functional programming, but you don't have to know anything about it to get started)
 
 ## Building *Prague*
@@ -24,7 +24,5 @@ The *Prague* tutorial starts [here](./docs/1.testable_bots.md).
 
 There is a simple chatbot sample [here](../samples/simpleBot.ts)
 
-After building *Prague*, run it by
-
-`node lib/samples/runSimpleBot.js`
+After building *Prague*, run it by `node lib/samples/runSimpleBot.js`
 

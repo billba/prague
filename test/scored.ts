@@ -1,30 +1,6 @@
-import { expect, passErr } from './common';
+import { expect } from './common';
 import { multiple, sort, pipe, top, best, Scored } from '../src/prague';
 import { matches, rev, spreadme, spreaded } from './multiple';
-
-describe("new Scored", () => {
-    const v = "hi";
-
-    it("should default score to 1", () => {
-        const s = new Scored(v);
-        expect(s.result).equals(v);
-        expect(s.score).equals(1);
-    });
-
-    it("should use given score", () => {
-        const s = new Scored(v, .5);
-        expect(s.result).equals(v);
-        expect(s.score).equals(.5);
-    });
-
-    it("should throw on score of 0", () => {
-        expect(() => new Scored(v, 0)).throws;
-    });
-
-    it("should throw on score > 1", () => {
-        expect(() => new Scored(v, 1.5)).throws;
-    });
-});
 
 describe("Scored.from", () => {
 
@@ -123,35 +99,35 @@ describe("Scored.unwrap", () => {
 });
 
 describe("sort", () => {
-    it("should return Array in sorted order for sorted results", (done) => {
+    it("should return Array in sorted order for sorted results", () =>
         pipe(
             multiple(...matches.map(m => () => m)),
             sort(),
-        )().subscribe(_m => {
+        )().then(_m => {
             expect(Array.isArray(_m)).is.true;
             expect(_m).deep.equals(matches)
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return Array in sorted order for unsorted results", (done) => {
+    it("should return Array in sorted order for unsorted results", () =>
         pipe(
             multiple(...rev.map(m => () => m)),
             sort(),
-        )().subscribe(_m => {
+        )().then(_m => {
             expect(Array.isArray(_m)).is.true;
             expect(_m).deep.equals(matches);
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return Array in reverse sorted order for unsorted results", (done) => {
+    it("should return Array in reverse sorted order for unsorted results", () =>
         pipe(
             multiple(...rev.map(m => () => m)),
             sort(true),
-        )().subscribe(_m => {
+        )().then(_m => {
             expect(Array.isArray(_m)).is.true;
             expect(_m).deep.equals(rev);
-        }, passErr, done);
-    });
+        })
+    );
 });
 
 describe("top", () => {
@@ -195,7 +171,7 @@ describe("top", () => {
         ).throws();
     });
 
-    it("should default to quantity infinity, tolerance 0", done => {
+    it("should default to quantity infinity, tolerance 0", () =>
         pipe(
             () => [
                 Scored.from("hi", .5),
@@ -204,26 +180,26 @@ describe("top", () => {
                 Scored.from("wassup", .3),
             ],
             top(),
-        )().subscribe(m => {
+        )().then(m => {
             expect(Array.isArray(m)).is.true;
             expect(m.length).equals(3);
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return one item when maxLength == 2 but tolerance is zero", done => {
+    it("should return one item when maxLength == 2 but tolerance is zero", () =>
         pipe(
             () => spreaded,
             sort(),
             top({
                 maxResults: 2,
             }),
-        )().subscribe(m => {
+        )().then(m => {
             expect(Array.isArray(m)).is.false;
             expect(m).equals(matches[0]);
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return two items when maxLength == 2 but tolerance is .1", done => {
+    it("should return two items when maxLength == 2 but tolerance is .1", () =>
         pipe(
             () => spreaded,
             sort(),
@@ -231,38 +207,38 @@ describe("top", () => {
                 maxResults: 2,
                 tolerance: .1,
             }),
-        )().subscribe(m => {
+        )().then(m => {
             expect(Array.isArray(m)).is.true;
             expect(m.length).equals(2);
             expect(m[0]).equals(spreaded[0]);
             expect(m[1]).equals(spreaded[1]);
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should return all items when tolerance is 1", done => {
+    it("should return all items when tolerance is 1", () =>
         pipe(
             () => spreaded,
             sort(),
             top({
                 tolerance: 1,
             }),
-        )().subscribe(m => {
+        )().then(m => {
             expect(Array.isArray(m)).is.true;
             expect(m.length).equals(4);
             expect(m).deep.equals(spreaded);
-        }, passErr, done);
-    });
+        })
+    );
 });
 
 describe("best", () => {
-    it("should return the top 1 item", done => {
+    it("should return the top 1 item", () =>
         best(
             () => matches[0],
             () => spreadme,
             () => matches[1],
         )()
-        .subscribe(m => {
+        .then(m => {
             expect(m).equals(matches[0].result);
-        }, passErr, done);
-    })
+        })
+    )
 });

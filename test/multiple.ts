@@ -1,6 +1,5 @@
-import { expect, passErr, isNull } from './common';
+import { expect, isNull } from './common';
 import { multiple, Scored } from '../src/prague';
-import { defaultIfEmpty } from 'rxjs/operators';
 
 export const matches = [
     Scored.from("hello", .75),
@@ -22,39 +21,39 @@ export const spreaded = [
 ]
 
 describe("multiple", () => {
-    it("should pass through a single result", (done) => {
+    it("should pass through a single result", () => {
         const m = "hi";
 
-        multiple(
+        return multiple(
             () => m,
-        )().subscribe(_m => {
+        )()
+        .then(_m => {
             expect(_m).equals(m);
-        }, passErr, done);
+        });
     });
 
-    it("should emit null on null", (done) => {
+    it("should emit null on null", () =>
         multiple(
             () => null,
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done);
-    });
+        .then(isNull)
+    );
 
-    it("should return Array for multiple results", (done) => {
+    it("should return Array for multiple results", () =>
         multiple(
             ...matches.map(m => () => m)
-        )().subscribe(_m => {
+        )().then(_m => {
             expect(Array.isArray(_m)).is.true;
             expect(_m).deep.equals(matches)
-        }, passErr, done);
-    });
+        })
+    );
 
-    it("should spread Multiples", (done) => {
+    it("should spread Multiples", () =>
         multiple(
             () => matches[0],
             () => spreadme,
             () => matches[1],
-        )().subscribe(_m => {
+        )().then(_m => {
             expect(Array.isArray(_m)).is.true;
             expect(_m).deep.equals([
                 matches[0],
@@ -62,6 +61,6 @@ describe("multiple", () => {
                 spreadme[1],
                 matches[1],
             ])
-        }, passErr, done);
-    });
+        })
+    );
 });

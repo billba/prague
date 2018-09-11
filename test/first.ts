@@ -1,56 +1,57 @@
-import { expect, passErr, throwErr, isNull } from './common';
+import { expect, throwErr, isNull } from './common';
 import { first } from '../src/prague';
-import { defaultIfEmpty } from 'rxjs/operators';
 
 describe("first", () => {
-    it("should emit null on no transforms", done => {
+    it("should emit null on no transforms", () =>
         first(
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done);
-    });
+        .then(isNull)
+    );
 
-    it("should emit null on undefined", done => {
+    it("should emit null when first transform returns null", () =>
         first(
-            () => undefined
+            () => null
         )()
-        .pipe(defaultIfEmpty(13))
-        .subscribe(isNull, passErr, done)
-    });
+        .then(isNull)
+    );
 
-    it("returns result of first transform when Value", done => {
+    it("should return result of first transform when value", () =>
         first(
             () => "hi"
-        )().subscribe(m => {
+        )()
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it("returns result of second transform when first is undefined", done => {
+    it("returns result of second transform when first returns null", () =>
         first(
-            () => undefined,
+            () => null,
             () => "hi",
-        )().subscribe(m => {
+        )()
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it("ignores second transform when first is Match", done => {
+    it("should ignore second transform when first returns result", () =>
         first(
             () => "hi",
             throwErr,
-        )().subscribe(m => {
+        )()
+        .then(m => {
             expect(m).equals("hi");
-        }, passErr, done)
-    });
+        })
+    );
 
-    it("passes through arguments to all functions", done => {
+    it("passes through same arguments to all functions", () =>
         first(
             (a: string, b: number) => undefined,
             (a, b) => a.repeat(b),
-        )("hi", 2).subscribe(m => {
+        )("hi", 2)
+        .then(m => {
             expect(m).equals("hihi");
-        }, passErr, done)
-    });
+        })
+    );
 });
 

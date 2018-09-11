@@ -30,7 +30,7 @@ export class ConsoleBot {
             }, {
                 exit: () => { this.exit = true; },
                 send: console.log,
-            }).subscribe(o => {
+            }).then(o => {
                 if (this.exit) {
                     this.rl.close();
                 } else {
