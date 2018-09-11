@@ -1,6 +1,6 @@
 # *Prague*
 
-A library for using function programming concepts to more concisely and expressively code apps like games and chatbots. I thought of it as I walked around the city of Prague on a sunny Spring day. **This is not an official Microsoft project.**
+A library for using function programming concepts to more concisely and expressively code in apps like games and chatbots. I thought of it as I walked around the city of Prague on a sunny Spring day. **This is not an official Microsoft project.**
 
 Major features of Prague:
 * strongly-typed when using [TypeScript](https://www.typescriptlang.org) (but you don't have to use TypeScript)
