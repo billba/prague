@@ -22,7 +22,7 @@ The *Prague* tutorial starts [here](./docs/1.testable_bots.md).
 
 ## Samples
 
-There is a simple chatbot sample [here](../samples/simpleBot.ts)
+There is a simple chatbot sample [here](./samples/simpleBot.ts)
 
 After building *Prague*, run it by `node lib/samples/runSimpleBot.js`
 
