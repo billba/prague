@@ -6,7 +6,7 @@ export class Sourced <
     RESULT,
 > {
     /**
-     * Attempts to create a Scored
+     * Create a Sourced object
      * @param result The result on which the resultant Scored will be based
      * @param score The score (> 0 and <= 1)
      * @returns An instance of Scored, or null if result is null or undefined, or score is 0

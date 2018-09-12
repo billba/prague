@@ -17,17 +17,17 @@ export const toPromise = <T> (
 // null means "No Result"
 
 /**
- * a Transform that always returns `null`
- */
-export const transformToNull = () => Promise.resolve(null);
-
-/**
  * A function that always returns a Promise. A return value of Promise<null> is interpreted to mean "This transform did not apply". Most *Prague* helpers return a Transform.
  */
 export type Transform <
     ARGS extends any[],
     O,
 > = (...args: ARGS) => Promise<O>;
+
+/**
+ * a Transform that always returns `null`
+ */
+export const transformToNull: Transform<[], null> = () => Promise.resolve(null);
 
 /**
  * Normalizes the supplied function into a Transform. Most *Prague* helpers normalize the functions you pass them 

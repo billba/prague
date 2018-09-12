@@ -11,11 +11,6 @@ export class Scored <
         public result: RESULT,
         public score = 1,
     ) {
-        if (result == null)
-            throw "Result cannot be null";
-
-        if (score === 0 || score > 1)
-            throw `Score is ${score} but must be be > 0 and <= 1 (consider using Scored.from)`;
     }
 
     private static normalizedScore (
@@ -93,13 +88,15 @@ export class Scored <
  * @param ascending true to sort ascending, false (or omit) to sort descending
  * @returns its argument if not an array, otherwise a sorted version of the argument
  */
+
 export const sort = <O> (
     ascending = false,
-) => (o: O) => Array.isArray(o)
+) => ((o: O) => Promise.resolve(Array.isArray(o)
     ? o
         .map(result => Scored.from(result))
         .sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))
-    : o;
+    : o
+)) as Transform<[O], Scored<any> | Scored<any>[]>;
 
 export interface TopOptions {
     maxResults?: number;
@@ -108,7 +105,7 @@ export interface TopOptions {
 
 /**
  * A Transform which returns the highest scoring elements of the argument
- * @param options { maxResults: maximum number of elements to return (>= 1, defaults to Number.POSITIVE_INFINITY), tolerance: fuzz factor by which to include more results (>= 0 and < 1, defaults to 0) }
+ * @param options maxResults and/or tolerance
  * @returns a new Transform which the highest scoring elements as an array or results, a single result, or null, as appropriate.
  */
 
@@ -137,7 +134,7 @@ export function top <
         }
     }
 
-    return async (result: RESULT) => {
+    return (async (result: RESULT) => {
         if (!Array.isArray(result))
             return result;
 
@@ -154,7 +151,7 @@ export function top <
         }
 
         return top.length === 1 ? top[0] : top;
-    }
+    }) as Transform<[RESULT], RESULT | Scored<any> | Scored<any>[]>;
 }
 
 /**
