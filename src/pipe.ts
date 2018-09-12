@@ -1,4 +1,6 @@
-import { Transform, Returns, from, toPromise, NullIfNullable, transformToNull } from "./prague";
+import { Transform, Returns, from, toPromise, transformToNull } from "./prague";
+
+type NullIfNullable<T> = T extends null ? null : never;
 
 /**
  * Compose multiple functions into a new Transform by chaining the result of one as the argument to the next, stopping if one returns null
@@ -78,19 +80,15 @@ export function pipe (
 
     const _transforms = transforms.map(from);
 
-    return (async (...args: any[]) => {
-        let o = null;
-
+    return async (...args: any[]) => {
         for (const transform of _transforms) {
-            o = await transform(...args);
-            if (o === null)
+            args = [await transform(...args)];
+            if (args[0] === null)
                 return null;
-            
-            args = [o];
         }
 
-        return o;
-    }) as Transform<any[], any>;
+        return args[0];
+    }
 }
 
 /**
@@ -216,11 +214,11 @@ export function combine (
 
     const _transforms = transforms.map(from);
 
-    return (async (...args: any[]) => {
+    return async (...args: any[]) => {
         for (const transform of _transforms) {
             args = [await transform(...args)];
         }
 
         return args[0];
-    }) as Transform<any[], any>;
+    }
 }

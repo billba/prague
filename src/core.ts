@@ -21,8 +21,6 @@ export const toPromise = <T> (
  */
 export const transformToNull = () => Promise.resolve(null);
 
-export type NullIfNullable<T> = T extends null ? null : never;
-
 /**
  * A function that always returns a Promise. A return value of Promise<null> is interpreted to mean "This transform did not apply". Most *Prague* helpers return a Transform.
  */

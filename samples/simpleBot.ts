@@ -1,4 +1,4 @@
-import { first, matchIf, match, re, ActionReferences, pipe } from '../src/prague';
+import { first, matchIf, match, re, ActionReferences } from '../src/prague';
 import { Bot, BotRequest, BotResponse } from './consoleBot';
 
 interface BotState {
@@ -54,14 +54,14 @@ const isCloseUp = first(
 const isOpen = () => botState.open;
 
 const whenOpen = first(
-    match(getNameFromGreeting, name => actions.reference.greet(name)),
-    matchIf(isFarewell, () => actions.reference.bye()),
-    matchIf(isCloseUp, () => actions.reference.close()),
+    match(getNameFromGreeting, actions.reference.greet),
+    matchIf(isFarewell, actions.reference.bye),
+    matchIf(isCloseUp, actions.reference.close),
 );
 
 const whenClosed = first(
-    match(isOpenUp, () => actions.reference.open()),
-    () => actions.reference.oof(),
+    match(isOpenUp, actions.reference.open),
+    actions.reference.oof,
 );
 
 // _bot is the testable logic, returns ActionReferences
