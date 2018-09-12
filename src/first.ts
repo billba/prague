@@ -1,11 +1,17 @@
 import { Transform, Returns, transformToNull, from } from "./prague";
 
+/**
+ * Compose multiple functions into a single Transform which tries each function in sequence until one succeeds  
+ * @param ARGS The arguments to each Transform argument, and to the resultant Transform
+ * @param transforms The transforms to try in order
+ * @returns A new Transform which returns the first non-null result of a transform, otherwise null
+ */
 export function first(): Transform<[], null>;
 
 export function first <
     ARGS extends any[],
     R0,
-> (...args: [
+> (...transforms: [
     (...args: ARGS) => Returns<R0>
 ]): Transform<ARGS, R0>;
 
@@ -13,7 +19,7 @@ export function first <
     ARGS extends any[],
     R0,
     R1,
-> (...args: [
+> (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
 ]): Transform<ARGS, NonNullable<R0> | R1>;
@@ -23,7 +29,7 @@ export function first <
     R0,
     R1,
     R2,
-> (...args: [
+> (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
@@ -35,7 +41,7 @@ export function first <
     R1,
     R2,
     R3,
-> (...args: [
+> (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
@@ -49,7 +55,7 @@ export function first <
     R2,
     R3,
     R4,
-> (...args: [
+> (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
@@ -59,7 +65,7 @@ export function first <
 
 export function first <
     ARGS extends any[],
-> (...args:
+> (...transforms:
     ((...args: ARGS) => any)[]
 ): Transform<ARGS, any>;
 

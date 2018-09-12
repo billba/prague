@@ -1,5 +1,9 @@
 import { Transform, pipe, multiple } from './prague';
 
+/**
+ * Wraps a result with its numeric score
+ */
+
 export class Scored <
     RESULT,
 > {
@@ -22,43 +26,56 @@ export class Scored <
             : 1;
     }
 
+    /**
+     * Attempts to create a Scored
+     * @param result The result on which the resultant Scored will be based
+     * @param score The score (> 0 and <= 1)
+     * @returns An instance of Scored, or null if result is null or undefined, or score is 0
+     */
+
     static from (
-        o: undefined | null,
+        result: undefined | null,
         score?: number,
     ): null;
     
     static from (
-        o: any,
+        result: any,
         score: 0,
     ): null;
     
     static from <
         O,
     >(
-        o: Scored<O> | O,
+        result: Scored<O> | O,
         score?: number,
     ): Scored<O>;
 
     static from (
-        o: any,
+        result: any,
         score?: number
     ) {
-        if (o == null || score === 0)
+        if (result == null || score === 0)
             return null;
 
-        if (o instanceof Scored) {
+        if (result instanceof Scored) {
             if (score === undefined)
-                return o;
+                return result;
 
             score = Scored.normalizedScore(score);
 
-            return score === o.score
-                ? o
-                : new Scored(o.result, score);
+            return score === result.score
+                ? result
+                : new Scored(result.result, score);
         }
 
-        return new Scored(o, Scored.normalizedScore(score));
+        return new Scored(result, Scored.normalizedScore(score));
     }
+
+    /**
+     * Unwraps a Scored object
+     * @param result The Scored object to unwrap (or any other result)
+     * @returns The Scored result, or result if its not a Scored
+     */
 
     static unwrap <
         RESULT,
@@ -71,6 +88,11 @@ export class Scored <
     }
 }
 
+/**
+ * A Transform which returns its argument, sorted
+ * @param ascending true to sort ascending, false (or omit) to sort descending
+ * @returns its argument if not an array, otherwise a sorted version of the argument
+ */
 export const sort = <O> (
     ascending = false,
 ) => (o: O) => Array.isArray(o)
@@ -83,6 +105,12 @@ export interface TopOptions {
     maxResults?: number;
     tolerance?: number;
 }
+
+/**
+ * A Transform which returns the highest scoring elements of the argument
+ * @param options { maxResults: maximum number of elements to return (>= 1, defaults to Number.POSITIVE_INFINITY), tolerance: fuzz factor by which to include more results (>= 0 and < 1, defaults to 0) }
+ * @returns a new Transform which the highest scoring elements as an array or results, a single result, or null, as appropriate.
+ */
 
 export function top <
     RESULT,
@@ -128,6 +156,12 @@ export function top <
         return top.length === 1 ? top[0] : top;
     }
 }
+
+/**
+ * Composes multiple functions into a new Transform which returns the highest-scoring result of the functions
+ * @param transforms the functions to run, each of which should return a Scored result or an array of Scored results
+ * @returns a new Transform which returns the unwrapped highest-scoring result of the functions
+ */
 
 export function best <
     ARGS extends any[],
