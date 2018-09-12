@@ -99,7 +99,7 @@ export function multiple (
                 .filter(o => o !== null)
         ) as any[];
 
-        return results.length === 0 ? null : 
+        return results.length === 0 ? null :
             results.length === 1 ? results[0] :
             results;
     };
