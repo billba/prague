@@ -77,7 +77,7 @@ export function first (
 
     const _transforms = transforms.map(from);
 
-    return (async (...args: any[]) => {
+    return async (...args: any[]) => {
         for (const transform of _transforms) {
             const o = await transform(...args);
             if (o !== null)
@@ -85,5 +85,5 @@ export function first (
         }
 
         return null;
-    });
+    };
 }
