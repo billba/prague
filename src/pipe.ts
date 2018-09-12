@@ -1,5 +1,11 @@
 import { Transform, Returns, from, toPromise, NullIfNullable, transformToNull } from "./prague";
 
+/**
+ * Compose multiple functions into a new Transform by chaining the result of one as the argument to the next, stopping if one returns null
+ * @param ARGS The arguments to the first function, and to the resultant Transform
+ * @param args The functions to chain together
+ * @returns A new Transform which returns null if any function returns null, otherwise the result of the last function
+ */
 export function pipe(): Transform<[], null>;
 
 export function pipe <
@@ -87,21 +93,39 @@ export function pipe (
     }) as Transform<any[], any>;
 }
 
+/**
+ * Wraps the supplied function in a new Transform which runs the function with its argument and then returns that argument. Good for executing code without disrupting a pipe or combine chain.
+ * @param fn The function to execute
+ * @returns A new Transform which returns its argument
+ */
 export const tap = <
-    RESULT,
+    R,
 > (
-    fn: (result: RESULT) => any,
-): Transform<[RESULT], RESULT> =>
-    (result: RESULT) => toPromise(fn(result))
+    fn: (result: R) => any,
+): Transform<[R], R> =>
+    (result: R) => toPromise(fn(result))
         .then(() => result);
 
+/**
+ * A Transform which runs console.log on it's argument and then returns it
+ * @returns A Transform which returns its argument
+ */
 export const log = tap(console.log);
 
+/**
+ * A Transform which runs its argument if it's a function
+ * @returns A Transform which returns its argument
+ */
 export const doAction = tap(o => {
     if (typeof o === 'function')
         return o();
 });
 
+/**
+ * Wraps a function in a new Transform which runs the function and runs its result if it's a function
+ * @param transform the function whose result may be a function to run
+ * @returns A new Transform
+ */
 export function run <
     ARGS extends any[],
     O
@@ -114,6 +138,12 @@ export function run <
     );
 }
 
+/**
+ * Compose multiple functions into a new Transform by chaining the result of one as the argument to the next
+ * @param ARGS The arguments to the first function, and to the resultant Transform
+ * @param args The transforms to chain together
+ * @returns A new Transform which returns the result of the last function
+ */
 export function combine (): Transform<[], null>;
 
 export function combine <

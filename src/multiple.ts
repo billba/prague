@@ -9,6 +9,12 @@ type F<T> = NonNullable<T> extends never ? never : T;
 
 type Flatten<T> = T extends Array<infer U> ? U : T;
 
+/**
+ * Composes multiple functions into a new Transform which collects the non-null results of the functions
+ * @param ARGS the type of the arguments to the functions and the resultant Transform
+ * @param transforms the functions to run
+ * @returns a new Transform which returns the non-null results of the functions as an array or results, a single result, or null, as appropriate.
+ */
 export function multiple(): Transform<[], null>;
 
 export function multiple <

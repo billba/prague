@@ -1,6 +1,13 @@
 import { Returns, combine, Transform, from } from './prague';
 import { transformToNull } from './core';
 
+/**
+ * Composes two functions into a new Transform which chooses which function to run based on the argument.
+ * @param onResult the function to run if the argument is non-null.
+ * @param onNull the function to run if the argument is null. If omitted, null is returned.
+ * @returns A new Transform which returns either the result of onResult or the result of onNull
+ */
+
 export const branch = <
     O,
     ONRESULT,
@@ -15,19 +22,57 @@ export const branch = <
     return ((o: O) => o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Transform<[O], ONRESULT | ONNULL>;
 }
 
+/**
+ * Composes three functions into a new Transform. The first determines which of the other two to run.
+ * @param matcher the function to run to determine whether to run onResult or onNull
+ * @param onResult the function to run if the result of matcher is non-null.
+ * @param onNull the function to run if the result of matcher is null. If omitted, null is returned.
+ * @returns A new Transform which returns either the result of onResult or the result of onNull
+ */
+
 export const match = <
     ARGS extends any[],
     O,
     ONRESULT,
     ONNULL = null,
 > (
-    transform: (...args: ARGS) => Returns<O>,
+    matcher: (...args: ARGS) => Returns<O>,
     onResult: (result: NonNullable<O>) => Returns<ONRESULT>,
     onNull?: () => Returns<ONNULL>,
 ) => combine(
-    transform,
+    matcher,
     branch(onResult, onNull),
 );
+
+/**
+ * Wraps a predicate into a new Transform which returns true or null.
+ * @param predicate the function to run to determine whether to return true or null.
+ * @returns a new Transform which returns true or null
+ */
+export const toPredicate = <
+    ARGS extends any[],
+    O
+> (
+    predicate: (...args: ARGS) => Returns<O>,
+) => combine(
+    predicate,
+    o => o ? true : null,
+);
+
+/**
+ * Wraps a predicate into a new Transform which decides whether a pipe chain should continue.
+ * @param predicate the function to run to determine whether to continue in a pipe chain.
+ * @returns a new Transform which returns true or null
+ */
+export const onlyContinueIf = toPredicate;
+
+/**
+ * Composes three functions into a new Transform. The first determines which of the other two to run.
+ * @param predicate the function to run to determine whether to run onResult or onNull.
+ * @param onTruthy the function to run if the result of predicate is truthy.
+ * @param onFalsey the function to run if the result of predicate is falsey. If omitted, returns null.
+ * @returns A new Transform which returns either the result of onTruthy or the result of onFalsey.
+ */
 
 export const matchIf = <
     ARGS extends any[],
@@ -38,17 +83,6 @@ export const matchIf = <
     onTruthy: () => ONTRUTHY,
     onFalsey?: () => ONFALSEY,
 ) => combine(
-    predicate,
-    o => o ? true : null,
+    toPredicate(predicate),
     branch(onTruthy, onFalsey),
-);
-
-export const onlyContinueIf = <
-    ARGS extends any[],
-    O
-> (
-    predicate: (...args: ARGS) => Returns<O>,
-) => combine(
-    predicate,
-    o => o || null,
 );

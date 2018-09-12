@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "0.25.0",
+  "version": "1.0.0",
   "description": "FP helpers for games and chatbots",
   "main": "lib/src/prague.js",
   "types": "lib/src/prague.d.ts",
