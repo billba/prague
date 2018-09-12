@@ -75,13 +75,13 @@ export function multiple <
 export function multiple <
     ARGS extends any[],
     O
-> (...args:
+> (...transforms:
     ((...args: ARGS) => Returns<O>)[]
 ): Transform<ARGS, NonNullable<O> | NullIfNull<O>>;
 
 export function multiple <
     ARGS extends any[],
-> (...args:
+> (...transforms:
     ((...args: ARGS) => any)[]
 ): Transform<ARGS, any>;
 
