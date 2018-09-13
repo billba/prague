@@ -6,6 +6,7 @@ import { Transform, Returns, transformToNull, from } from "./prague";
  * @param transforms The transforms to try in order
  * @returns A new Transform which returns the first non-null result of a transform, otherwise null
  */
+
 export function first(): Transform<[], null>;
 
 export function first <
@@ -87,3 +88,7 @@ export function first (
         return null;
     };
 }
+
+first(
+    (a: string) => a === "bill" ? a : null,
+)

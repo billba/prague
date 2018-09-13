@@ -3,6 +3,7 @@ import { pipe, Scored, tap, toPromise, Transform } from './prague';
 /**
  * A reference to a function to potentially execute at a later time
  **/
+
 export class ActionReference {
 
     args: any[];
@@ -12,6 +13,7 @@ export class ActionReference {
      * @param name The name of the function
      * @param args The arguments to the function
      */
+
     constructor (
         public name: string,
         ...args: any[]

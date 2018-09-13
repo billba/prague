@@ -28,6 +28,7 @@ function _pipe (
  * @param transforms The functions to chain together
  * @returns A new Transform which returns null if any function returns null, otherwise the result of the last function
  */
+
 export function pipe(): Transform<[], null>;
 
 export function pipe <
@@ -111,6 +112,7 @@ export function pipe (
  * @param fn The function to execute
  * @returns A new Transform which returns its argument
  */
+
 export const tap = <
     R,
 > (
@@ -123,12 +125,14 @@ export const tap = <
  * A Transform which runs console.log on it's argument and then returns it
  * @returns A Transform which returns its argument
  */
+
 export const log = tap(console.log);
 
 /**
  * A Transform which runs its argument if it's a function
  * @returns A Transform which returns its argument
  */
+
 export const doAction = tap(o => {
     if (typeof o === 'function')
         return o();
@@ -139,6 +143,7 @@ export const doAction = tap(o => {
  * @param transform the function whose result may be a function to run
  * @returns A new Transform
  */
+
 export function run <
     ARGS extends any[],
     O
@@ -157,6 +162,7 @@ export function run <
  * @param transforms The transforms to chain together
  * @returns A new Transform which returns the result of the last function
  */
+
 export function combine (): Transform<[], null>;
 
 export function combine <
