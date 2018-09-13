@@ -2,6 +2,26 @@ import { Transform, Returns, from, toPromise, transformToNull } from "./prague";
 
 type NullIfNullable<T> = T extends null ? null : never;
 
+function _pipe (
+    shortCircuit: boolean,
+    ...transforms: ((...args: any[]) => any)[]
+) {
+    if (transforms.length === 0)
+        return transformToNull;
+
+    const _transforms = transforms.map(from);
+
+    return async (...args: any[]) => {
+        for (const transform of _transforms) {
+            args = [await transform(...args)];
+            if (shortCircuit && args[0] === null)
+                return null;
+        }
+
+        return args[0];
+    }
+}
+
 /**
  * Compose multiple functions into a new Transform by chaining the result of one as the argument to the next, stopping if one returns null
  * @param ARGS The arguments to the first function, and to the resultant Transform
@@ -83,20 +103,7 @@ export function pipe <
 export function pipe (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    if (transforms.length === 0)
-        return transformToNull;
-
-    const _transforms = transforms.map(from);
-
-    return async (...args: any[]) => {
-        for (const transform of _transforms) {
-            args = [await transform(...args)];
-            if (args[0] === null)
-                return null;
-        }
-
-        return args[0];
-    }
+    return _pipe(true, ...transforms);
 }
 
 /**
@@ -225,16 +232,5 @@ export function combine <
 export function combine (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    if (transforms.length === 0)
-        return transformToNull;
-
-    const _transforms = transforms.map(from);
-
-    return async (...args: any[]) => {
-        for (const transform of _transforms) {
-            args = [await transform(...args)];
-        }
-
-        return args[0];
-    }
+    return _pipe(false, ...transforms);
 }
