@@ -49,6 +49,7 @@ export const match = <
  * @param predicate the function to run to determine whether to return true or null.
  * @returns a new Transform which returns true or null
  */
+
 export const toPredicate = <
     ARGS extends any[],
 > (
@@ -63,6 +64,7 @@ export const toPredicate = <
  * @param predicate the function to run to determine whether to continue in a pipe chain.
  * @returns a new Transform which returns true or null
  */
+
 export const onlyContinueIf = toPredicate;
 
 /**
