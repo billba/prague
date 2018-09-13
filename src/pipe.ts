@@ -1,6 +1,4 @@
-import { Transform, Returns, from, toPromise, transformToNull } from "./prague";
-
-type NullIfNullable<T> = T extends null ? null : never;
+import { Transform, Returns, from, toPromise, transformToNull, Norm, Nullable } from "./prague";
 
 function _pipe (
     shortCircuit: boolean,
@@ -22,6 +20,20 @@ function _pipe (
     }
 }
 
+// pipe either returns null or the last result
+
+type Pipe<Prev, Last> =
+    // if Prev is just nulls, return null
+    NonNullable<Prev> extends never ? null :
+    // if Last is just nulls, return null
+    NonNullable<Last> extends never ? null :
+    // if Prev has no nulls, return Last
+    Nullable<Prev> extends never ? Norm<Last> :
+    // Prev is Nullable, return Last | null
+    Norm<Last | null>;
+
+// type NullIfNullable<T> = T extends null ? null : never;
+
 /**
  * Compose multiple functions into a new Transform by chaining the result of one as the argument to the next, stopping if one returns null
  * @param ARGS The arguments to the first function, and to the resultant Transform
@@ -29,14 +41,15 @@ function _pipe (
  * @returns A new Transform which returns null if any function returns null, otherwise the result of the last function
  */
 
-export function pipe(): Transform<[], null>;
+export function pipe(
+): Transform<[], null>;
 
 export function pipe <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): Transform<ARGS, R0>;
+]): Transform<ARGS, Norm<R0>>;
 
 export function pipe <
     ARGS extends any[],
@@ -45,7 +58,7 @@ export function pipe <
 > (...transforms: [
     (...args: ARGS)        => Returns<R0>,
     (arg: NonNullable<R0>) => Returns<R1>
-]): Transform<ARGS, NullIfNullable<R0> | R1>;
+]): Transform<ARGS, Pipe<R0, R1>>;
 
 export function pipe <
     ARGS extends any[],
@@ -56,7 +69,7 @@ export function pipe <
     (...args: ARGS)        => Returns<R0>,
     (arg: NonNullable<R0>) => Returns<R1>,
     (arg: NonNullable<R1>) => Returns<R2>
-]): Transform<ARGS, NullIfNullable<R0 | R1> | R2>;
+]): Transform<ARGS, Pipe<Pipe<R0, R1>, R2>>;
 
 export function pipe <
     ARGS extends any[],
@@ -69,7 +82,7 @@ export function pipe <
     (arg: NonNullable<R0>) => Returns<R1>,
     (arg: NonNullable<R1>) => Returns<R2>,
     (arg: NonNullable<R2>) => Returns<R3>
-]): Transform<ARGS, NullIfNullable<R0 | R1 | R2> | R3>;
+]): Transform<ARGS, Pipe<Pipe<Pipe<R0, R1>, R2>, R3>>;
 
 export function pipe <
     ARGS extends any[],
@@ -84,7 +97,7 @@ export function pipe <
     (arg: NonNullable<R1>) => Returns<R2>,
     (arg: NonNullable<R2>) => Returns<R3>,
     (arg: NonNullable<R3>) => Returns<R4>
-]): Transform<ARGS, NullIfNullable<R0 | R1 | R2 | R3> | R4>;
+]): Transform<ARGS, Pipe<Pipe<Pipe<Pipe<R0, R1>, R2>, R3>, R4>>;
 
 export function pipe <
     ARGS extends any[],
@@ -92,14 +105,15 @@ export function pipe <
     R1,
     R2,
     R3,
+    R4,
 > (...transforms: [
     (...args: ARGS)        => Returns<R0>,
     (arg: NonNullable<R0>) => Returns<R1>,
     (arg: NonNullable<R1>) => Returns<R2>,
     (arg: NonNullable<R2>) => Returns<R3>,
-    (arg: NonNullable<R3>) => any,
+    (arg: NonNullable<R3>) => Returns<R4>,
     ...((arg: any) => any)[]
-]): Transform<ARGS, any>;
+]): Transform<ARGS, Pipe<Pipe<Pipe<Pipe<Pipe<R0, R1>, R2>, R3>, R4>, any>>;
 
 export function pipe (
     ...transforms: ((...args: any[]) => any)[]
@@ -163,14 +177,15 @@ export function run <
  * @returns A new Transform which returns the result of the last function
  */
 
-export function combine (): Transform<[], null>;
+export function combine (
+): Transform<[], null>;
 
 export function combine <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): Transform<ARGS, R0>;
+]): Transform<ARGS, Norm<R0>>;
 
 export function combine <
     ARGS extends any[],
@@ -179,7 +194,7 @@ export function combine <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (arg: R0)       => Returns<R1>
-]): Transform<ARGS, R1>;
+]): Transform<ARGS, Norm<R1>>;
 
 export function combine <
     ARGS extends any[],
@@ -190,7 +205,7 @@ export function combine <
     (...args: ARGS) => Returns<R0>,
     (arg: R0)       => Returns<R1>,
     (arg: R1)       => Returns<R2>
-]): Transform<ARGS, R2>;
+]): Transform<ARGS, Norm<R2>>;
 
 export function combine <
     ARGS extends any[],
@@ -203,7 +218,7 @@ export function combine <
     (arg: R0)       => Returns<R1>,
     (arg: R1)       => Returns<R2>,
     (arg: R2)       => Returns<R3>
-]): Transform<ARGS, R3>;
+]): Transform<ARGS, Norm<R3>>;
 
 export function combine <
     ARGS extends any[],
@@ -218,7 +233,7 @@ export function combine <
     (arg: R1)       => Returns<R2>,
     (arg: R2)       => Returns<R3>,
     (arg: R3)       => Returns<R4>
-]): Transform<ARGS, R4>;
+]): Transform<ARGS, Norm<R4>>;
 
 export function combine <
     ARGS extends any[],

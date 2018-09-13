@@ -32,6 +32,14 @@ export type Transform <
 export const transformToNull: Transform<[], null> = () => Promise.resolve(null);
 
 /**
+ * Normalizes result type ofa *Prague* Transform (turns undefined => null)
+ * @param O The result type to normalize
+ */
+
+export type Nullable<T> = Extract<T, null | undefined>;
+export type Norm<O> = O extends undefined ? null : O;
+
+/**
  * Normalizes the supplied function into a Transform. Most *Prague* helpers normalize the functions you pass them 
  * @param fn The function to normalize. Can return a `Promise` or not, and can return `undefined` in place of `null`.
  */
@@ -47,5 +55,5 @@ export const from = <
 
     return ((...args: ARGS) => toPromise(fn(...args))
         .then(r => r == null ? null : r)
-    ) as Transform<ARGS, O>;
+    ) as Transform<ARGS, Norm<O>>;
 }
