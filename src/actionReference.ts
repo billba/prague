@@ -100,9 +100,8 @@ export class ActionReferences <
 
     run <
         ARGS extends any[],
-        O
     > (
-        transform: (...args: ARGS) => O,
+        transform: (...args: ARGS) => any,
         ...contextArgs: CONTEXTARGS
     ) {
         return pipe(

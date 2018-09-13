@@ -51,9 +51,8 @@ export const match = <
  */
 export const toPredicate = <
     ARGS extends any[],
-    O
 > (
-    predicate: (...args: ARGS) => Returns<O>,
+    predicate: (...args: ARGS) => any,
 ) => combine(
     predicate,
     o => o ? true : null,
@@ -80,8 +79,8 @@ export const matchIf = <
     ONFALSEY = null,
 > (
     predicate: (...args: ARGS) => any,
-    onTruthy: () => ONTRUTHY,
-    onFalsey?: () => ONFALSEY,
+    onTruthy: () => Returns<ONTRUTHY>,
+    onFalsey?: () => Returns<ONFALSEY>,
 ) => combine(
     toPredicate(predicate),
     branch(onTruthy, onFalsey),
