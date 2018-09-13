@@ -32,11 +32,10 @@ export type Transform <
 export const transformToNull: Transform<[], null> = () => Promise.resolve(null);
 
 /**
- * Normalizes result type ofa *Prague* Transform (turns undefined => null)
+ * Normalizes result type of a *Prague* Transform (turns undefined => null)
  * @param O The result type to normalize
  */
 
-export type Nullable<T> = Extract<T, null | undefined>;
 export type Norm<O> = O extends undefined ? null : O;
 
 /**

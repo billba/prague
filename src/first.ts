@@ -1,16 +1,6 @@
-import { Transform, Returns, transformToNull, from, Norm, Nullable } from "./prague";
+import { Transform, Returns, transformToNull, from, Norm } from "./prague";
 
-type First<Prev, Last> =
-    // if Prev has no nulls, we'll never get to Last
-    Nullable<Prev> extends never ? Prev :
-    // if Last has no nulls, null will not be returned
-    Nullable<Last> extends never ? NonNullable<Prev | Last> :
-    // if Prev is just nulls then return Last
-    NonNullable<Prev> extends never ? Norm<Last> :
-    // if Last is just nulls then return Prev
-    NonNullable<Last> extends never ? Norm<Prev> :
-    // both Prev and Last are a mix of nulls and non-results
-    Norm<Prev | Last>;
+type First<Prev, Last> = Prev extends null | undefined ? Norm<Last> : Prev;
 
 /**
  * Compose multiple functions into a single Transform which tries each function in sequence until one succeeds  

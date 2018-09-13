@@ -1,13 +1,14 @@
-import { Transform, Returns, transformToNull, from } from "./prague";
+import { Transform, Returns, transformToNull, from, Norm } from "./prague";
 const flat = require('array.prototype.flat');
 
-type MaybeArray<T> = [T] extends [never] ? never : T | Array<T>;
-
-type NullIfNull<T> = NonNullable<T> extends never ? null : never;
-
-type F<T> = NonNullable<T> extends never ? never : T;
-
 type Flatten<T> = T extends Array<infer U> ? U : T;
+
+type Multiple<Prev, Last> =
+    Prev extends null | undefined ? Norm<Last> :
+    // Prev is not null
+    Last extends null | undefined ? Prev :
+    // Last is not null
+    Array<Flatten<Prev> | Flatten<Last>>;
 
 /**
  * Composes multiple functions into a new Transform which collects the non-null results of the functions
@@ -15,6 +16,7 @@ type Flatten<T> = T extends Array<infer U> ? U : T;
  * @param transforms the functions to run
  * @returns a new Transform which returns the non-null results of the functions as an array or results, a single result, or null, as appropriate.
  */
+
 export function multiple(): Transform<[], null>;
 
 export function multiple <
@@ -22,7 +24,7 @@ export function multiple <
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): Transform<ARGS, R0>;
+]): Transform<ARGS, Norm<R0>>;
 
 export function multiple <
     ARGS extends any[],
@@ -31,7 +33,7 @@ export function multiple <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
-]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1>>> | NullIfNull<F<R0> | F<R1>>>;
+]): Transform<ARGS, Multiple<R0, R1>>;
 
 export function multiple <
     ARGS extends any[],
@@ -42,7 +44,7 @@ export function multiple <
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
-]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1> | Flatten<R2>>> | NullIfNull<F<R0> | F<R1> | F<R2>>>;
+]): Transform<ARGS, Multiple<Multiple<R0, R1>, R2>>;
 
 export function multiple <
     ARGS extends any[],
@@ -55,7 +57,7 @@ export function multiple <
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>
-]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1> | Flatten<R2> | Flatten<R3>>> | NullIfNull<F<R0> | F<R1> | F<R2> | F<R3>>>;
+]): Transform<ARGS, Multiple<Multiple<Multiple<R0, R1>, R2>, R3>>;
 
 export function multiple <
     ARGS extends any[],
@@ -70,20 +72,23 @@ export function multiple <
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>
-]): Transform<ARGS, MaybeArray<NonNullable<Flatten<R0> | Flatten<R1> | Flatten<R2> | Flatten<R3> | Flatten<R4>>> | NullIfNull<F<R0> | F<R1> | F<R3> | F<R4>>>;
+]): Transform<ARGS, Multiple<Multiple<Multiple<Multiple<R0, R1>, R2>, R3>, R4>>;
 
 export function multiple <
     ARGS extends any[],
-    O
-> (...transforms:
-    ((...args: ARGS) => Returns<O>)[]
-): Transform<ARGS, NonNullable<O> | NullIfNull<O>>;
-
-export function multiple <
-    ARGS extends any[],
-> (...transforms:
-    ((...args: ARGS) => any)[]
-): Transform<ARGS, any>;
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>,
+    (...args: ARGS) => Returns<R1>,
+    (...args: ARGS) => Returns<R2>,
+    (...args: ARGS) => Returns<R3>,
+    (...args: ARGS) => Returns<R4>,
+    ...((arg: any) => any)[]
+]): Transform<ARGS, Multiple<Multiple<Multiple<Multiple<Multiple<R0, R1>, R2>, R3>, R4>, any>>;
 
 export function multiple (
     ...transforms: ((...args: any[]) => any)[]

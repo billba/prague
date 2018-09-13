@@ -1,4 +1,4 @@
-import { Transform, Returns, from, toPromise, transformToNull, Norm, Nullable } from "./prague";
+import { Transform, Returns, from, toPromise, transformToNull, Norm } from "./prague";
 
 function _pipe (
     shortCircuit: boolean,
@@ -20,19 +20,7 @@ function _pipe (
     }
 }
 
-// pipe either returns null or the last result
-
-type Pipe<Prev, Last> =
-    // if Prev is just nulls, return null
-    NonNullable<Prev> extends never ? null :
-    // if Last is just nulls, return null
-    NonNullable<Last> extends never ? null :
-    // if Prev has no nulls, return Last
-    Nullable<Prev> extends never ? Norm<Last> :
-    // Prev is Nullable, return Last | null
-    Norm<Last | null>;
-
-// type NullIfNullable<T> = T extends null ? null : never;
+type Pipe<Prev, Last> = Prev extends null | undefined ? null : Norm<Last>;
 
 /**
  * Compose multiple functions into a new Transform by chaining the result of one as the argument to the next, stopping if one returns null
