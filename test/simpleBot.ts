@@ -14,23 +14,21 @@ class TestContext {
 
 describe("greeting", () => { 
 
-    it("should have a default handler", () => {
-        const c = new TestContext("hello");
-        return botLogic(c)
+    it("should have a default handler", () =>
+        botLogic(new TestContext("hello"))
             .then(m => {
                 expect(m).instanceof(ActionReference);
-                expect((m as ActionReference).name).equals('default');
-            });
-    });
+                expect(m.name).equals('default');
+            })
+    );
 
-    it("should let me introduce myself", () => {
-        const c = new TestContext("My name is Bill");
-        return botLogic(c)
+    it("should let me introduce myself", () =>
+        botLogic(new TestContext("My name is Bill"))
             .then(m => {
                 expect(m).instanceof(ActionReference);
-                expect((m as ActionReference).name).equals('greet');
-                expect((m as ActionReference).args).deep.equals(['Bill']);
-            });
-    });
+                expect(m.name).equals('greet');
+                expect(m.args).deep.equals(['Bill']);
+            })
+    );
 
 })
