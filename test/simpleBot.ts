@@ -1,5 +1,5 @@
 import { expect } from './common';
-import { _bot } from '../samples/simpleBot';
+import { botLogic } from '../samples/simpleBot';
 import { ActionReference } from '../src/prague';
 
 class TestContext {
@@ -16,7 +16,7 @@ describe("greeting", () => {
 
     it("should have a default handler", () => {
         const c = new TestContext("hello");
-        return _bot(c)
+        return botLogic(c)
             .then(m => {
                 expect(m).instanceof(ActionReference);
                 expect((m as ActionReference).name).equals('default');
@@ -25,7 +25,7 @@ describe("greeting", () => {
 
     it("should let me introduce myself", () => {
         const c = new TestContext("My name is Bill");
-        return _bot(c)
+        return botLogic(c)
             .then(m => {
                 expect(m).instanceof(ActionReference);
                 expect((m as ActionReference).name).equals('greet');
