@@ -111,7 +111,10 @@ const whenClosed = first(
 );
 
 // `botLogic` is the top-level logic that decides what actions to take. It has a top-level
-// "catch-all" rule, guaranteeing that it will always return an `ActionReference`.
+// "catch-all" rule, guaranteeing that it will always return an `ActionReference`. In fact
+// if you mouse over `botLogic` you can confirm that it returns `Promise<ActionReference>`.
+// (Try commenting out the `actions.reference.default,` line and see how the return type
+// of `botLogic` changes.)
 //
 // Because `botLogic` only returns a description of the action to take, it is perfect for testing.
 // "../test/simpleBot.ts" contains tests for `botLogic`.

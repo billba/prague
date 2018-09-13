@@ -22,7 +22,16 @@ The *Prague* tutorial starts [here](./docs/1.testable_bots.md).
 
 ## Samples
 
-There is a simple chatbot sample [here](./samples/simpleBot.ts)
+There is a simple chatbot sample [here](./samples/simpleBot.ts).
 
-After building *Prague*, run it by `node lib/samples/runSimpleBot.js`
+After building *Prague*, run it by `node lib/samples/runSimpleBot.js`, then try saying:
 
+```
+My name is {your name here}
+Je m'appelle {your name here}
+Gone fishing
+Howdy y'all, I'm { your name here}
+Back to work
+Howdy y'all, I'm { your name here}
+Goodbye
+```
