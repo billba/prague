@@ -84,7 +84,7 @@ export class Scored <
 }
 
 /**
- * A Transform which returns its argument, sorted
+ * A transform which returns its argument, sorted
  * @param ascending true to sort ascending, false (or omit) to sort descending
  * @returns its argument if not an array, otherwise a sorted version of the argument
  */
@@ -106,9 +106,9 @@ export interface TopOptions {
 }
 
 /**
- * A Transform which returns the highest scoring elements of the argument
+ * A transform which returns the highest scoring elements of the argument
  * @param options maxResults and/or tolerance
- * @returns a new Transform which the highest scoring elements as an array or results, a single result, or null, as appropriate.
+ * @returns a new transform which the highest scoring elements as an array or results, a single result, or null, as appropriate.
  */
 
 export function top <
@@ -158,9 +158,9 @@ export function top <
 type Unwrap<T> = T extends Scored<infer U> ? U : T;
 
 /**
- * Composes multiple functions into a new Transform which returns the highest-scoring result of the functions
+ * Composes multiple functions into a new transform which returns the highest-scoring result of the functions
  * @param transforms the functions to run, each of which should return a Scored result or an array of Scored results
- * @returns a new Transform which returns the unwrapped highest-scoring result of the functions
+ * @returns a new transform which returns the unwrapped highest-scoring result of the functions
  */
 
 export function best (

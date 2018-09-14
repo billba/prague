@@ -2,10 +2,10 @@ import { Returns, combine, from } from './prague';
 import { transformToNull } from './core';
 
 /**
- * Composes two functions into a new Transform which chooses which function to run based on the argument.
+ * Composes two functions into a new transform which chooses which function to run based on the argument.
  * @param onResult the function to run if the argument is non-null.
  * @param onNull the function to run if the argument is null. If omitted, null is returned.
- * @returns A new Transform which returns either the result of onResult or the result of onNull
+ * @returns A new transform which returns either the result of onResult or the result of onNull
  */
 
 export const branch = <
@@ -23,11 +23,11 @@ export const branch = <
 }
 
 /**
- * Composes three functions into a new Transform. The first determines which of the other two to run.
+ * Composes three functions into a new transform. The first determines which of the other two to run.
  * @param matcher the function to run to determine whether to run onResult or onNull
  * @param onResult the function to run if the result of matcher is non-null.
  * @param onNull the function to run if the result of matcher is null. If omitted, null is returned.
- * @returns A new Transform which returns either the result of onResult or the result of onNull
+ * @returns A new transform which returns either the result of onResult or the result of onNull
  */
 
 export const match = <
@@ -45,9 +45,9 @@ export const match = <
 );
 
 /**
- * Wraps a predicate into a new Transform which returns true or null.
+ * Wraps a predicate into a new transform which returns true or null.
  * @param predicate the function to run to determine whether to return true or null.
- * @returns a new Transform which returns true or null
+ * @returns a new transform which returns true or null
  */
 
 export const toPredicate = <
@@ -60,19 +60,19 @@ export const toPredicate = <
 );
 
 /**
- * Wraps a predicate into a new Transform which decides whether a pipe chain should continue.
+ * Wraps a predicate into a new transform which decides whether a pipe chain should continue.
  * @param predicate the function to run to determine whether to continue in a pipe chain.
- * @returns a new Transform which returns true or null
+ * @returns a new transform which returns true or null
  */
 
 export const onlyContinueIf = toPredicate;
 
 /**
- * Composes three functions into a new Transform. The first determines which of the other two to run.
+ * Composes three functions into a new transform. The first determines which of the other two to run.
  * @param predicate the function to run to determine whether to run onResult or onNull.
  * @param onTruthy the function to run if the result of predicate is truthy.
  * @param onFalsey the function to run if the result of predicate is falsey. If omitted, returns null.
- * @returns A new Transform which returns either the result of onTruthy or the result of onFalsey.
+ * @returns A new transform which returns either the result of onTruthy or the result of onFalsey.
  */
 
 export const matchIf = <
