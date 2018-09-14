@@ -1,4 +1,4 @@
-import { Returns, combine, Transform, from } from './prague';
+import { Returns, combine, from } from './prague';
 import { transformToNull } from './core';
 
 /**
@@ -19,7 +19,7 @@ export const branch = <
     const _onResult = from(onResult);
     const _onNull = onNull ? from(onNull) : transformToNull;
 
-    return ((o: O) => o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Transform<[O], ONRESULT | ONNULL>;
+    return (o: O) => (o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Promise<ONRESULT | ONNULL>;
 }
 
 /**

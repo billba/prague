@@ -1,23 +1,23 @@
-import { Transform, Returns, transformToNull, from, Norm } from "./prague";
+import { Returns, transformToNull, from, Norm } from "./prague";
 
 type First<Prev, Last> = Prev extends null | undefined ? Norm<Last> : Prev;
 
 /**
- * Compose multiple functions into a single Transform which tries each function in sequence until one succeeds  
- * @param ARGS The arguments to each Transform argument, and to the resultant Transform
+ * Compose multiple functions into a single transform which tries each function in sequence until one succeeds  
+ * @param ARGS The arguments to each transform argument, and to the resultant transform
  * @param transforms The transforms to try in order
- * @returns A new Transform which returns the first non-null result of a transform, otherwise null
+ * @returns A new transform which returns the first non-null result of a transform, otherwise null
  */
 
 export function first(
-): Transform<[], null>;
+): () => Promise<null>;
 
 export function first <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): Transform<ARGS, Norm<R0>>;
+]): (...args: ARGS) => Promise<Norm<R0>>;
 
 export function first <
     ARGS extends any[],
@@ -26,7 +26,7 @@ export function first <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
-]): Transform<ARGS, First<R0, R1>>;
+]): (...args: ARGS) => Promise<First<R0, R1>>;
 
 export function first <
     ARGS extends any[],
@@ -37,7 +37,7 @@ export function first <
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
-]): Transform<ARGS, First<First<R0, R1>, R2>>
+]): (...args: ARGS) => Promise<First<First<R0, R1>, R2>>
 
 export function first <
     ARGS extends any[],
@@ -50,7 +50,7 @@ export function first <
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>
-]): Transform<ARGS, First<First<First<R0, R1>, R2>, R3>>;
+]): (...args: ARGS) => Promise<First<First<First<R0, R1>, R2>, R3>>;
 
 export function first <
     ARGS extends any[],
@@ -65,7 +65,7 @@ export function first <
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>
-]): Transform<ARGS, First<First<First<First<R0, R1>, R2>, R3>, R4>>;
+]): (...args: ARGS) => Promise<First<First<First<First<R0, R1>, R2>, R3>, R4>>;
 
 export function first <
     ARGS extends any[],
@@ -81,7 +81,7 @@ export function first <
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>,
     ...((arg: any) => any)[]
-]): Transform<ARGS, First<First<First<First<First<R0, R1>, R2>, R3>, R4>, any>>;
+]): (...args: ARGS) => Promise<First<First<First<First<First<R0, R1>, R2>, R3>, R4>, any>>;
 
 export function first (
     ...transforms: ((...args: any[]) => any)[]

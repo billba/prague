@@ -1,4 +1,4 @@
-import { Transform, pipe, toArray, fromArray, Returns, ToArray, FromArray } from './prague';
+import { pipe, toArray, fromArray, Returns, ToArray, FromArray } from './prague';
 
 /**
  * Wraps a result with its numeric score
@@ -93,12 +93,12 @@ type MakeScored<O> = O extends [] ? null : O extends Array<infer T> ? Array<T ex
 
 export const sort = <O> (
     ascending = false,
-) => ((o: O) => Promise.resolve(Array.isArray(o)
+) => (o: O) => Promise.resolve(Array.isArray(o)
     ? o
         .map(result => Scored.from(result))
         .sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))
     : o
-)) as Transform<[O], MakeScored<O>>;
+) as Promise<MakeScored<O>>;
 
 export interface TopOptions {
     maxResults?: number;
@@ -115,8 +115,7 @@ export function top <
     RESULT,
 > (
     options?: TopOptions,
-): Transform<[RESULT], any> {
-
+): (r: RESULT) => Promise<RESULT> {
     let maxResults = Number.POSITIVE_INFINITY;
     let tolerance  = 0;
 
@@ -136,7 +135,7 @@ export function top <
         }
     }
 
-    return (async (result: RESULT) => {
+    return async (result: RESULT) => {
         if (!Array.isArray(result))
             return result;
 
@@ -152,8 +151,8 @@ export function top <
             top.push(_result);
         }
 
-        return top;
-    }) as Transform<[RESULT], RESULT>;
+        return top as unknown as RESULT;
+    }
 }
 
 type Unwrap<T> = T extends Scored<infer U> ? U : T;
@@ -165,14 +164,14 @@ type Unwrap<T> = T extends Scored<infer U> ? U : T;
  */
 
 export function best (
-): Transform<[], []>;
+): () => Promise<[]>;
 
 export function best <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<[], R0>>>>>;
+]): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<[], R0>>>>>;
 
 export function best <
     ARGS extends any[],
@@ -181,7 +180,7 @@ export function best <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
-]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<[], R0>, R1>>>>>;
+]): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<ToArray<[], R0>, R1>>>>>;
 
 export function best <
     ARGS extends any[],
@@ -192,7 +191,7 @@ export function best <
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
-]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<[], R0>, R1>, R2>>>>>;
+]): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<[], R0>, R1>, R2>>>>>;
 
 export function best <
     ARGS extends any[],
@@ -205,7 +204,7 @@ export function best <
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>
-]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>>>>>;
+]): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>>>>>;
 
 export function best <
     ARGS extends any[],
@@ -220,7 +219,7 @@ export function best <
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>
-]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>>>>>;
+]): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>>>>>;
 
 export function best <
     ARGS extends any[],
@@ -236,14 +235,14 @@ export function best <
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>,
     ...((arg: any) => any)[]
-]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>, any>>>>>;
+]): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>, any>>>>>;
 
 export function best <
     ARGS extends any[],
     R0,
 > (...transforms:
     ((...args: ARGS) => Returns<R0>)[]
-): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<[], R0>>>>>;
+): (...args: ARGS) => Promise<Unwrap<FromArray<MakeScored<ToArray<[], R0>>>>>;
 
 export function best <
     ARGS extends any[],

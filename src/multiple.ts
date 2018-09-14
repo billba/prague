@@ -1,4 +1,4 @@
-import { Transform, Returns, from, Flatten } from "./prague";
+import { Returns, from, Flatten } from "./prague";
 const flat = require('array.prototype.flat');
 
 export type ToArray<Prev, Last> =
@@ -15,14 +15,14 @@ export type ToArray<Prev, Last> =
  */
 
 export function toArray (
-): Transform<[], []>;
+): () => Promise<[]>;
 
 export function toArray <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): Transform<ARGS, ToArray<[], R0>>;
+]): (...args: ARGS) => Promise<ToArray<[], R0>>;
 
 export function toArray <
     ARGS extends any[],
@@ -31,7 +31,7 @@ export function toArray <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>
-]): Transform<ARGS, ToArray<ToArray<[], R0>, R1>>;
+]): (...args: ARGS) => Promise<ToArray<ToArray<[], R0>, R1>>;
 
 export function toArray <
     ARGS extends any[],
@@ -42,7 +42,7 @@ export function toArray <
     (...args: ARGS) => Returns<R0>,
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>
-]): Transform<ARGS, ToArray<ToArray<ToArray<[], R0>, R1>, R2>>;
+]): (...args: ARGS) => Promise<ToArray<ToArray<ToArray<[], R0>, R1>, R2>>;
 
 export function toArray <
     ARGS extends any[],
@@ -55,7 +55,7 @@ export function toArray <
     (...args: ARGS) => Returns<R1>,
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>
-]): Transform<ARGS, ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>>;
+]): (...args: ARGS) => Promise<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>>;
 
 export function toArray <
     ARGS extends any[],
@@ -70,7 +70,7 @@ export function toArray <
     (...args: ARGS) => Returns<R2>,
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>
-]): Transform<ARGS, ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>>;
+]): (...args: ARGS) => Promise<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>>;
 
 export function toArray <
     ARGS extends any[],
@@ -86,14 +86,14 @@ export function toArray <
     (...args: ARGS) => Returns<R3>,
     (...args: ARGS) => Returns<R4>,
     ...((arg: any) => any)[]
-]): Transform<ARGS, ToArray<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>, any>>;
+]): (...args: ARGS) => Promise<ToArray<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>, any>>;
 
 export function toArray <
     ARGS extends any[],
     R0,
 > (...transforms:
     ((...args: ARGS) => Returns<R0>)[]
-): Transform<ARGS, ToArray<[], R0>>;
+): (...args: ARGS) => Promise<ToArray<[], R0>>;
 
 export function toArray (
     ...transforms: ((...args: any[]) => any)[]

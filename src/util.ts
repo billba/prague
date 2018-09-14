@@ -1,20 +1,20 @@
-import { match, Transform } from "./prague";
+import { match } from "./prague";
 
 /**
- * Wraps a Regular Expression in a Transform
+ * Wraps a Regular Expression in a transform
  * @param regexp The Regular Expression
  * @param group (optional) the capture group to return. If omitted, the array of all capture groups will be returned
- * @returns A new Transform which returns the result of executing the Regular Expression on its argument
+ * @returns A new transform which returns the result of executing the Regular Expression on its argument
  */
 
 export function re (
     regexp: RegExp,    
-): Transform<[string], RegExpExecArray | null>;
+): (text: string) => Promise<RegExpExecArray | null>;
 
 export function re (
     regexp: RegExp,
     group: number,
-): Transform<[string], string | null>;
+): (text: string) => Promise<string | null>;
 
 export function re (
     regexp: RegExp,

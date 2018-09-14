@@ -17,22 +17,13 @@ export const toPromise = <T> (
 // null means "No Result"
 
 /**
- * A function that always returns a Promise. A return value of Promise<null> is interpreted to mean "This transform did not apply". Most *Prague* helpers return a Transform.
+ * a transform that always returns `null`
  */
 
-export type Transform <
-    ARGS extends any[],
-    O,
-> = (...args: ARGS) => Promise<O>;
+export const transformToNull = () => Promise.resolve(null);
 
 /**
- * a Transform that always returns `null`
- */
-
-export const transformToNull: Transform<[], null> = () => Promise.resolve(null);
-
-/**
- * Normalizes result type of a *Prague* Transform (turns undefined => null)
+ * Normalizes result type of a *Prague* transform (turns undefined => null)
  * @param O The result type to normalize
  */
 
@@ -41,7 +32,7 @@ export type Flatten<T> = T extends Array<infer U> ? U : T;
 export type Norm<O> = O extends undefined ? null : O;
 
 /**
- * Normalizes the supplied function into a Transform. Most *Prague* helpers normalize the functions you pass them 
+ * Normalizes the supplied function into a transform. Most *Prague* helpers normalize the functions you pass them 
  * @param fn The function to normalize. Can return a `Promise` or not, and can return `undefined` in place of `null`.
  */
 
@@ -54,7 +45,6 @@ export const from = <
     if (typeof fn !== 'function')
         throw new Error("I can't transform that.");
 
-    return ((...args: ARGS) => toPromise(fn(...args))
-        .then(r => r == null ? null : r)
-    ) as Transform<ARGS, Norm<O>>;
+    return (...args: ARGS) => toPromise(fn(...args))
+        .then(r => r == null ? null : r) as Promise<Norm<O>>;
 }

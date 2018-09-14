@@ -1,5 +1,4 @@
 import readline from 'readline';
-import { Transform } from '../src/prague';
 
 export interface BotResponse {
     send: (text: string) => void;
@@ -10,7 +9,7 @@ export interface BotRequest {
     text: string;
 }
 
-export type Bot = Transform<[BotRequest, BotResponse], any>;
+export type Bot = (req: BotRequest, res: BotResponse) => Promise<any>;
 
 export class ConsoleBot {
     private exit = false;

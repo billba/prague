@@ -1,4 +1,4 @@
-import { pipe, Scored, tap, toPromise, Transform } from './prague';
+import { pipe, Scored, tap, toPromise } from './prague';
 
 /**
  * A reference to a function to potentially execute at a later time
@@ -70,9 +70,9 @@ export class ActionReferences <
     }
 
     /**
-     * Creates a new Transform which runs the function referenced by an ActionReference
+     * Creates a new transform which runs the function referenced by an ActionReference
      * @param contextArgs the arguments to pass to the getActions function passed to the constructor
-     * @returns A new Transform
+     * @returns A new transform
      */
 
     doAction <
@@ -80,9 +80,9 @@ export class ActionReferences <
     > (
         ...contextArgs: CONTEXTARGS
     ) {
-        return ((result: RESULT) => {
+        return (result: RESULT) => {
             if (!(result instanceof ActionReference))
-                return;
+                return Promise.resolve(null);
 
             const action = this.getActions(...contextArgs)[result.name];
 
@@ -90,14 +90,14 @@ export class ActionReferences <
                 throw `unknown action ${result.name}`;
 
             return toPromise(action(...result.args));
-        }) as Transform<[RESULT], any>;
+        };
     }
 
     /**
-     * Wraps a function in a new Transform which runs the function and runs the function reference if it's an ActionReference
+     * Wraps a function in a new transform which runs the function and runs the function reference if it's an ActionReference
      * @param transform the function whose result may be a function to run
      * @param contextArgs the arguments to pass to the getActions function passed to the constructor
-     * @returns A new Transform
+     * @returns A new transform
      */
 
     run <
