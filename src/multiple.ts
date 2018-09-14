@@ -8,10 +8,10 @@ export type ToArray<Prev, Last> =
     never;
 
 /**
- * Composes multiple functions into a new Transform which collects the non-null results of the functions
- * @param ARGS the type of the arguments to the functions and the resultant Transform
+ * Composes multiple functions into a new transform which collects the non-null results of the functions
+ * @param ARGS the type of the arguments to the functions and the resultant transform
  * @param transforms the functions to run
- * @returns a new Transform which returns the non-null results of the functions as an array or results, a single result, or null, as appropriate.
+ * @returns a new transform which returns the non-null results of the functions as an array or results, a single result, or null, as appropriate.
  */
 
 export function toArray (
@@ -107,8 +107,8 @@ export function toArray (
 }
 
 /**
- * A Transform for retrieving the first element of an array
- * @returns a new Transform which returns the contents of the first element of its argument if a non-empty array. If empty, returns null. If not an array, returns the argument.
+ * A transform for retrieving the first element of an array
+ * @returns a new transform which returns the contents of the first element of its argument if a non-empty array. If empty, returns null. If not an array, returns the argument.
  */
 
 export type FromArray<T> = T extends [] ? null : T extends Array<infer U> ? U : T;
