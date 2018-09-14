@@ -1,4 +1,4 @@
-import { Transform, pipe, toArray, fromArray } from './prague';
+import { Transform, pipe, toArray, fromArray, Returns, ToArray, FromArray } from './prague';
 
 /**
  * Wraps a result with its numeric score
@@ -89,7 +89,7 @@ export class Scored <
  * @returns its argument if not an array, otherwise a sorted version of the argument
  */
 
-type MakeScored<O> = O extends Array<infer T> ? Array<T extends Scored<infer U> ? T : Scored<T>> : O;
+type MakeScored<O> = O extends [] ? null : O extends Array<infer T> ? Array<T extends Scored<infer U> ? T : Scored<T>> : O;
 
 export const sort = <O> (
     ascending = false,
@@ -156,11 +156,94 @@ export function top <
     }) as Transform<[RESULT], RESULT>;
 }
 
+type Unwrap<T> = T extends Scored<infer U> ? U : T;
+
 /**
  * Composes multiple functions into a new Transform which returns the highest-scoring result of the functions
  * @param transforms the functions to run, each of which should return a Scored result or an array of Scored results
  * @returns a new Transform which returns the unwrapped highest-scoring result of the functions
  */
+
+export function best (
+): Transform<[], []>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>
+]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<[], R0>>>>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>,
+    (...args: ARGS) => Returns<R1>
+]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<[], R0>, R1>>>>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>,
+    (...args: ARGS) => Returns<R1>,
+    (...args: ARGS) => Returns<R2>
+]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<[], R0>, R1>, R2>>>>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>,
+    (...args: ARGS) => Returns<R1>,
+    (...args: ARGS) => Returns<R2>,
+    (...args: ARGS) => Returns<R3>
+]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>>>>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>,
+    (...args: ARGS) => Returns<R1>,
+    (...args: ARGS) => Returns<R2>,
+    (...args: ARGS) => Returns<R3>,
+    (...args: ARGS) => Returns<R4>
+]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>>>>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>,
+    (...args: ARGS) => Returns<R1>,
+    (...args: ARGS) => Returns<R2>,
+    (...args: ARGS) => Returns<R3>,
+    (...args: ARGS) => Returns<R4>,
+    ...((arg: any) => any)[]
+]): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>, any>>>>>;
+
+export function best <
+    ARGS extends any[],
+    R0,
+> (...transforms:
+    ((...args: ARGS) => Returns<R0>)[]
+): Transform<ARGS, Unwrap<FromArray<MakeScored<ToArray<[], R0>>>>>;
 
 export function best <
     ARGS extends any[],

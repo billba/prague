@@ -36,6 +36,8 @@ export const transformToNull: Transform<[], null> = () => Promise.resolve(null);
  * @param O The result type to normalize
  */
 
+export type Flatten<T> = T extends Array<infer U> ? U : T;
+
 export type Norm<O> = O extends undefined ? null : O;
 
 /**

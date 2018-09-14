@@ -1,10 +1,9 @@
-import { Transform, Returns, from } from "./prague";
+import { Transform, Returns, from, Flatten } from "./prague";
 const flat = require('array.prototype.flat');
 
-type Flatten<T> = T extends Array<infer U> ? U : T;
-
-type ToArray<Prev, Last> =
+export type ToArray<Prev, Last> =
     Last extends null | undefined ? Prev :
+    Prev extends [] ? Array<Flatten<Last>> :
     Prev extends Array<infer P> ? Array<P | Flatten<Last>> :
     never;
 
@@ -21,9 +20,9 @@ export function toArray (
 export function toArray <
     ARGS extends any[],
     R0,
-> (...transforms:
-    ((...args: ARGS) => Returns<R0>)[]
-): Transform<ARGS, ToArray<[], R0>>;
+> (...transforms: [
+    (...args: ARGS) => Returns<R0>
+]): Transform<ARGS, ToArray<[], R0>>;
 
 export function toArray <
     ARGS extends any[],
@@ -89,6 +88,13 @@ export function toArray <
     ...((arg: any) => any)[]
 ]): Transform<ARGS, ToArray<ToArray<ToArray<ToArray<ToArray<ToArray<[], R0>, R1>, R2>, R3>, R4>, any>>;
 
+export function toArray <
+    ARGS extends any[],
+    R0,
+> (...transforms:
+    ((...args: ARGS) => Returns<R0>)[]
+): Transform<ARGS, ToArray<[], R0>>;
+
 export function toArray (
     ...transforms: ((...args: any[]) => any)[]
 ) {
@@ -105,7 +111,7 @@ export function toArray (
  * @returns a new Transform which returns the contents of the first element of its argument if a non-empty array. If empty, returns null. If not an array, returns the argument.
  */
 
-type FromArray<T> = T extends [] ? null : T extends Array<infer U> ? U : T;
+export type FromArray<T> = T extends [] ? null : T extends Array<infer U> ? U : T;
 
 export function fromArray <R> (
     r: R,
