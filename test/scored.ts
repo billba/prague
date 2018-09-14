@@ -1,5 +1,5 @@
 import { expect } from './common';
-import { multiple, sort, pipe, top, best, Scored } from '../src/prague';
+import { toArray, sort, pipe, top, best, Scored } from '../src/prague';
 import { matches, rev, spreadme, spreaded } from './multiple';
 
 describe("Scored.from", () => {
@@ -101,7 +101,7 @@ describe("Scored.unwrap", () => {
 describe("sort", () => {
     it("should return Array in sorted order for sorted results", () =>
         pipe(
-            multiple(...matches.map(m => () => m)),
+            toArray(...matches.map(m => () => m)),
             sort(),
         )().then(_m => {
             expect(Array.isArray(_m)).is.true;
@@ -111,7 +111,7 @@ describe("sort", () => {
 
     it("should return Array in sorted order for unsorted results", () =>
         pipe(
-            multiple(...rev.map(m => () => m)),
+            toArray(...rev.map(m => () => m)),
             sort(),
         )().then(_m => {
             expect(Array.isArray(_m)).is.true;
@@ -121,7 +121,7 @@ describe("sort", () => {
 
     it("should return Array in reverse sorted order for unsorted results", () =>
         pipe(
-            multiple(...rev.map(m => () => m)),
+            toArray(...rev.map(m => () => m)),
             sort(true),
         )().then(_m => {
             expect(Array.isArray(_m)).is.true;
@@ -194,8 +194,7 @@ describe("top", () => {
                 maxResults: 2,
             }),
         )().then(m => {
-            expect(Array.isArray(m)).is.false;
-            expect(m).equals(matches[0]);
+            expect(m).deep.equals([matches[0]]);
         })
     );
 
@@ -208,10 +207,10 @@ describe("top", () => {
                 tolerance: .1,
             }),
         )().then(m => {
-            expect(Array.isArray(m)).is.true;
-            expect(m.length).equals(2);
-            expect(m[0]).equals(spreaded[0]);
-            expect(m[1]).equals(spreaded[1]);
+            expect(m).deep.equals([
+                spreaded[0],
+                spreaded[1]
+            ]);
         })
     );
 
@@ -223,8 +222,6 @@ describe("top", () => {
                 tolerance: 1,
             }),
         )().then(m => {
-            expect(Array.isArray(m)).is.true;
-            expect(m.length).equals(4);
             expect(m).deep.equals(spreaded);
         })
     );

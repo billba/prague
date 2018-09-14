@@ -1,5 +1,5 @@
 import { expect, isNull } from './common';
-import { multiple, Scored } from '../src/prague';
+import { toArray, fromArray, Scored } from '../src/prague';
 
 export const matches = [
     Scored.from("hello", .75),
@@ -20,27 +20,37 @@ export const spreaded = [
     spreadme[1],
 ]
 
-describe("multiple", () => {
-    it("should pass through a single result", () => {
-        const m = "hi";
+describe("toArray", () => {
+    const s = "Hi";
 
-        return multiple(
-            () => m,
+    it("should create an empty array on no args", () => 
+        toArray(
         )()
         .then(_m => {
-            expect(_m).equals(m);
-        });
-    });
+            expect(_m).deep.equals([]);
+        })
+    );
 
-    it("should emit null on null", () =>
-        multiple(
+    it("should create an empty array on () => null", () => 
+        toArray(
             () => null,
         )()
-        .then(isNull)
+        .then(_m => {
+            expect(_m).deep.equals([]);
+        })
+    );
+
+    it("should put result in an array", () => 
+        toArray(
+            () => s,
+        )()
+        .then(_m => {
+            expect(_m).deep.equals([s]);
+        })
     );
 
     it("should return Array for multiple results", () =>
-        multiple(
+        toArray(
             ...matches.map(m => () => m)
         )().then(_m => {
             expect(Array.isArray(_m)).is.true;
@@ -49,7 +59,7 @@ describe("multiple", () => {
     );
 
     it("should spread Multiples", () =>
-        multiple(
+        toArray(
             () => matches[0],
             () => spreadme,
             () => matches[1],
@@ -61,6 +71,33 @@ describe("multiple", () => {
                 spreadme[1],
                 matches[1],
             ])
+        })
+    );
+});
+
+describe("fromArray", () => {
+    it("should return null for empty array", () => 
+        fromArray(
+            []
+        )
+        .then(isNull)
+    );
+
+    it("should return first element of array", () => 
+        fromArray(
+            [13]
+        )
+        .then(m => {
+            expect(m).equals(13);
+        })
+    );
+
+    it("should pass through non-array", () => 
+        fromArray(
+            13
+        )
+        .then(m => {
+            expect(m).equals(13);
         })
     );
 });

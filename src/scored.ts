@@ -1,4 +1,4 @@
-import { Transform, pipe, multiple } from './prague';
+import { Transform, pipe, toArray, fromArray } from './prague';
 
 /**
  * Wraps a result with its numeric score
@@ -89,6 +89,8 @@ export class Scored <
  * @returns its argument if not an array, otherwise a sorted version of the argument
  */
 
+type MakeScored<O> = O extends Array<infer T> ? Array<T extends Scored<infer U> ? T : Scored<T>> : O;
+
 export const sort = <O> (
     ascending = false,
 ) => ((o: O) => Promise.resolve(Array.isArray(o)
@@ -96,7 +98,7 @@ export const sort = <O> (
         .map(result => Scored.from(result))
         .sort((a, b) => ascending ? (a.score - b.score) : (b.score - a.score))
     : o
-)) as Transform<[O], Scored<any> | Scored<any>[]>;
+)) as Transform<[O], MakeScored<O>>;
 
 export interface TopOptions {
     maxResults?: number;
@@ -150,8 +152,8 @@ export function top <
             top.push(_result);
         }
 
-        return top.length === 1 ? top[0] : top;
-    }) as Transform<[RESULT], RESULT | Scored<any> | Scored<any>[]>;
+        return top;
+    }) as Transform<[RESULT], RESULT>;
 }
 
 /**
@@ -166,11 +168,9 @@ export function best <
     ...transforms: ((...args: ARGS) => any)[]
 ) {
     return pipe(
-        multiple(...transforms),
+        toArray(...transforms),
         sort(),
-        top({
-            maxResults: 1,
-        }),
+        fromArray,
         Scored.unwrap,
     );
 }
