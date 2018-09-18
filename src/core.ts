@@ -23,13 +23,6 @@ export const toPromise = <T> (
 export const transformToNull = () => Promise.resolve(null);
 
 /**
- * Normalizes result type of a *Prague* transform (turns undefined => null)
- * @param O The result type to normalize
- */
-
-export type Flatten<T> = T extends Array<infer U> ? U : T;
-
-/**
  * Normalizes the supplied function into a transform. Most *Prague* helpers normalize the functions you pass them 
  * @param fn The function to normalize. Can return a `Promise` or not.
  */

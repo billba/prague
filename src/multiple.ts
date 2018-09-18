@@ -1,6 +1,8 @@
 import { Returns, from, Flatten } from "./prague";
 const flat = require('array.prototype.flat');
 
+export type Flatten<T> = T extends Array<infer U> ? U : T;
+
 export type ToArray<Prev, Last> =
     Last extends null | undefined ? Prev :
     Prev extends [] ? Array<Flatten<Last>> :
