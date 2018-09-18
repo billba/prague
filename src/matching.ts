@@ -1,5 +1,5 @@
 import { Returns, combine, from } from './prague';
-import { transformToNull, Norm } from './core';
+import { transformToNull } from './core';
 
 /**
  * Composes two functions into a new transform which chooses which function to run based on the argument.
@@ -19,7 +19,7 @@ export const branch = <
     const _onResult = from(onResult);
     const _onNull = onNull ? from(onNull) : transformToNull;
 
-    return (o: O) => (o === null ? _onNull() : _onResult(o as NonNullable<O>)) as Promise<Norm<ONRESULT | ONNULL>>;
+    return (o: O) => (o == null ? _onNull() : _onResult(o as NonNullable<O>)) as Promise<ONRESULT | ONNULL>;
 }
 
 /**

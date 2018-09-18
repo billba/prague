@@ -1,4 +1,4 @@
-import { Returns, from, toPromise, transformToNull, Norm } from "./prague";
+import { Returns, from, toPromise, transformToNull } from "./prague";
 
 function _pipe (
     shortCircuit: boolean,
@@ -12,7 +12,7 @@ function _pipe (
     return async (...args: any[]) => {
         for (const transform of _transforms) {
             args = [await transform(...args)];
-            if (shortCircuit && args[0] === null)
+            if (shortCircuit && args[0] == null)
                 return null;
         }
 
@@ -20,7 +20,7 @@ function _pipe (
     }
 }
 
-type Pipe<Prev, Last> = Prev extends null | undefined ? null : Norm<Last>;
+type Pipe<Prev, Last> = Prev extends null | undefined ? Prev : Last;
 
 /**
  * Compose multiple functions into a new transform by chaining the result of one as the argument to the next, stopping if one returns null
@@ -37,7 +37,7 @@ export function pipe <
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): (...args: ARGS) => Promise<Norm<R0>>;
+]): (...args: ARGS) => Promise<R0>;
 
 export function pipe <
     ARGS extends any[],
@@ -173,7 +173,7 @@ export function combine <
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): (...args: ARGS) => Promise<Norm<R0>>;
+]): (...args: ARGS) => Promise<R0>;
 
 export function combine <
     ARGS extends any[],
@@ -182,7 +182,7 @@ export function combine <
 > (...transforms: [
     (...args: ARGS) => Returns<R0>,
     (arg: R0)       => Returns<R1>
-]): (...args: ARGS) => Promise<Norm<R1>>;
+]): (...args: ARGS) => Promise<R1>;
 
 export function combine <
     ARGS extends any[],
@@ -193,7 +193,7 @@ export function combine <
     (...args: ARGS) => Returns<R0>,
     (arg: R0)       => Returns<R1>,
     (arg: R1)       => Returns<R2>
-]): (...args: ARGS) => Promise<Norm<R2>>;
+]): (...args: ARGS) => Promise<R2>;
 
 export function combine <
     ARGS extends any[],
@@ -206,7 +206,7 @@ export function combine <
     (arg: R0)       => Returns<R1>,
     (arg: R1)       => Returns<R2>,
     (arg: R2)       => Returns<R3>
-]): (...args: ARGS) => Promise<Norm<R3>>;
+]): (...args: ARGS) => Promise<R3>;
 
 export function combine <
     ARGS extends any[],
@@ -221,7 +221,7 @@ export function combine <
     (arg: R1)       => Returns<R2>,
     (arg: R2)       => Returns<R3>,
     (arg: R3)       => Returns<R4>
-]): (...args: ARGS) => Promise<Norm<R4>>;
+]): (...args: ARGS) => Promise<R4>;
 
 export function combine <
     ARGS extends any[],

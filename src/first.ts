@@ -1,6 +1,6 @@
-import { Returns, transformToNull, from, Norm } from "./prague";
+import { Returns, transformToNull, from } from "./prague";
 
-type First<Prev, Last> = Prev extends null | undefined ? Norm<Last> : Prev;
+type First<Prev, Last> = Prev extends null | undefined ? Last : Prev;
 
 /**
  * Compose multiple functions into a single transform which tries each function in sequence until one succeeds  
@@ -17,7 +17,7 @@ export function first <
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
-]): (...args: ARGS) => Promise<Norm<R0>>;
+]): (...args: ARGS) => Promise<R0>;
 
 export function first <
     ARGS extends any[],
@@ -94,7 +94,7 @@ export function first (
     return async (...args: any[]) => {
         for (const transform of _transforms) {
             const o = await transform(...args);
-            if (o !== null)
+            if (o != null)
                 return o;
         }
 

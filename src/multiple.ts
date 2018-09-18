@@ -102,7 +102,7 @@ export function toArray (
 
     return async (...args: any[]) => flat(
         (await Promise.all(_transforms.map(transform => transform(...args))))
-            .filter(o => o !== null)
+            .filter(o => o != null)
     ) as any[];
 }
 

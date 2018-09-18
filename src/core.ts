@@ -29,11 +29,9 @@ export const transformToNull = () => Promise.resolve(null);
 
 export type Flatten<T> = T extends Array<infer U> ? U : T;
 
-export type Norm<O> = O extends undefined ? null : O;
-
 /**
  * Normalizes the supplied function into a transform. Most *Prague* helpers normalize the functions you pass them 
- * @param fn The function to normalize. Can return a `Promise` or not, and can return `undefined` in place of `null`.
+ * @param fn The function to normalize. Can return a `Promise` or not.
  */
 
 export const from = <
@@ -45,6 +43,5 @@ export const from = <
     if (typeof fn !== 'function')
         throw new Error("I can't transform that.");
 
-    return (...args: ARGS) => toPromise(fn(...args))
-        .then(r => r == null ? null : r) as Promise<Norm<O>>;
+    return (...args: ARGS) => toPromise(fn(...args));
 }

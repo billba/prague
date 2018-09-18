@@ -2,7 +2,7 @@ import { expect } from 'chai';
 export { expect } from 'chai';
 
 export const isNull = (o: any) => {
-    expect(o).is.null;
+    expect(o == null).is.true;
 }
 
 export const throwErr = () => {
