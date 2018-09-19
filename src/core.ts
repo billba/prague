@@ -14,8 +14,6 @@ export const toPromise = <T> (
     t: Returns<T>,
 ) => t instanceof Promise ? t : Promise.resolve(t);
 
-// null means "No Result"
-
 /**
  * a transform that always returns `null`
  */
