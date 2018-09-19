@@ -1,4 +1,4 @@
-import { Returns, from, toPromise, transformToNull } from "./prague";
+import { Returns, toPromise, transformToNull } from "./prague";
 
 function _pipe (
     shortCircuit: boolean,
@@ -7,11 +7,9 @@ function _pipe (
     if (transforms.length === 0)
         return transformToNull;
 
-    const _transforms = transforms.map(from);
-
     return async (...args: any[]) => {
-        for (const transform of _transforms) {
-            args = [await transform(...args)];
+        for (const transform of transforms) {
+            args = [await toPromise(transform(...args))];
             if (shortCircuit && args[0] == null)
                 return null;
         }

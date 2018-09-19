@@ -1,4 +1,4 @@
-import { Returns, from, Flatten } from "./prague";
+import { Returns, Flatten, toPromise } from "./prague";
 const flat = require('array.prototype.flat');
 
 export type Flatten<T> = T extends Array<infer U> ? U : T;
@@ -100,10 +100,8 @@ export function toArray <
 export function toArray (
     ...transforms: ((...args: any[]) => any)[]
 ) {
-    const _transforms = transforms.map(from);
-
     return async (...args: any[]) => flat(
-        (await Promise.all(_transforms.map(transform => transform(...args))))
+        (await Promise.all(transforms.map(transform => toPromise(transform(...args)))))
             .filter(o => o != null)
     ) as any[];
 }

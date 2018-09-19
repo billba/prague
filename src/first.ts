@@ -1,4 +1,4 @@
-import { Returns, transformToNull, from } from "./prague";
+import { Returns, transformToNull, toPromise } from "./prague";
 
 type First<Prev, Last> = Prev extends null | undefined ? Last : Prev;
 
@@ -89,11 +89,9 @@ export function first (
     if (transforms.length === 0)
         return transformToNull;
 
-    const _transforms = transforms.map(from);
-
     return async (...args: any[]) => {
-        for (const transform of _transforms) {
-            const o = await transform(...args);
+        for (const transform of transforms) {
+            const o = await toPromise(transform(...args));
             if (o != null)
                 return o;
         }

@@ -1,5 +1,4 @@
-import { Returns, combine, from } from './prague';
-import { transformToNull } from './core';
+import { Returns, combine, toPromise, promiseOfNull } from './prague';
 
 /**
  * Composes two functions into a new transform which chooses which function to run based on the argument.
@@ -15,12 +14,11 @@ export const branch = <
 > (
     onResult: (result: NonNullable<O>) => Returns<ONRESULT>,
     onNull?: () => Returns<ONNULL>,
-) => {
-    const _onResult = from(onResult);
-    const _onNull = onNull ? from(onNull) : transformToNull;
-
-    return (o: O) => (o == null ? _onNull() : _onResult(o as NonNullable<O>)) as Promise<ONRESULT | ONNULL>;
-}
+) => (o: O) => (
+    o == null
+        ? onNull ? toPromise(onNull()) : promiseOfNull
+        : toPromise(onResult(o as NonNullable<O>))
+) as Promise<ONRESULT | ONNULL>;
 
 /**
  * Composes three functions into a new transform. The first determines which of the other two to run.

@@ -14,11 +14,13 @@ export const toPromise = <T> (
     t: Returns<T>,
 ) => t instanceof Promise ? t : Promise.resolve(t);
 
+export const promiseOfNull = Promise.resolve(null)
+
 /**
  * a transform that always returns `null`
  */
 
-export const transformToNull = () => Promise.resolve(null);
+ export const transformToNull = () => promiseOfNull;
 
 /**
  * Normalizes the supplied function into a transform. Most *Prague* helpers normalize the functions you pass them 
