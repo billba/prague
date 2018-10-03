@@ -1,6 +1,6 @@
 {
   "name": "prague",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "FP helpers for games and chatbots",
   "main": "lib/src/prague.js",
   "types": "lib/src/prague.d.ts",
@@ -17,7 +17,7 @@
     "@types/node": "^10.9.2",
     "chai": "^4.1.2",
     "mocha": "^5.2.0",
-    "typescript": "^3.1.0-rc.20180911"
+    "typescript": "^3.1.1"
   },
   "dependencies": {
     "array.prototype.flat": "^1.2.1"
