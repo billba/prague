@@ -1,4 +1,4 @@
-import { pipe, toArray, fromArray, Returns, ToArray, FromArray } from './prague';
+import { tube, toArray, fromArray, Returns, ToArray, FromArray } from './prague';
 
 /**
  * Wraps a result with its numeric score
@@ -249,7 +249,7 @@ export function best <
 > (
     ...transforms: ((...args: ARGS) => any)[]
 ) {
-    return pipe(
+    return tube(
         toArray(...transforms),
         sort(),
         fromArray,

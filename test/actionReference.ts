@@ -1,5 +1,5 @@
 import { expect } from './common';
-import { ActionReference, ActionReferences, pipe } from '../src/prague';
+import { ActionReference, ActionReferences, tube } from '../src/prague';
 
 describe("ActionReference", () => {
     it("should create an ActionReference with no args", () => {
@@ -44,7 +44,7 @@ describe("ActionReferences", () => {
     it("should convert greeting reference to greeting function", () => {
         output = [];
 
-        return pipe(
+        return tube(
             (name: string) => actions.reference.greeting(name),
             actions.doAction(sendToOutput),
         )("bill")
@@ -56,7 +56,7 @@ describe("ActionReferences", () => {
     it("should convert farewell reference to farewell function", () => {
         output = [];
 
-        return pipe(
+        return tube(
             () => actions.reference.farewell(),
             actions.doAction(sendToOutput),
         )()

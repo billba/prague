@@ -1,9 +1,9 @@
 import { expect, throwErr, isNull } from './common';
-import { match, matchIf, branch, combine, onlyContinueIf, pipe } from '../src/prague';
+import { match, matchIf, branch, pipe, onlyContinueIf, tube } from '../src/prague';
 
 describe("branch", () => {
     it("should return first transform on Result", () =>
-        combine(
+        pipe(
             (a: string | null) => a,
             branch(
                 a => a,
@@ -16,7 +16,7 @@ describe("branch", () => {
     );
 
     it("should return second transform on null", () =>
-        combine(
+        pipe(
             (a: string | null) => a,
             branch(
                 a => a,
@@ -29,7 +29,7 @@ describe("branch", () => {
     );
 
     it("should return null on null when second transform is missing", () =>
-        combine(
+        pipe(
             (a: string | null) => a,
             branch(
                 a => a,
@@ -144,7 +144,7 @@ describe("onlyContinueIf", () => {
 
     truthyValues.forEach(value => {
         it(`should continue on ${value}`, () =>
-            pipe(
+            tube(
                 onlyContinueIf(() => value),
                 () => value,
             )()
@@ -156,7 +156,7 @@ describe("onlyContinueIf", () => {
 
     falseyValues.forEach(value => {
         it(`should not continue on ${value}`, () =>
-            pipe(
+            tube(
                 onlyContinueIf(() => value),
                 () => value,
             )()

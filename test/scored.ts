@@ -1,5 +1,5 @@
 import { expect } from './common';
-import { toArray, sort, pipe, top, best, Scored } from '../src/prague';
+import { toArray, sort, tube, top, best, Scored } from '../src/prague';
 import { matches, rev, spreadme, spreaded } from './multiple';
 
 describe("Scored.from", () => {
@@ -100,7 +100,7 @@ describe("Scored.unwrap", () => {
 
 describe("sort", () => {
     it("should return Array in sorted order for sorted results", () =>
-        pipe(
+        tube(
             toArray(...matches.map(m => () => m)),
             sort(),
         )().then(_m => {
@@ -110,7 +110,7 @@ describe("sort", () => {
     );
 
     it("should return Array in sorted order for unsorted results", () =>
-        pipe(
+        tube(
             toArray(...rev.map(m => () => m)),
             sort(),
         )().then(_m => {
@@ -120,7 +120,7 @@ describe("sort", () => {
     );
 
     it("should return Array in reverse sorted order for unsorted results", () =>
-        pipe(
+        tube(
             toArray(...rev.map(m => () => m)),
             sort(true),
         )().then(_m => {
@@ -172,7 +172,7 @@ describe("top", () => {
     });
 
     it("should default to quantity infinity, tolerance 0", () =>
-        pipe(
+        tube(
             () => [
                 Scored.from("hi", .5),
                 Scored.from("hello", .5),
@@ -187,7 +187,7 @@ describe("top", () => {
     );
 
     it("should return one item when maxLength == 2 but tolerance is zero", () =>
-        pipe(
+        tube(
             () => spreaded,
             sort(),
             top({
@@ -199,7 +199,7 @@ describe("top", () => {
     );
 
     it("should return two items when maxLength == 2 but tolerance is .1", () =>
-        pipe(
+        tube(
             () => spreaded,
             sort(),
             top({
@@ -215,7 +215,7 @@ describe("top", () => {
     );
 
     it("should return all items when tolerance is 1", () =>
-        pipe(
+        tube(
             () => spreaded,
             sort(),
             top({

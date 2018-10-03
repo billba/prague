@@ -18,7 +18,7 @@ function _pipe (
     }
 }
 
-type Pipe<Prev, Last> = Prev extends null | undefined ? Prev : Last;
+type Tube<Prev, Last> = Prev extends null | undefined ? Prev : Last;
 
 /**
  * Compose multiple functions into a new transform by chaining the result of one as the argument to the next, stopping if one returns null
@@ -27,26 +27,26 @@ type Pipe<Prev, Last> = Prev extends null | undefined ? Prev : Last;
  * @returns A new transform which returns null if any function returns null, otherwise the result of the last function
  */
 
-export function pipe(
+export function tube(
 ): () => Promise<null>;
 
-export function pipe <
+export function tube <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
 ]): (...args: ARGS) => Promise<R0>;
 
-export function pipe <
+export function tube <
     ARGS extends any[],
     R0,
     R1,
 > (...transforms: [
     (...args: ARGS)        => Returns<R0>,
     (arg: NonNullable<R0>) => Returns<R1>
-]): (...args: ARGS) => Promise<Pipe<R0, R1>>;
+]): (...args: ARGS) => Promise<Tube<R0, R1>>;
 
-export function pipe <
+export function tube <
     ARGS extends any[],
     R0,
     R1,
@@ -55,9 +55,9 @@ export function pipe <
     (...args: ARGS)        => Returns<R0>,
     (arg: NonNullable<R0>) => Returns<R1>,
     (arg: NonNullable<R1>) => Returns<R2>
-]): (...args: ARGS) => Promise<Pipe<Pipe<R0, R1>, R2>>;
+]): (...args: ARGS) => Promise<Tube<Tube<R0, R1>, R2>>;
 
-export function pipe <
+export function tube <
     ARGS extends any[],
     R0,
     R1,
@@ -68,9 +68,9 @@ export function pipe <
     (arg: NonNullable<R0>) => Returns<R1>,
     (arg: NonNullable<R1>) => Returns<R2>,
     (arg: NonNullable<R2>) => Returns<R3>
-]): (...args: ARGS) => Promise<Pipe<Pipe<Pipe<R0, R1>, R2>, R3>>;
+]): (...args: ARGS) => Promise<Tube<Tube<Tube<R0, R1>, R2>, R3>>;
 
-export function pipe <
+export function tube <
     ARGS extends any[],
     R0,
     R1,
@@ -83,9 +83,9 @@ export function pipe <
     (arg: NonNullable<R1>) => Returns<R2>,
     (arg: NonNullable<R2>) => Returns<R3>,
     (arg: NonNullable<R3>) => Returns<R4>
-]): (...args: ARGS) => Promise<Pipe<Pipe<Pipe<Pipe<R0, R1>, R2>, R3>, R4>>;
+]): (...args: ARGS) => Promise<Tube<Tube<Tube<Tube<R0, R1>, R2>, R3>, R4>>;
 
-export function pipe <
+export function tube <
     ARGS extends any[],
     R0,
     R1,
@@ -99,9 +99,9 @@ export function pipe <
     (arg: NonNullable<R2>) => Returns<R3>,
     (arg: NonNullable<R3>) => Returns<R4>,
     ...((arg: any) => any)[]
-]): (...args: ARGS) => Promise<Pipe<Pipe<Pipe<Pipe<Pipe<R0, R1>, R2>, R3>, R4>, any>>;
+]): (...args: ARGS) => Promise<Tube<Tube<Tube<Tube<Tube<R0, R1>, R2>, R3>, R4>, any>>;
 
-export function pipe (
+export function tube (
     ...transforms: ((...args: any[]) => any)[]
 ) {
     return _pipe(true, ...transforms);
@@ -150,7 +150,7 @@ export function run <
 > (
     transform: (...args: ARGS) => O
 ) {
-    return pipe(
+    return tube(
         transform,
         doAction,
     );
@@ -163,17 +163,17 @@ export function run <
  * @returns A new transform which returns the result of the last function
  */
 
-export function combine (
+export function pipe (
 ): () => Promise<null>;
 
-export function combine <
+export function pipe <
     ARGS extends any[],
     R0,
 > (...transforms: [
     (...args: ARGS) => Returns<R0>
 ]): (...args: ARGS) => Promise<R0>;
 
-export function combine <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -182,7 +182,7 @@ export function combine <
     (arg: R0)       => Returns<R1>
 ]): (...args: ARGS) => Promise<R1>;
 
-export function combine <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -193,7 +193,7 @@ export function combine <
     (arg: R1)       => Returns<R2>
 ]): (...args: ARGS) => Promise<R2>;
 
-export function combine <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -206,7 +206,7 @@ export function combine <
     (arg: R2)       => Returns<R3>
 ]): (...args: ARGS) => Promise<R3>;
 
-export function combine <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -221,7 +221,7 @@ export function combine <
     (arg: R3)       => Returns<R4>
 ]): (...args: ARGS) => Promise<R4>;
 
-export function combine <
+export function pipe <
     ARGS extends any[],
     R0,
     R1,
@@ -236,7 +236,7 @@ export function combine <
     ...((arg: any) => any)[]
 ]): (...args: ARGS) => Promise<any>;
 
-export function combine (
+export function pipe (
     ...transforms: ((...args: any[]) => any)[]
 ) {
     return _pipe(false, ...transforms);

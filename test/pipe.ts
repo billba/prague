@@ -1,17 +1,17 @@
 import { expect, throwErr, isNull } from './common';
-import { pipe, run, tap, combine, doAction } from '../src/prague';
+import { tube, run, tap, pipe, doAction } from '../src/prague';
 
 describe("pipe", () => {
 
     it('should emit null when first transform emits null', () =>
-        pipe(
+        tube(
             () => undefined,
         )()
         .then(isNull)
     );
 
     it('should emit null and not call second transform when first transform emits null', () =>
-        pipe(
+        tube(
             () => undefined,
             throwErr,
         )()
@@ -19,7 +19,7 @@ describe("pipe", () => {
     );
 
     it('should emit null when second transform emits null', () =>
-        pipe(
+        tube(
             () => "hi",
             () => undefined,
         )()
@@ -27,7 +27,7 @@ describe("pipe", () => {
     );
 
     it('should pass through argument to first transform', () =>
-        pipe(
+        tube(
             (a: string) => a,
         )("hi")
         .then(m => {
@@ -36,7 +36,7 @@ describe("pipe", () => {
     );
 
     it('should pass through multiple arguments to first transform', () =>
-        pipe(
+        tube(
             (a: string, b: number) => a.repeat(b),
         )("hi", 2)
         .then(m => {
@@ -45,7 +45,7 @@ describe("pipe", () => {
     );
 
     it('should pass result of first transform to second transform', () =>
-        pipe(
+        tube(
             (a: string, b: number) => a.repeat(b),
             a => a,
         )("hi", 2)
@@ -55,7 +55,7 @@ describe("pipe", () => {
     );
 
     it('should pass result of second transform to third transform', () =>
-        pipe(
+        tube(
             (a: string, b: number) => a.repeat(b),
             a => a,
             a => a,
@@ -66,7 +66,7 @@ describe("pipe", () => {
     );
 
     it('should short circuit on second null', () =>
-        pipe(
+        tube(
             (a: string, b: number) => a.repeat(b),
             a => null,
             throwErr,
@@ -79,7 +79,7 @@ describe("tap", () => {
     it("should get the result of the previous function, and pass through to following function", () => {
         let handled = "no";
 
-        return pipe(
+        return tube(
             (a: string, b: number) => a.repeat(b),
             tap(a => {
                 handled = a;
@@ -95,7 +95,7 @@ describe("tap", () => {
 
 describe("doAction", () => {
     it("should ignore non-function result", () =>
-        pipe(
+        tube(
             (a: string, b: number) => a.repeat(b),
             doAction,
         )("hi", 2).then(m => {
@@ -106,7 +106,7 @@ describe("doAction", () => {
     it("should do function", () => {
         let handled = "no";
 
-        return pipe(
+        return tube(
             (a: string) => () => {
                 handled = a;
             },
@@ -144,14 +144,14 @@ describe("run", () => {
 describe("combine", () => {
 
     it('should emit null when first transform emits null', () =>
-        combine(
+        pipe(
             () => undefined,
         )()
         .then(isNull)
     );
 
     it('should emit null when second transform emits null', () =>
-        combine(
+        pipe(
             () => "hi",
             () => undefined,
         )()
@@ -159,7 +159,7 @@ describe("combine", () => {
     );
 
     it('should pass through argument to first transform', () =>
-        combine(
+        pipe(
             (a: string) => a,
         )("hi").then(m => {
             expect(m).equals("hi");
@@ -167,7 +167,7 @@ describe("combine", () => {
     );
 
     it('should pass through multiple arguments to first transform', () =>
-        combine(
+        pipe(
             (a: string, b: number) => a.repeat(b),
         )("hi", 2).then(m => {
             expect(m).equals("hihi");
@@ -175,7 +175,7 @@ describe("combine", () => {
     );
 
     it('should pass result of first transform to second transform', () =>
-        combine(
+        pipe(
             (a: string, b: number) => a.repeat(b),
             a => a,
         )("hi", 2).then(m => {

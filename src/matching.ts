@@ -1,4 +1,4 @@
-import { Returns, combine, toPromise, promiseOfNull } from './prague';
+import { Returns, pipe, toPromise, promiseOfNull } from './prague';
 
 /**
  * Composes two functions into a new transform which chooses which function to run based on the argument.
@@ -37,7 +37,7 @@ export const match = <
     matcher: (...args: ARGS) => Returns<O>,
     onResult: (result: NonNullable<O>) => Returns<ONRESULT>,
     onNull?: () => Returns<ONNULL>,
-) => combine(
+) => pipe(
     matcher,
     branch(onResult, onNull),
 );
@@ -52,7 +52,7 @@ export const toPredicate = <
     ARGS extends any[],
 > (
     predicate: (...args: ARGS) => any,
-) => combine(
+) => pipe(
     predicate,
     o => o ? true : null,
 );
@@ -81,7 +81,7 @@ export const matchIf = <
     predicate: (...args: ARGS) => any,
     onTruthy: () => Returns<ONTRUTHY>,
     onFalsey?: () => Returns<ONFALSEY>,
-) => combine(
+) => pipe(
     toPredicate(predicate),
     branch(onTruthy, onFalsey),
 );

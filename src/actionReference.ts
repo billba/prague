@@ -1,4 +1,4 @@
-import { pipe, Scored, tap, toPromise } from './prague';
+import { tube, Scored, tap, toPromise } from './prague';
 
 /**
  * A reference to a function to potentially execute at a later time
@@ -106,7 +106,7 @@ export class ActionReferences <
         transform: (...args: ARGS) => any,
         ...contextArgs: CONTEXTARGS
     ) {
-        return pipe(
+        return tube(
             transform,
             tap(this.doAction(...contextArgs)),
         );
